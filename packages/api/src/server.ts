@@ -13,6 +13,51 @@ import { registerFrontend } from './frontends.js';
 
 const packagesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
+/**
+ * Подключение к Telegram с повторами. Свежий домен (например, туннель) не сразу
+ * виден снаружи, поэтому первая попытка часто падает на резолве имени —
+ * это нормально и лечится ожиданием, а не падением процесса.
+ */
+async function setupTelegram(
+  bot: ReturnType<typeof createBot>,
+  app: Awaited<ReturnType<typeof buildApp>>,
+  miniAppUrl: string,
+): Promise<void> {
+  const webhookUrl = `${config.publicBaseUrl}/bot/webhook/${config.webhookSecret}`;
+
+  await bot.init();
+
+  if (!webhookUrl.startsWith('https://')) {
+    // Telegram принимает вебхуки только по HTTPS — локально работаем поллингом.
+    app.log.warn('PUBLIC_BASE_URL не https, запускаю бота в режиме long polling');
+    void bot.start({ allowed_updates: ['message', 'callback_query'] });
+    return;
+  }
+
+  const delaysMs = [0, 5_000, 15_000, 30_000, 60_000];
+  for (const [attempt, delay] of delaysMs.entries()) {
+    if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+    try {
+      await bot.api.setWebhook(webhookUrl, {
+        secret_token: config.webhookSecret,
+        allowed_updates: ['message', 'callback_query'],
+      });
+      await configureBotCommands(bot, miniAppUrl);
+      app.log.info(`вебхук установлен: ${webhookUrl}`);
+      return;
+    } catch (error) {
+      const last = attempt === delaysMs.length - 1;
+      app.log[last ? 'error' : 'warn'](
+        { err: error },
+        last
+          ? 'вебхук так и не установился — бот не будет получать сообщения'
+          : `вебхук не установился, попытка ${attempt + 1} из ${delaysMs.length}`,
+      );
+      if (last) throw error;
+    }
+  }
+}
+
 async function main(): Promise<void> {
   const db = openDb(config.dbPath);
   const nominatim = new NominatimClient({
@@ -70,20 +115,12 @@ async function main(): Promise<void> {
   await app.listen({ port: config.port, host: config.host });
 
   if (bot) {
-    await bot.init();
-    const webhookUrl = `${config.publicBaseUrl}/bot/webhook/${config.webhookSecret}`;
-    if (webhookUrl.startsWith('https://')) {
-      await bot.api.setWebhook(webhookUrl, {
-        secret_token: config.webhookSecret,
-        allowed_updates: ['message', 'callback_query'],
-      });
-      await configureBotCommands(bot, miniAppUrl);
-      app.log.info(`вебхук установлен: ${webhookUrl}`);
-    } else {
-      // Telegram принимает вебхуки только по HTTPS — локально работаем поллингом.
-      app.log.warn('PUBLIC_BASE_URL не https, запускаю бота в режиме long polling');
-      void bot.start({ allowed_updates: ['message', 'callback_query'] });
-    }
+    // Настройка бота идёт отдельно от HTTP и не может его уронить: страница-конверт
+    // обязана открываться, даже когда Telegram недоступен или адрес ещё не разошёлся
+    // по DNS. Иначе чужой сбой на старте гасит весь продукт.
+    void setupTelegram(bot, app, miniAppUrl).catch((error) => {
+      app.log.error({ err: error }, 'бот не настроился, HTTP при этом работает');
+    });
   }
 
   const shutdown = async () => {

@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+data
+.env
+.env.*
+**/.env.local
+.git
+.claude
+deploy
+README.md
+tz-invite-app.md
