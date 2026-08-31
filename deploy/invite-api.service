@@ -1,0 +1,23 @@
+[Unit]
+Description=Invite app (бот, API, Mini App, гость-страница)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=invite
+WorkingDirectory=/srv/invite
+EnvironmentFile=/srv/invite/.env
+ExecStart=/usr/bin/node packages/api/dist/server.js
+Restart=always
+RestartSec=5
+
+# SQLite и кеш фото живут в data/ — единственный каталог, куда нужна запись.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/invite/data
+
+[Install]
+WantedBy=multi-user.target

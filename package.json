@@ -1,0 +1,23 @@
+{
+  "name": "invite",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/shared",
+    "packages/api",
+    "packages/miniapp",
+    "packages/guest"
+  ],
+  "scripts": {
+    "build": "npm run build -w @invite/shared && npm run build -w @invite/api && npm run build -w @invite/miniapp && npm run build -w @invite/guest",
+    "dev:api": "npm run dev -w @invite/api",
+    "dev:miniapp": "npm run dev -w @invite/miniapp",
+    "dev:guest": "npm run dev -w @invite/guest",
+    "test": "npm run build -w @invite/shared && npm run test -w @invite/api",
+    "typecheck": "tsc -b packages/shared packages/api packages/miniapp packages/guest"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

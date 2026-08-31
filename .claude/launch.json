@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "guest",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@invite/guest"],
+      "port": 5174
+    },
+    {
+      "name": "miniapp",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@invite/miniapp"],
+      "port": 5175
+    }
+  ]
+}

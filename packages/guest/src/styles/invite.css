@@ -1,0 +1,287 @@
+/* Гость-страница. Всё оформление — из токенов @invite/shared/styles/tokens.css. */
+
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-4) calc(var(--s-7) * 2 + env(safe-area-inset-bottom));
+}
+
+.page--center {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding-bottom: var(--s-6);
+}
+
+/* --- Сургучная печать ----------------------------------------------------- */
+
+.seal__blob {
+  fill: var(--c-seal);
+}
+
+.seal__mark {
+  stroke: var(--c-surface);
+}
+
+/* --- Шапка конверта ------------------------------------------------------- */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-3);
+  padding-bottom: var(--s-6);
+}
+
+.hero__seal {
+  /* Печать чуть «вдавлена» в бумагу — отсюда мягкая тень под ней. */
+  filter: drop-shadow(0 3px 6px rgba(63, 46, 26, 0.25));
+}
+
+.hero__kicker {
+  font-size: var(--t-caption);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.hero__note {
+  font-family: var(--font-display);
+  font-size: var(--t-hero);
+  font-style: italic;
+  font-weight: var(--w-medium);
+  line-height: var(--lh-tight);
+  text-wrap: balance;
+}
+
+.hero__lead {
+  color: var(--c-ink-soft);
+}
+
+.hero__expiry {
+  margin-top: calc(var(--s-1) * -1);
+}
+
+/* --- Карточки мест -------------------------------------------------------- */
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.card {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  background: var(--c-surface);
+  border: 1px solid var(--c-hairline);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-card);
+  overflow: hidden;
+  transition:
+    transform var(--dur-base) var(--ease),
+    box-shadow var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
+}
+
+.card--pickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sh-lift);
+}
+
+.card--pickable:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.card--chosen {
+  border-color: var(--c-seal);
+  box-shadow: var(--sh-lift), 0 0 0 1px var(--c-seal);
+}
+
+.card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-4) var(--s-5) var(--s-5);
+}
+
+.card__name {
+  font-family: var(--font-display);
+  font-size: var(--t-title);
+  font-weight: var(--w-semibold);
+  line-height: var(--lh-tight);
+  text-wrap: balance;
+}
+
+.card__district {
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+}
+
+/* Пометка хоста — третья строка иерархии (§11) и единственная «живая» реплика
+   на карточке, поэтому она набрана тем же курсивом, что и подпись к конверту. */
+.card__note {
+  margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--t-body);
+  color: var(--c-ink);
+}
+
+.card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-hairline);
+}
+
+.card__maps {
+  font-size: var(--t-meta);
+  font-weight: var(--w-medium);
+  color: var(--c-seal);
+  text-decoration: none;
+}
+
+.card__maps:hover {
+  text-decoration: underline;
+}
+
+.card__seal {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  opacity: 0;
+  transform: scale(0.6) rotate(-12deg);
+  transition: opacity var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
+  filter: drop-shadow(0 2px 5px rgba(63, 46, 26, 0.3));
+  pointer-events: none;
+}
+
+.card__seal--on {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+/* --- Фото ----------------------------------------------------------------- */
+
+.photo {
+  aspect-ratio: 4 / 3;
+  background: var(--c-surface-sunk);
+}
+
+.photo__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo--empty {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(
+      120% 100% at 30% 0%,
+      hsl(var(--placeholder-hue) 42% 78% / 0.85),
+      transparent 70%
+    ),
+    linear-gradient(
+      160deg,
+      hsl(calc(var(--placeholder-hue) + 40) 34% 72%),
+      hsl(var(--placeholder-hue) 30% 60%)
+    );
+}
+
+.photo__glyph {
+  font-family: var(--font-display);
+  font-size: var(--t-title);
+  font-style: italic;
+  color: rgba(255, 253, 248, 0.92);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Нижняя панель выбора ------------------------------------------------- */
+
+.tray {
+  position: fixed;
+  inset: auto 0 0 0;
+  padding: var(--s-3) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--c-paper) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--c-hairline);
+  transform: translateY(105%);
+  transition: transform var(--dur-base) var(--ease);
+}
+
+/* Панель поднимается только когда есть что отправлять — до выбора она не мешает читать. */
+.tray--open {
+  transform: translateY(0);
+}
+
+.tray__inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  max-width: var(--page-max);
+  margin: 0 auto;
+}
+
+.tray__submit {
+  width: 100%;
+}
+
+.tray__error {
+  font-size: var(--t-meta);
+  color: var(--c-seal);
+}
+
+/* --- Служебные экраны ------------------------------------------------------ */
+
+.notice,
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-3);
+  padding: var(--s-6) var(--s-4);
+}
+
+.done {
+  padding-bottom: var(--s-7);
+}
+
+.notice__title,
+.done__title {
+  font-family: var(--font-display);
+  font-size: var(--t-hero);
+  font-weight: var(--w-semibold);
+  line-height: var(--lh-tight);
+}
+
+.notice__text,
+.done__text {
+  max-width: 22rem;
+  color: var(--c-ink-soft);
+  text-wrap: pretty;
+}
+
+.notice--quiet .seal__blob {
+  fill: var(--c-ink-faint);
+}
+
+/* --- Атрибуция ------------------------------------------------------------ */
+
+/* Обязательное условие ODbL: данные OSM можно кешировать, но со ссылкой на источник. */
+.attribution {
+  margin-top: var(--s-6);
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  text-align: center;
+}

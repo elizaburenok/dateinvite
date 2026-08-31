@@ -1,0 +1,14 @@
+# Caddy получает сертификат Let's Encrypt сам, ничего настраивать не нужно.
+# Приложение раздаёт и API, и оба фронтенда одним процессом, поэтому здесь
+# просто прокси — без разводки по путям.
+
+invite.example.com {
+	encode zstd gzip
+
+	# Реальный IP гостя нужен логам; приложение запущено с trustProxy.
+	reverse_proxy localhost:3000
+
+	log {
+		output file /var/log/caddy/invite.log
+	}
+}

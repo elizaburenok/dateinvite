@@ -1,0 +1,534 @@
+/* Mini App хоста. Те же токены, что и у гость-страницы, но плотнее:
+   здесь работают со списком, а не читают приглашение. */
+
+.app {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding-bottom: calc(var(--s-7) * 2 + env(safe-area-inset-bottom));
+}
+
+.boot {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--s-6);
+  color: var(--c-ink-soft);
+  text-align: center;
+}
+
+.boot--error {
+  color: var(--c-ink);
+}
+
+/* --- Верхняя навигация ---------------------------------------------------- */
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: var(--s-3) var(--s-4);
+  background: color-mix(in srgb, var(--c-paper) 90%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--c-hairline);
+}
+
+.top__nav {
+  display: flex;
+  gap: var(--s-1);
+  padding: var(--s-1);
+  background: var(--c-surface-sunk);
+  border-radius: var(--r-pill);
+}
+
+.top__tab {
+  flex: 1;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-pill);
+  font-size: var(--t-meta);
+  font-weight: var(--w-medium);
+  color: var(--c-ink-soft);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.top__tab--on {
+  background: var(--c-surface);
+  color: var(--c-ink);
+  box-shadow: var(--sh-card);
+}
+
+.screen {
+  padding: var(--s-4);
+}
+
+/* --- Вкладки библиотеки и инбокса ----------------------------------------- */
+
+.tabs {
+  display: flex;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+  border-bottom: 1px solid var(--c-hairline);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) 0 var(--s-3);
+  font-size: var(--t-meta);
+  font-weight: var(--w-medium);
+  color: var(--c-ink-faint);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab--on {
+  color: var(--c-ink);
+  border-bottom-color: var(--c-seal);
+}
+
+.tab__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 var(--s-1);
+  background: var(--c-seal);
+  color: #fffdf8;
+  border-radius: var(--r-pill);
+  font-size: var(--t-caption);
+  font-weight: var(--w-semibold);
+}
+
+/* --- Фильтры -------------------------------------------------------------- */
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+.chips {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  padding-bottom: var(--s-1);
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: 0 0 auto;
+  padding: var(--s-2) var(--s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-hairline);
+  border-radius: var(--r-pill);
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+}
+
+.chip--on {
+  background: var(--c-seal-wash);
+  border-color: var(--c-seal);
+  color: var(--c-seal);
+  font-weight: var(--w-medium);
+}
+
+/* --- Список мест ---------------------------------------------------------- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  list-style: none;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  background: var(--c-surface);
+  border: 1px solid var(--c-hairline);
+  border-radius: var(--r-md);
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.row--picked {
+  border-color: var(--c-seal);
+  background: var(--c-seal-wash);
+}
+
+.row__main {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.row__name {
+  font-weight: var(--w-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row__meta {
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row__flag {
+  font-size: var(--t-caption);
+  color: var(--c-seal);
+}
+
+.pick {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--c-hairline);
+  border-radius: var(--r-pill);
+  font-weight: var(--w-semibold);
+  color: var(--c-ink-soft);
+  transition: all var(--dur-fast) var(--ease);
+}
+
+.pick--on {
+  background: var(--c-seal);
+  border-color: var(--c-seal);
+  color: #fffdf8;
+}
+
+/* --- Превью места --------------------------------------------------------- */
+
+.thumb {
+  flex: 0 0 auto;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  background: var(--c-surface-sunk);
+}
+
+.thumb--sm {
+  width: 3rem;
+  height: 3rem;
+}
+
+.thumb--lg {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-md);
+}
+
+.thumb--empty {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: var(--t-title);
+  color: rgba(255, 253, 248, 0.92);
+  background: linear-gradient(
+    160deg,
+    hsl(calc(var(--placeholder-hue) + 40) 34% 72%),
+    hsl(var(--placeholder-hue) 30% 60%)
+  );
+}
+
+.thumb--lg.thumb--empty {
+  font-size: var(--t-hero);
+}
+
+/* --- Карточка места (лист снизу) ------------------------------------------ */
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-paper);
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--c-hairline);
+}
+
+.sheet__close {
+  font-size: var(--t-title);
+  line-height: 1;
+}
+
+.sheet__title {
+  font-weight: var(--w-medium);
+}
+
+.sheet__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  overflow-y: auto;
+  padding: var(--s-4);
+  max-width: var(--page-max);
+  width: 100%;
+  margin: 0 auto;
+}
+
+.sheet__foot {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--c-hairline);
+  max-width: var(--page-max);
+  width: 100%;
+  margin: 0 auto;
+}
+
+.sheet__foot .btn {
+  flex: 1;
+}
+
+.label {
+  margin-top: var(--s-3);
+  font-size: var(--t-meta);
+  font-weight: var(--w-medium);
+  color: var(--c-ink-soft);
+}
+
+.field--area {
+  resize: vertical;
+  min-height: 5rem;
+}
+
+.hint {
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+}
+
+.detail__address {
+  color: var(--c-ink-soft);
+}
+
+.detail__meta {
+  font-size: var(--t-meta);
+  color: var(--c-ink-faint);
+}
+
+.detail__link {
+  margin-top: var(--s-3);
+  font-size: var(--t-meta);
+  font-weight: var(--w-medium);
+  color: var(--c-seal);
+}
+
+/* --- Подтверждение кандидата ---------------------------------------------- */
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  background: var(--c-seal-wash);
+  border-radius: var(--r-md);
+}
+
+.confirm__title {
+  font-family: var(--font-display);
+  font-size: var(--t-title);
+  font-weight: var(--w-semibold);
+}
+
+.confirm__lead {
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+}
+
+.candidate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3);
+  text-align: left;
+  background: var(--c-surface);
+  border: 1px solid var(--c-hairline);
+  border-radius: var(--r-sm);
+}
+
+.candidate__name {
+  font-weight: var(--w-medium);
+}
+
+.candidate__meta {
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+}
+
+/* --- Сборка конверта ------------------------------------------------------- */
+
+.fab {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--s-4) + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 10;
+  box-shadow: var(--sh-lift);
+}
+
+.compose {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+  background: var(--c-surface);
+  border-top: 1px solid var(--c-hairline);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--sh-lift);
+  max-width: var(--page-max);
+  margin: 0 auto;
+}
+
+.compose__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.compose__title {
+  font-weight: var(--w-semibold);
+}
+
+.compose__cancel {
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+}
+
+.compose__lead {
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+}
+
+.compose__link {
+  padding: var(--s-3);
+  background: var(--c-surface-sunk);
+  border-radius: var(--r-sm);
+  font-size: var(--t-meta);
+  /* Ссылка длинная и её будут выделять руками — переносим по любому символу. */
+  word-break: break-all;
+  user-select: all;
+}
+
+.compose__actions {
+  display: flex;
+  gap: var(--s-3);
+}
+
+.compose__actions .btn {
+  flex: 1;
+}
+
+.compose__submit {
+  width: 100%;
+}
+
+/* --- Конверты -------------------------------------------------------------- */
+
+.envelope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-hairline);
+  border-radius: var(--r-md);
+}
+
+.envelope__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.envelope__note {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--t-title);
+  line-height: var(--lh-tight);
+}
+
+.envelope__places,
+.envelope__answer {
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+}
+
+.envelope__answer {
+  color: var(--c-sage);
+}
+
+.envelope__link {
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  word-break: break-all;
+  user-select: all;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+}
+
+.status__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status--sent { color: var(--c-status-sent); }
+.status--opened { color: var(--c-status-opened); }
+.status--answered { color: var(--c-status-answered); }
+.status--expired { color: var(--c-status-expired); }
+.status--draft { color: var(--c-status-sent); }
+
+/* --- Общее ----------------------------------------------------------------- */
+
+.empty {
+  padding: var(--s-6) var(--s-4);
+  text-align: center;
+  color: var(--c-ink-soft);
+  text-wrap: pretty;
+}
+
+.error {
+  font-size: var(--t-meta);
+  color: var(--c-seal);
+}
