@@ -14,6 +14,8 @@ export interface ResolverInput {
   urls?: string[];
   location?: { lat: number; lng: number } | null;
   venue?: { title: string; address: string; lat: number; lng: number } | null;
+  /** Названия, размеченные человеком (текст ссылки) — доверяем им как кавычкам. */
+  nameHints?: string[];
   city?: string | null;
   sourceRef?: string | null;
 }
@@ -171,7 +173,9 @@ export async function resolvePlace(
   }
 
   // 4. Только текст: даём 1–3 кандидата и ждём подтверждения (§7, §12).
-  const hints = extractor.extract(input.text ?? '');
+  // Размеченное человеком название идёт первым и с тем же весом, что и кавычки.
+  const linkHints = (input.nameHints ?? []).map((text) => ({ text, weight: QUOTED_WEIGHT }));
+  const hints = [...linkHints, ...extractor.extract(input.text ?? '')];
   if (hints.length === 0) {
     return { status: 'failed', reason: 'В тексте не нашлось названия места' };
   }

@@ -54,10 +54,25 @@ export function extractUrls(message: Message): string[] {
   return urls.map((url) => url.trim()).filter(Boolean);
 }
 
+/**
+ * Текст, который человек сам обернул в ссылку, почти всегда и есть название места:
+ * «завтраки в [Баски & Монегаски]». Сигнал не слабее кавычек, и раньше он терялся —
+ * резолвер брал первое слово с заглавной и получал «Красота» вместо названия.
+ */
+export function extractLinkTitles(message: Message): string[] {
+  const text = message.text ?? message.caption ?? '';
+  const entities = message.entities ?? message.caption_entities ?? [];
+  return entities
+    .filter((entity) => entity.type === 'text_link')
+    .map((entity) => text.slice(entity.offset, entity.offset + entity.length).trim())
+    .filter((title) => title.length >= 3 && title.length <= 60);
+}
+
 export function toResolverInput(message: Message, city: string | null): ResolverInput {
   return {
     text: message.text ?? message.caption ?? null,
     urls: extractUrls(message),
+    nameHints: extractLinkTitles(message),
     location: message.location
       ? { lat: message.location.latitude, lng: message.location.longitude }
       : null,
@@ -74,7 +89,40 @@ export function toResolverInput(message: Message, city: string | null): Resolver
   };
 }
 
-function libraryKeyboard(miniAppUrl: string): InlineKeyboard {
+/**
+ * Альбом Telegram приезжает не одним сообщением, а пачкой отдельных, с общим
+ * media_group_id: подпись есть только у одного, остальные — голые фото.
+ * Без склейки пост из девяти снимков вызвал бы восемь ответов «не понял»
+ * и мусор в библиотеке.
+ */
+export function mergeAlbum(messages: Message[]): Message {
+  const withCaption = messages.find((m) => (m.caption ?? m.text ?? '').trim().length > 0);
+  const base = withCaption ?? messages[0]!;
+
+  // Фото берём лучшее по всему альбому: подпись и самый крупный снимок
+  // запросто оказываются в разных сообщениях пачки.
+  const bestPhoto = messages
+    .flatMap((m) => m.photo ?? [])
+    .reduce<Message['photo'] extends undefined ? never : NonNullable<Message['photo']>[number] | null>(
+      (best, size) => (!best || size.width * size.height > best.width * best.height ? size : best),
+      null,
+    );
+
+  return {
+    ...base,
+    ...(bestPhoto ? { photo: [bestPhoto] } : {}),
+    location: base.location ?? messages.find((m) => m.location)?.location,
+    venue: base.venue ?? messages.find((m) => m.venue)?.venue,
+  } as Message;
+}
+
+/**
+ * Telegram отклоняет кнопку Mini App с http-адресом, а вместе с кнопкой —
+ * и всё сообщение. Локально это означало, что бот молча не отвечал ничего.
+ * Без https просто не рисуем кнопку: ответ важнее украшения.
+ */
+function libraryKeyboard(miniAppUrl: string): InlineKeyboard | undefined {
+  if (!miniAppUrl.startsWith('https://')) return undefined;
   return new InlineKeyboard().webApp('Открыть библиотеку', miniAppUrl);
 }
 
@@ -128,11 +176,41 @@ export function createBot(deps: BotDeps): Bot {
     await ctx.reply(`Запомнил: ищу места в городе ${city}.`);
   });
 
+  /**
+   * Сообщения одного альбома приходят порознь и с небольшим разбросом по времени.
+   * Копим их и обрабатываем пачку целиком, когда поток затих.
+   */
+  const albums = new Map<string, { messages: Message[]; ctx: Context; timer: NodeJS.Timeout }>();
+  const ALBUM_WINDOW_MS = 2000;
+
   bot.on('message', async (ctx) => {
     const user = currentUser(ctx);
     if (!user) return;
 
-    const message = ctx.message;
+    const groupId = ctx.message.media_group_id;
+    if (groupId) {
+      const pending = albums.get(groupId) ?? { messages: [], ctx, timer: setTimeout(() => {}, 0) };
+      clearTimeout(pending.timer);
+      pending.messages.push(ctx.message);
+      // Отвечать будем в контексте того сообщения, где нашлась подпись.
+      if ((ctx.message.caption ?? '').trim()) pending.ctx = ctx;
+      pending.timer = setTimeout(() => {
+        albums.delete(groupId);
+        void capture(pending.ctx, mergeAlbum(pending.messages)).catch((error) =>
+          console.error('[bot] альбом не обработался', error),
+        );
+      }, ALBUM_WINDOW_MS);
+      albums.set(groupId, pending);
+      return;
+    }
+
+    await capture(ctx, ctx.message);
+  });
+
+  async function capture(ctx: Context, message: Message): Promise<void> {
+    const user = currentUser(ctx);
+    if (!user || !ctx.chat) return;
+
     const input = toResolverInput(message, user.city);
 
     const hasSignal =
@@ -255,7 +333,7 @@ export function createBot(deps: BotDeps): Bot {
       parse_mode: 'HTML',
       reply_markup: stored.length > 0 ? keyboard : libraryKeyboard(deps.miniAppUrl),
     });
-  });
+  }
 
   bot.callbackQuery(/^pick:([^:]+):(\d+)$/, async (ctx) => {
     const user = currentUser(ctx);

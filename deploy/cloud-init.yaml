@@ -9,16 +9,16 @@
 
 write_files:
   - path: /root/invite-setup.env
-    permissions: '0600'
+    permissions: '2324'
     content: |
       # Домен, по которому будет работать приложение.
-      DOMAIN=ЗАМЕНИТЬ.duckdns.org
+      DOMAIN=dateinvite.duckdns.org
       # Токен бота от @BotFather.
-      BOT_TOKEN=ЗАМЕНИТЬ
+      BOT_TOKEN=8202034052:AAELwm7-xIKMCYc3uMX_HyIgrrBIHbkECNc
       # Почта для OpenStreetMap — они требуют контакт.
-      CONTACT_EMAIL=ЗАМЕНИТЬ@example.com
+      CONTACT_EMAIL=burenok.eliza@gmail.com
       # Токен с duckdns.org: сервер сам пропишет туда свой адрес.
-      DUCKDNS_TOKEN=ЗАМЕНИТЬ
+      DUCKDNS_TOKEN=5accb728-84ad-4111-9433-b25bdaa5e1d6
 
 runcmd:
   - apt-get update

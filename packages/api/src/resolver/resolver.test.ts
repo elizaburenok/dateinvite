@@ -240,3 +240,28 @@ describe('шум в кандидатах', () => {
     expect(result.candidates.map((c) => c.name)).toEqual(['Март']);
   });
 });
+
+describe('подсказка названия из ссылки (§7)', () => {
+  it('размеченное человеком название бьёт первое слово с заглавной', async () => {
+    const byQuery = (url: string): NominatimPlace[] => {
+      const q = decodeURIComponent(new URL(url).searchParams.get('q') ?? '');
+      // «Красота» — первое слово фразы, настоящее название размечено ссылкой.
+      return q.startsWith('Баски') ? [{ ...MART, name: 'Баски & Монегаски' }] : [];
+    };
+    const { client } = clientReturning(byQuery);
+
+    const result = await resolvePlace(
+      {
+        text: 'Красота дня — нарядные завтраки в Баски & Монегаски, Провиантская ул., 3/6',
+        nameHints: ['Баски & Монегаски'],
+        city: 'Москва',
+      },
+      { nominatim: client },
+    );
+
+    expect(result.status).toBe('needs_confirmation');
+    if (result.status !== 'needs_confirmation') return;
+    expect(result.draft.name).toBe('Баски & Монегаски');
+    expect(result.candidates[0]?.name).toBe('Баски & Монегаски');
+  });
+});

@@ -22,12 +22,16 @@ async function setupTelegram(
   bot: ReturnType<typeof createBot>,
   app: Awaited<ReturnType<typeof buildApp>>,
   miniAppUrl: string,
+  useWebhook: boolean,
 ): Promise<void> {
   const webhookUrl = `${config.publicBaseUrl}/bot/webhook/${config.webhookSecret}`;
 
   await bot.init();
 
-  if (!webhookUrl.startsWith('https://')) {
+  if (!useWebhook) {
+    // Мог остаться вебхук с прошлого запуска на другом адресе — Telegram не отдаёт
+    // обновления через getUpdates, пока он задан, и бот молчал бы без объяснений.
+    await bot.api.deleteWebhook();
     // Telegram принимает вебхуки только по HTTPS — локально работаем поллингом.
     app.log.warn('PUBLIC_BASE_URL не https, запускаю бота в режиме long polling');
     void bot.start({ allowed_updates: ['message', 'callback_query'] });
@@ -89,7 +93,12 @@ async function main(): Promise<void> {
     logger: true,
   });
 
-  if (bot) {
+  // Режим выбирается один раз и на всю жизнь процесса: grammY запрещает
+  // long polling, если для бота уже создан обработчик вебхука, — а раньше
+  // маршрут регистрировался всегда, и локальный запуск молча оставался без бота.
+  const useWebhook = config.publicBaseUrl.startsWith('https://');
+
+  if (bot && useWebhook) {
     if (!config.webhookSecret) {
       throw new Error('С BOT_TOKEN обязателен WEBHOOK_SECRET — иначе вебхук открыт всем');
     }
@@ -118,7 +127,7 @@ async function main(): Promise<void> {
     // Настройка бота идёт отдельно от HTTP и не может его уронить: страница-конверт
     // обязана открываться, даже когда Telegram недоступен или адрес ещё не разошёлся
     // по DNS. Иначе чужой сбой на старте гасит весь продукт.
-    void setupTelegram(bot, app, miniAppUrl).catch((error) => {
+    void setupTelegram(bot, app, miniAppUrl, useWebhook).catch((error) => {
       app.log.error({ err: error }, 'бот не настроился, HTTP при этом работает');
     });
   }
