@@ -375,3 +375,83 @@ describe('дубли в кандидатах', () => {
     expect(result.candidates[0]?.name).toBe('Баски & Монегаски');
   });
 });
+
+describe('живой случай: адрес важнее одноимённого места (§7)', () => {
+  const ZELENINA: NominatimPlace = {
+    place_id: 700,
+    lat: '59.9636',
+    lon: '30.2905',
+    display_name: '4, Малая Зеленина улица, Петроградская сторона, Санкт-Петербург, Россия',
+    category: 'building',
+    type: 'apartments',
+    address: {
+      house_number: '4',
+      road: 'Малая Зеленина улица',
+      suburb: 'Петроградская сторона',
+      city: 'Санкт-Петербург',
+    },
+  };
+  const TEA_SHOP: NominatimPlace = {
+    place_id: 701,
+    lat: '60.0721',
+    lon: '30.3242',
+    name: 'Бергамот',
+    display_name: 'Бергамот, 12 литБ, улица Композиторов, 1-е Парголово, Санкт-Петербург',
+    category: 'shop',
+    type: 'tea',
+    address: { road: 'улица Композиторов', house_number: '12 литБ', city: 'Санкт-Петербург' },
+  };
+
+  it('адрес из поста идёт первым, одноимённое место — следом', async () => {
+    const { client } = clientReturning((url) => {
+      const q = decodeURIComponent(new URL(url).searchParams.get('q') ?? '');
+      if (q.startsWith('Малая Зеленина')) return [ZELENINA];
+      if (q.startsWith('Бергамот')) return [TEA_SHOP];
+      return [];
+    });
+
+    const result = await resolvePlace(
+      {
+        text: 'Ужин для особого случая — «Бергамот», Малая Зеленина, 4',
+        nameHints: ['Бергамот'],
+        city: 'Санкт-Петербург',
+      },
+      { nominatim: client },
+    );
+
+    expect(result.status).toBe('needs_confirmation');
+    if (result.status !== 'needs_confirmation') return;
+    // Первый — тот, где человек сам назвал адрес. Чайная лавка на другом конце
+    // города остаётся вторым вариантом, но выбор всё равно за человеком.
+    expect(result.candidates[0]).toMatchObject({
+      name: 'Бергамот',
+      district: 'Петроградская сторона',
+    });
+    expect(result.candidates[0]?.address).toContain('Малая Зеленина');
+    expect(result.candidates[1]?.address).toContain('Композиторов');
+  });
+
+  it('улица не отбрасывается как «уже известное название»', async () => {
+    // «Малая Зеленина» — заглавная пара, и эвристика тоже её выделяет.
+    // Раньше адрес из-за этого исключал сам себя.
+    const { client } = clientReturning((url) =>
+      decodeURIComponent(new URL(url).searchParams.get('q') ?? '').startsWith('Малая Зеленина')
+        ? [ZELENINA]
+        : [],
+    );
+
+    const result = await resolvePlace(
+      {
+        text: 'Ужин — «Бергамот», Малая Зеленина, 4',
+        nameHints: ['Бергамот'],
+        city: 'Санкт-Петербург',
+      },
+      { nominatim: client },
+    );
+
+    expect(result.status).toBe('needs_confirmation');
+    if (result.status !== 'needs_confirmation') return;
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.address).toContain('Малая Зеленина');
+  });
+});

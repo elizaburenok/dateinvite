@@ -210,6 +210,26 @@ describe('название из текста ссылки', () => {
     expect(titles).toEqual([title]);
   });
 
+  it('отсеивает ссылку-фразу: «открытие ресторана» — это не место', () => {
+    const caption = 'Зимой рассказывали про открытие ресторана, а летом вернулись';
+    const phrase = 'открытие ресторана';
+    expect(
+      extractLinkTitles(
+        message({
+          caption,
+          caption_entities: [
+            {
+              type: 'text_link',
+              offset: caption.indexOf(phrase),
+              length: phrase.length,
+              url: 'https://t.me/doing_spb/1',
+            },
+          ],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
   it('игнорирует обычные ссылки — там подписи нет', () => {
     expect(
       extractLinkTitles(

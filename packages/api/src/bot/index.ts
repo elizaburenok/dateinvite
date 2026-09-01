@@ -65,7 +65,11 @@ export function extractLinkTitles(message: Message): string[] {
   return entities
     .filter((entity) => entity.type === 'text_link')
     .map((entity) => text.slice(entity.offset, entity.offset + entity.length).trim())
-    .filter((title) => title.length >= 3 && title.length <= 60);
+    .filter((title) => title.length >= 3 && title.length <= 60)
+    // Ссылкой оборачивают не только названия: «Зимой рассказывали про
+    // открытие ресторана» — это отсылка к другому посту, а не место.
+    // Название почти всегда начинается с заглавной или с латиницы.
+    .filter((title) => /^[«"']?[\p{Lu}A-Z]/u.test(title));
 }
 
 export function toResolverInput(message: Message, city: string | null): ResolverInput {

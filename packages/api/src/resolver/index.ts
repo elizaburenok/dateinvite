@@ -206,6 +206,39 @@ export async function resolvePlace(
     ? hints.filter((hint) => hint.weight >= QUOTED_WEIGHT)
     : hints;
 
+  /**
+   * Адрес из текста идёт первым, а не как запасной вариант.
+   * Поиск по одному названию промахивается городом и однофамильцами:
+   * «Бергамот» находит чайную лавку на другом конце города, хотя человек
+   * тут же написал «Малая Зеленина, 4». Адрес однозначен — название нет.
+   */
+  const address = extractAddress(input.text, {
+    // Исключаем только размеченные человеком названия. Эвристические подсказки
+    // сюда класть нельзя: «Малая Зеленина» — это и заглавная пара для эвристики,
+    // и настоящая улица, и адрес отбрасывал сам себя.
+    exclude: hints.filter((hint) => hint.weight >= QUOTED_WEIGHT).map((hint) => hint.text),
+  });
+
+  const addressCandidates: ResolvedDraft[] = [];
+  if (address) {
+    const points = await deps.nominatim
+      .geocode(address.query, input.city, MAX_CANDIDATES)
+      .catch(() => []);
+    const name = hints[0]!.text;
+    for (const point of points) {
+      addressCandidates.push({
+        name,
+        address: point.address || address.raw,
+        district: point.district,
+        category: point.category,
+        lat: point.lat,
+        lng: point.lng,
+        maps_url: yandexUrlFor(point.lat, point.lng, name),
+        source: 'telegram',
+      });
+    }
+  }
+
   const candidates: ResolvedDraft[] = [];
   const seen = new Set<string>();
   for (const hint of searchHints.slice(0, MAX_CANDIDATES)) {
@@ -222,47 +255,11 @@ export async function resolvePlace(
     }
   }
 
-  // OSM знает далеко не все заведения, особенно новые. Если по названию ничего
-  // не нашлось, опираемся на адрес из текста: улица с домом в базе есть всегда.
-  // Так место сохраняется под именем, которое человек написал сам.
-  if (candidates.length === 0) {
-    const address = extractAddress(input.text);
-    if (address) {
-      const points = await deps.nominatim
-        .geocode(address.query, input.city, MAX_CANDIDATES)
-        .catch(() => []);
+  // Адресные варианты впереди: они точнее. Найденные по названию идут следом,
+  // на случай если адрес разобрался неверно, — выбор всё равно за человеком (§3).
+  const all = dedupeDrafts([...addressCandidates, ...candidates]).slice(0, MAX_CANDIDATES);
 
-      if (points.length > 0) {
-        const name = hints[0]!.text;
-        // Улица с таким названием может быть в нескольких городах. Если хост
-        // не указал свой — показываем варианты и даём выбрать, а не гадаем.
-        return {
-          status: 'needs_confirmation',
-          draft: {
-            name,
-            address: address.raw,
-            district: null,
-            category: null,
-            lat: null,
-            lng: null,
-            maps_url: null,
-            source: 'telegram',
-          },
-          candidates: dedupeDrafts(
-            points.map((point) => ({
-              name,
-              address: point.address || address.raw,
-              district: point.district,
-              category: null,
-              lat: point.lat,
-              lng: point.lng,
-              maps_url: yandexUrlFor(point.lat, point.lng, name),
-              source: 'telegram' as const,
-            })),
-          ),
-        };
-      }
-    }
+  if (all.length === 0) {
     return { status: 'failed', reason: 'Не нашли на карте ничего похожего' };
   }
 
@@ -270,7 +267,7 @@ export async function resolvePlace(
     status: 'needs_confirmation',
     draft: {
       name: hints[0]!.text,
-      address: '',
+      address: address?.raw ?? '',
       district: null,
       category: null,
       lat: null,
@@ -278,6 +275,6 @@ export async function resolvePlace(
       maps_url: null,
       source: 'telegram',
     },
-    candidates: dedupeDrafts(candidates),
+    candidates: all,
   };
 }
