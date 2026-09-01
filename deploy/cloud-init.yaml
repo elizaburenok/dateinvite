@@ -1,0 +1,28 @@
+#cloud-config
+#
+# Вставляется в поле «скрипт при создании» / «user data» при создании сервера.
+# Сервер настроит себя сам при первом включении: ни консоль, ни SSH не нужны.
+#
+# Перед вставкой заменить четыре значения ниже.
+# Хостинг обычно показывает это поле как «Cloud-init», «User data»
+# или «Скрипт первичной настройки».
+
+write_files:
+  - path: /root/invite-setup.env
+    permissions: '0600'
+    content: |
+      # Домен, по которому будет работать приложение.
+      DOMAIN=ЗАМЕНИТЬ.duckdns.org
+      # Токен бота от @BotFather.
+      BOT_TOKEN=ЗАМЕНИТЬ
+      # Почта для OpenStreetMap — они требуют контакт.
+      CONTACT_EMAIL=ЗАМЕНИТЬ@example.com
+      # Токен с duckdns.org: сервер сам пропишет туда свой адрес.
+      DUCKDNS_TOKEN=ЗАМЕНИТЬ
+
+runcmd:
+  - apt-get update
+  - apt-get install -y git
+  - git clone https://github.com/elizaburenok/dateinvite.git /srv/invite
+  # Лог кладём в файл: если что-то не заладится, его видно в веб-консоли хостинга.
+  - bash -c 'set -a; . /root/invite-setup.env; set +a; bash /srv/invite/deploy/setup.sh 2>&1 | tee /root/invite-setup.log'

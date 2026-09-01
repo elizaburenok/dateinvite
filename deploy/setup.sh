@@ -27,7 +27,17 @@ fi
 bold "== 1/7. Спрашиваю то, что знаете только вы =="
 
 # Читаем из /dev/tty, а не из stdin: скрипт может быть запущен через пайп.
-read_tty() { read -r -p "$1" "$2" < /dev/tty; }
+# Без терминала (cloud-init при создании сервера) спрашивать некого —
+# тогда всё обязано прийти переменными окружения, иначе честно падаем,
+# а не висим вечно в ожидании ответа, которого не будет.
+read_tty() {
+  if [[ ! -r /dev/tty ]]; then
+    red "Нет терминала, а переменная $2 не задана."
+    red "При запуске через cloud-init задайте DOMAIN, BOT_TOKEN и CONTACT_EMAIL."
+    exit 1
+  fi
+  read -r -p "$1" "$2" < /dev/tty
+}
 
 DOMAIN="${DOMAIN:-}"
 while [[ -z "$DOMAIN" ]]; do
@@ -73,6 +83,44 @@ if ! command -v caddy >/dev/null; then
   apt-get install -y -qq caddy
 fi
 echo "Caddy: $(caddy version | head -1)"
+
+# DuckDNS: сервер сам сообщает сервису свой адрес. Иначе получается тупик —
+# домен должен указывать на сервер до выпуска сертификата, а IP становится
+# известен только после создания сервера.
+if [[ -n "${DUCKDNS_TOKEN:-}" ]]; then
+  bold "== 2.5/7. Прописываю домен в DuckDNS =="
+  SUB="${DOMAIN%%.duckdns.org}"
+  RESULT="$(curl -s "https://www.duckdns.org/update?domains=$SUB&token=$DUCKDNS_TOKEN&ip=")"
+  if [[ "$RESULT" == "OK" ]]; then
+    green "DuckDNS обновлён: $DOMAIN → $(curl -s https://api.ipify.org)"
+  else
+    red "DuckDNS ответил: $RESULT — проверьте токен и имя поддомена."
+  fi
+
+  # IP сервера может смениться при переезде — обновляем адрес раз в сутки.
+  cat > /etc/systemd/system/duckdns.service <<UNIT
+[Unit]
+Description=Обновление адреса в DuckDNS
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -fsS "https://www.duckdns.org/update?domains=$SUB&token=$DUCKDNS_TOKEN&ip="
+UNIT
+  cat > /etc/systemd/system/duckdns.timer <<UNIT
+[Unit]
+Description=Ежедневное обновление адреса в DuckDNS
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=24h
+
+[Install]
+WantedBy=timers.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable --quiet --now duckdns.timer
+fi
 
 bold "== 3/7. Забираю код =="
 id -u "$APP_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin "$APP_USER"
