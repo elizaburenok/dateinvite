@@ -69,6 +69,36 @@ export function districtOf(place: NominatimPlace): string | null {
   return a.suburb ?? a.quarter ?? a.neighbourhood ?? a.city_district ?? null;
 }
 
+/**
+ * Деревня «Красота» в Вологодской области — формально валидный ответ поиска,
+ * но в библиотеку мест её класть бессмысленно: туда нельзя «сходить».
+ * Такие ответы отсекаем, иначе слабая подсказка из текста подсовывает хосту мусор.
+ */
+const SETTLEMENT_CLASSES = new Set(['place', 'boundary', 'landuse', 'natural']);
+const SETTLEMENT_TYPES = new Set([
+  'village',
+  'hamlet',
+  'town',
+  'city',
+  'municipality',
+  'county',
+  'state',
+  'region',
+  'province',
+  'suburb',
+  'neighbourhood',
+  'locality',
+  'administrative',
+  'isolated_dwelling',
+]);
+
+export function isSettlement(place: NominatimPlace): boolean {
+  return (
+    (place.category !== undefined && SETTLEMENT_CLASSES.has(place.category)) ||
+    (place.type !== undefined && SETTLEMENT_TYPES.has(place.type))
+  );
+}
+
 export function toGeoPoint(place: NominatimPlace): GeoPoint | null {
   const lat = Number(place.lat);
   const lng = Number(place.lon);
@@ -173,6 +203,7 @@ export class NominatimClient {
     return places;
   }
 
+  /** Поиск заведения: населённые пункты и границы из выдачи выбрасываются. */
   async search(query: string, options: { city?: string | null; limit?: number } = {}): Promise<GeoPoint[]> {
     const text = options.city ? `${query}, ${options.city}` : query;
     const places = await this.request('/search', {
@@ -181,7 +212,46 @@ export class NominatimClient {
       addressdetails: '1',
       limit: String(options.limit ?? 3),
     });
-    return places.map(toGeoPoint).filter((p): p is GeoPoint => p !== null);
+    return places
+      .filter((place) => !isSettlement(place))
+      .map(toGeoPoint)
+      .filter((p): p is GeoPoint => p !== null);
+  }
+
+  /**
+   * Геокодирование адреса. Фильтр по типу здесь не нужен и вреден:
+   * ответом как раз и должна быть улица или дом.
+   *
+   * Возвращаем несколько вариантов, а не первый попавшийся: одна и та же улица
+   * есть в разных городах — «Провиантская, 3» находится и в Петербурге,
+   * и в Иркутске. Выбирать за человека мы не имеем права (§3).
+   */
+  async geocode(query: string, city?: string | null, limit = 3): Promise<GeoPoint[]> {
+    const places = await this.request('/search', {
+      q: city ? `${query}, ${city}` : query,
+      format: 'jsonv2',
+      addressdetails: '1',
+      limit: String(limit),
+    });
+
+    return places
+      .map((place): GeoPoint | null => {
+        const point = toGeoPoint(place);
+        if (point) return point;
+        // У улицы может не быть собственного name — собираем точку вручную.
+        const lat = Number(place.lat);
+        const lng = Number(place.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return {
+          name: '',
+          address: shortAddress(place),
+          district: districtOf(place),
+          category: null,
+          lat,
+          lng,
+        };
+      })
+      .filter((p): p is GeoPoint => p !== null);
   }
 
   async reverse(lat: number, lng: number): Promise<GeoPoint | null> {

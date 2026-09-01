@@ -265,3 +265,74 @@ describe('подсказка названия из ссылки (§7)', () => {
     expect(result.candidates[0]?.name).toBe('Баски & Монегаски');
   });
 });
+
+describe('живой случай: OSM не знает заведение (§7)', () => {
+  const STREET: NominatimPlace = {
+    place_id: 500,
+    lat: '59.9601',
+    lon: '30.3055',
+    name: 'Провиантская улица',
+    display_name: 'Провиантская улица, Петроградская сторона, Санкт-Петербург, Россия',
+    category: 'highway',
+    type: 'residential',
+    address: { road: 'Провиантская улица', suburb: 'Петроградская сторона', city: 'Санкт-Петербург' },
+  };
+  const VILLAGE: NominatimPlace = {
+    place_id: 501,
+    lat: '58.5',
+    lon: '32.2',
+    name: 'Красота',
+    display_name: 'Красота, Демянский муниципальный округ, Новгородская область, Россия',
+    category: 'place',
+    type: 'hamlet',
+    address: { city: 'Красота' },
+  };
+
+  it('деревня «Красота» не предлагается как место', async () => {
+    const { client } = clientReturning(() => [VILLAGE]);
+    const result = await resolvePlace({ text: 'Красота дня — завтраки' }, { nominatim: client });
+    // Ничего съедобного не нашлось, а деревню подсовывать нельзя.
+    expect(result.status).toBe('failed');
+  });
+
+  it('название из ссылки + адрес из текста дают рабочее место', async () => {
+    const byUrl = (url: string): NominatimPlace[] => {
+      const q = decodeURIComponent(new URL(url).searchParams.get('q') ?? '');
+      // Заведения в OSM нет — как и в жизни. Улица есть.
+      if (q.startsWith('Провиантская улица')) return [STREET];
+      return [];
+    };
+    const { client } = clientReturning(byUrl);
+
+    const result = await resolvePlace(
+      {
+        text: 'Красота дня — нарядные завтраки в Баски & Монегаски, Провиантская ул., 3/6',
+        nameHints: ['Баски & Монегаски'],
+      },
+      { nominatim: client },
+    );
+
+    expect(result.status).toBe('needs_confirmation');
+    if (result.status !== 'needs_confirmation') return;
+    expect(result.draft.name).toBe('Баски & Монегаски');
+    // Улица под именем, которое человек написал сам, — но выбор за ним:
+    // такая улица может найтись не в одном городе.
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]).toMatchObject({
+      name: 'Баски & Монегаски',
+      district: 'Петроградская сторона',
+      lat: 59.9601,
+      lng: 30.3055,
+    });
+    expect(result.candidates[0]?.address).toContain('Провиантская');
+  });
+
+  it('без адреса и без находок — честный отказ', async () => {
+    const { client } = clientReturning(() => []);
+    const result = await resolvePlace(
+      { text: 'нарядные завтраки в Баски & Монегаски', nameHints: ['Баски & Монегаски'] },
+      { nominatim: client },
+    );
+    expect(result.status).toBe('failed');
+  });
+});

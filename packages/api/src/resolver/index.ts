@@ -1,5 +1,6 @@
 import type { EnrichmentStatus, PlaceSource } from '@invite/shared';
 import type { GeoPoint, NominatimClient } from './nominatim.js';
+import { extractAddress } from './address.js';
 import { heuristicExtractor, type NameExtractor } from './textCandidates.js';
 import {
   isYandexMapsUrl,
@@ -180,16 +181,19 @@ export async function resolvePlace(
     return { status: 'failed', reason: 'В тексте не нашлось названия места' };
   }
 
+  // Если человек сам обозначил название — кавычками или ссылкой, — гадать по
+  // словам с заглавной запрещено, даже когда размеченное название не нашлось.
+  // Иначе «завтраки в Баски & Монегаски» дают салон красоты по слову «Красота»,
+  // а «бар "Профсоюз" на Покровке» — театр и школу.
+  const hasMarkedName = hints.some((hint) => hint.weight >= QUOTED_WEIGHT);
+  const searchHints = hasMarkedName
+    ? hints.filter((hint) => hint.weight >= QUOTED_WEIGHT)
+    : hints;
+
   const candidates: ResolvedDraft[] = [];
   const seen = new Set<string>();
-  for (const hint of hints.slice(0, MAX_CANDIDATES)) {
+  for (const hint of searchHints.slice(0, MAX_CANDIDATES)) {
     if (candidates.length >= MAX_CANDIDATES) break;
-    // Название в кавычках человек обозначил сам. Если по нему что-то нашлось,
-    // добирать варианты из соседних заглавных слов — только шуметь:
-    // «бар "Профсоюз" на Покровке» иначе притащит театр и школу.
-    if (candidates.length > 0 && hint.weight < QUOTED_WEIGHT && hints[0]!.weight >= QUOTED_WEIGHT) {
-      break;
-    }
     const found = await deps.nominatim
       .search(hint.text, { city: input.city, limit: MAX_CANDIDATES })
       .catch(() => []);
@@ -202,7 +206,45 @@ export async function resolvePlace(
     }
   }
 
+  // OSM знает далеко не все заведения, особенно новые. Если по названию ничего
+  // не нашлось, опираемся на адрес из текста: улица с домом в базе есть всегда.
+  // Так место сохраняется под именем, которое человек написал сам.
   if (candidates.length === 0) {
+    const address = extractAddress(input.text);
+    if (address) {
+      const points = await deps.nominatim
+        .geocode(address.query, input.city, MAX_CANDIDATES)
+        .catch(() => []);
+
+      if (points.length > 0) {
+        const name = hints[0]!.text;
+        // Улица с таким названием может быть в нескольких городах. Если хост
+        // не указал свой — показываем варианты и даём выбрать, а не гадаем.
+        return {
+          status: 'needs_confirmation',
+          draft: {
+            name,
+            address: address.raw,
+            district: null,
+            category: null,
+            lat: null,
+            lng: null,
+            maps_url: null,
+            source: 'telegram',
+          },
+          candidates: points.map((point) => ({
+            name,
+            address: point.address || address.raw,
+            district: point.district,
+            category: null,
+            lat: point.lat,
+            lng: point.lng,
+            maps_url: yandexUrlFor(point.lat, point.lng, name),
+            source: 'telegram' as const,
+          })),
+        };
+      }
+    }
     return { status: 'failed', reason: 'Не нашли на карте ничего похожего' };
   }
 

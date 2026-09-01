@@ -314,12 +314,19 @@ export function createBot(deps: BotDeps): Bot {
     });
     keyboard.text('Ничего не подошло', `drop:${place.id}`);
 
+    // Одна и та же улица есть в разных городах. Пока хост не сказал свой,
+    // варианты будут разъезжаться по стране — подсказываем это прямо здесь.
+    const cityHint = user.city
+      ? []
+      : ['', 'Подскажите свой город командой /city — так я буду реже путать города.'];
+
     const body =
       stored.length > 0
         ? [
             'Похоже, речь про одно из этих мест. Какое?',
             '',
             ...stored.map((c, i) => escapeHtml(candidateLine(i, c.name, c.address))),
+            ...cityHint,
           ].join('\n')
         : [
             'Сохранил точку, но названия не нашлось.',
