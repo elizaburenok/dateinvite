@@ -363,16 +363,29 @@ export function createBot(deps: BotDeps): Bot {
     const index = Number(ctx.match[2]);
     if (!user) return;
 
-    const candidates = listCandidates(deps.db, placeId);
+    // Сообщение могло пролежать в чате дольше, чем место в библиотеке:
+    // его успели удалить или подтвердить с другого устройства. Тогда честно
+    // говорим, что делать, и гасим кнопки, чтобы не жать по ним впустую.
+    const place = getPlaceRow(deps.db, user.id, placeId);
+    const candidates = place ? listCandidates(deps.db, placeId) : [];
     const candidate = candidates[index];
-    if (!candidate) {
-      await ctx.answerCallbackQuery({ text: 'Этот вариант уже неактуален' });
+
+    if (!place || !candidate) {
+      await ctx.answerCallbackQuery({
+        text: 'Это сообщение устарело — перешлите пост ещё раз',
+        show_alert: true,
+      });
+      await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
       return;
     }
 
     const confirmed = confirmCandidate(deps.db, user.id, placeId, candidate.id);
     if (!confirmed) {
-      await ctx.answerCallbackQuery({ text: 'Место не найдено' });
+      await ctx.answerCallbackQuery({
+        text: 'Это сообщение устарело — перешлите пост ещё раз',
+        show_alert: true,
+      });
+      await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
       return;
     }
 

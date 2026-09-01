@@ -371,10 +371,19 @@ export function confirmCandidate(
   })();
 }
 
+/**
+ * Кандидаты только живого места. JOIN здесь не формальность: строки могли
+ * пережить своё место (например, если базу правили в обход внешних ключей —
+ * SQLite включает их не по умолчанию). Без проверки бот показывал бы варианты
+ * для места, которого больше нет.
+ */
 export function listCandidates(db: Db, placeId: string): PlaceCandidate[] {
   return db
     .prepare<[string], CandidateRow>(
-      'SELECT * FROM place_candidates WHERE place_id = ? ORDER BY position',
+      `SELECT c.* FROM place_candidates c
+       JOIN places p ON p.id = c.place_id AND p.deleted_at IS NULL
+       WHERE c.place_id = ?
+       ORDER BY c.position`,
     )
     .all(placeId)
     .map(rowToCandidate);

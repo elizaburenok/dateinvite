@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { authHeader, makeTestContext, seedPlaces, type TestContext } from '../test/helpers.js';
-import { insertPlace } from '../domain/places.js';
+import { insertPlace, listCandidates, softDeletePlace } from '../domain/places.js';
 import { upsertUser } from '../domain/users.js';
 
 const HOST_TG = 42;
@@ -155,5 +155,32 @@ describe('правка карточки места (§10.2)', () => {
       payload: { enrichment_status: 'resolved' },
     });
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe('кандидаты не переживают своё место', () => {
+  it('осиротевшие кандидаты не показываются', () => {
+    const [placeId] = seedPlaces(ctx.db, HOST_TG, 1, { enrichment_status: 'needs_confirmation' }, [
+      { name: 'Вариант', address: 'Улица, 1' },
+    ]);
+    expect(listCandidates(ctx.db, placeId!)).toHaveLength(1);
+
+    // Правка в обход внешних ключей — ровно то, что делает внешний скрипт,
+    // если забыл включить PRAGMA foreign_keys.
+    ctx.db.pragma('foreign_keys = OFF');
+    ctx.db.prepare('DELETE FROM places WHERE id = ?').run(placeId);
+    ctx.db.pragma('foreign_keys = ON');
+
+    expect(ctx.db.prepare('SELECT COUNT(*) AS c FROM place_candidates').get()).toEqual({ c: 1 });
+    // Строки остались, но предлагать их хосту нельзя: места под ними нет.
+    expect(listCandidates(ctx.db, placeId!)).toEqual([]);
+  });
+
+  it('кандидаты удалённого места не показываются', () => {
+    const [placeId] = seedPlaces(ctx.db, HOST_TG, 1, { enrichment_status: 'needs_confirmation' }, [
+      { name: 'Вариант', address: 'Улица, 1' },
+    ]);
+    softDeletePlace(ctx.db, upsertUser(ctx.db, { id: HOST_TG }).id, placeId!);
+    expect(listCandidates(ctx.db, placeId!)).toEqual([]);
   });
 });
