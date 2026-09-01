@@ -122,12 +122,28 @@ export function mergeAlbum(messages: Message[]): Message {
 
 /**
  * Telegram отклоняет кнопку Mini App с http-адресом, а вместе с кнопкой —
- * и всё сообщение. Локально это означало, что бот молча не отвечал ничего.
- * Без https просто не рисуем кнопку: ответ важнее украшения.
+ * и всё сообщение целиком. Без https кнопку не рисуем: ответ важнее украшения.
  */
 function libraryKeyboard(miniAppUrl: string): InlineKeyboard | undefined {
   if (!miniAppUrl.startsWith('https://')) return undefined;
   return new InlineKeyboard().webApp('Открыть библиотеку', miniAppUrl);
+}
+
+/**
+ * Приглашение открыть библиотеку. Когда кнопки нет, текст обязан меняться:
+ * фраза «библиотека — здесь:» без кнопки обрывается в никуда и выглядит
+ * поломкой, хотя на деле приложение просто запущено без https.
+ */
+function libraryInvite(miniAppUrl: string): { text: string; keyboard?: InlineKeyboard } {
+  const keyboard = libraryKeyboard(miniAppUrl);
+  if (keyboard) return { text: 'Библиотека и сборка конвертов — здесь:', keyboard };
+  return {
+    text:
+      'Библиотека открывается кнопкой, но Telegram показывает её только по https, ' +
+      `а приложение сейчас запущено по адресу ${escapeHtml(miniAppUrl)}.\n\n` +
+      'Пока смотрите библиотеку в браузере по этому адресу. ' +
+      'После переезда на сервер кнопка появится здесь сама.',
+  };
 }
 
 export function createBot(deps: BotDeps): Bot {
@@ -159,8 +175,11 @@ export function createBot(deps: BotDeps): Bot {
 
   bot.command('library', async (ctx) => {
     currentUser(ctx);
-    await ctx.reply('Библиотека и сборка конвертов — здесь:', {
-      reply_markup: libraryKeyboard(deps.miniAppUrl),
+    const invite = libraryInvite(deps.miniAppUrl);
+    await ctx.reply(invite.text, {
+      parse_mode: 'HTML',
+      link_preview_options: { is_disabled: true },
+      reply_markup: invite.keyboard,
     });
   });
 
