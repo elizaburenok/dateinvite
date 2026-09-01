@@ -57,6 +57,22 @@ function yandexUrlFor(lat: number, lng: number, name?: string): string {
   return `https://yandex.ru/maps/?${params.toString()}`;
 }
 
+/**
+ * Улицы в OSM нарезаны на сегменты: «Провиантская улица» приходит тремя записями
+ * с разными координатами и одинаковым адресом. Для человека это один вариант,
+ * а список из трёх одинаковых строк — не выбор, а недоумение.
+ * Поэтому дубли схлопываем по тому, что видно на экране.
+ */
+function dedupeDrafts(drafts: ResolvedDraft[]): ResolvedDraft[] {
+  const seen = new Set<string>();
+  return drafts.filter((draft) => {
+    const key = `${draft.name}|${draft.address}`.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function fromGeoPoint(point: GeoPoint, source: PlaceSource, mapsUrl?: string | null): ResolvedDraft {
   return {
     name: point.name,
@@ -232,16 +248,18 @@ export async function resolvePlace(
             maps_url: null,
             source: 'telegram',
           },
-          candidates: points.map((point) => ({
-            name,
-            address: point.address || address.raw,
-            district: point.district,
-            category: null,
-            lat: point.lat,
-            lng: point.lng,
-            maps_url: yandexUrlFor(point.lat, point.lng, name),
-            source: 'telegram' as const,
-          })),
+          candidates: dedupeDrafts(
+            points.map((point) => ({
+              name,
+              address: point.address || address.raw,
+              district: point.district,
+              category: null,
+              lat: point.lat,
+              lng: point.lng,
+              maps_url: yandexUrlFor(point.lat, point.lng, name),
+              source: 'telegram' as const,
+            })),
+          ),
         };
       }
     }
@@ -260,6 +278,6 @@ export async function resolvePlace(
       maps_url: null,
       source: 'telegram',
     },
-    candidates,
+    candidates: dedupeDrafts(candidates),
   };
 }

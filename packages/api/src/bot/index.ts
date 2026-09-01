@@ -309,9 +309,13 @@ export function createBot(deps: BotDeps): Bot {
     // Нечёткое распознавание: показываем 1–3 варианта и ждём человека (§3, §7).
     const stored = listCandidates(deps.db, place.id);
     const keyboard = new InlineKeyboard();
-    stored.forEach((candidate, index) => {
-      keyboard.text(`${index + 1}. ${candidate.name}`, `pick:${place.id}:${index}`).row();
-    });
+    if (stored.length === 1) {
+      keyboard.text('Сохранить', `pick:${place.id}:0`).row();
+    } else {
+      stored.forEach((candidate, index) => {
+        keyboard.text(`${index + 1}. ${candidate.name}`, `pick:${place.id}:${index}`).row();
+      });
+    }
     keyboard.text('Ничего не подошло', `drop:${place.id}`);
 
     // Одна и та же улица есть в разных городах. Пока хост не сказал свой,
@@ -320,14 +324,25 @@ export function createBot(deps: BotDeps): Bot {
       ? []
       : ['', 'Подскажите свой город командой /city — так я буду реже путать города.'];
 
+    const single = stored.length === 1 ? stored[0]! : null;
+
     const body =
-      stored.length > 0
+      single
         ? [
-            'Похоже, речь про одно из этих мест. Какое?',
+            // Одна строка с номером «1.» выглядела бы как выбор без выбора.
+            'Нашёл вот это. Сохранить?',
             '',
-            ...stored.map((c, i) => escapeHtml(candidateLine(i, c.name, c.address))),
+            `<b>${escapeHtml(single.name)}</b>`,
+            escapeHtml([single.address, single.district].filter(Boolean).join(' · ')),
             ...cityHint,
           ].join('\n')
+        : stored.length > 0
+          ? [
+              'Похоже, речь про одно из этих мест. Какое?',
+              '',
+              ...stored.map((c, i) => escapeHtml(candidateLine(i, c.name, c.address))),
+              ...cityHint,
+            ].join('\n')
         : [
             'Сохранил точку, но названия не нашлось.',
             '',

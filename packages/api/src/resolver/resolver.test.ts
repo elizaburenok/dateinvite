@@ -336,3 +336,42 @@ describe('живой случай: OSM не знает заведение (§7)'
     expect(result.status).toBe('failed');
   });
 });
+
+describe('дубли в кандидатах', () => {
+  it('улица, нарезанная OSM на сегменты, показывается одним вариантом', async () => {
+    // Один и тот же адрес тремя записями с разными координатами — так OSM
+    // хранит улицы. Человеку это один вариант, а не выбор из трёх одинаковых.
+    const segments: NominatimPlace[] = [1, 2, 3].map((i) => ({
+      place_id: 600 + i,
+      lat: String(59.96 + i / 10000),
+      lon: String(30.305 + i / 10000),
+      display_name: 'Провиантская улица, Петроградская сторона, Санкт-Петербург, Россия',
+      category: 'highway',
+      type: 'residential',
+      address: {
+        road: 'Провиантская улица',
+        suburb: 'Петроградская сторона',
+        city: 'Санкт-Петербург',
+      },
+    }));
+    const { client } = clientReturning((url) =>
+      decodeURIComponent(new URL(url).searchParams.get('q') ?? '').startsWith('Провиантская')
+        ? segments
+        : [],
+    );
+
+    const result = await resolvePlace(
+      {
+        text: 'завтраки в Баски & Монегаски, Провиантская ул., 3/6',
+        nameHints: ['Баски & Монегаски'],
+        city: 'Санкт-Петербург',
+      },
+      { nominatim: client },
+    );
+
+    expect(result.status).toBe('needs_confirmation');
+    if (result.status !== 'needs_confirmation') return;
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.name).toBe('Баски & Монегаски');
+  });
+});
