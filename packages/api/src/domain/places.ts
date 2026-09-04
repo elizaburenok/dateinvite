@@ -17,6 +17,8 @@ export interface PlaceRow {
   address: string;
   district: string | null;
   category: string | null;
+  /** JSON-массив путей — см. миграцию 002. */
+  photos: string;
   photo_url: string | null;
   lat: number | null;
   lng: number | null;
@@ -51,7 +53,7 @@ export interface NewPlace {
   address?: string;
   district?: string | null;
   category?: string | null;
-  photo_url?: string | null;
+  photos?: string[];
   lat?: number | null;
   lng?: number | null;
   maps_url?: string | null;
@@ -74,7 +76,8 @@ export interface NewCandidate {
   maps_url?: string | null;
 }
 
-function parseTags(raw: string): string[] {
+/** И tags, и photos лежат в БД одинаково — JSON-массивом строк. */
+function parseStringArray(raw: string): string[] {
   try {
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === 'string') : [];
@@ -84,20 +87,24 @@ function parseTags(raw: string): string[] {
 }
 
 export function rowToPlace(row: PlaceRow): Place {
+  const photos = parseStringArray(row.photos);
   return {
     id: row.id,
     name: row.name,
     address: row.address,
     district: row.district,
     category: row.category,
-    photo_url: row.photo_url,
+    photos,
+    // Обложка выводится из массива, а не читается из колонки: колонка photo_url
+    // остаётся только ради старых строк и записи назад, источник правды — photos.
+    photo_url: photos[0] ?? null,
     lat: row.lat,
     lng: row.lng,
     maps_url: row.maps_url,
     rating: row.rating,
     hours: row.hours,
     note: row.note,
-    tags: parseTags(row.tags),
+    tags: parseStringArray(row.tags),
     source: row.source,
     enrichment_status: row.enrichment_status,
     created_at: row.created_at,
@@ -126,7 +133,8 @@ export function insertPlace(db: Db, input: NewPlace, candidates: NewCandidate[] 
     address: input.address ?? '',
     district: input.district ?? null,
     category: input.category ?? null,
-    photo_url: input.photo_url ?? null,
+    photos: JSON.stringify(input.photos ?? []),
+    photo_url: input.photos?.[0] ?? null,
     lat: input.lat ?? null,
     lng: input.lng ?? null,
     maps_url: input.maps_url ?? null,
@@ -142,12 +150,12 @@ export function insertPlace(db: Db, input: NewPlace, candidates: NewCandidate[] 
   };
 
   const insertRow = db.prepare(
-    `INSERT INTO places (id, owner_id, name, address, district, category, photo_url, lat, lng,
-                         maps_url, rating, hours, note, tags, source, enrichment_status,
-                         source_ref, created_at, deleted_at)
-     VALUES (@id, @owner_id, @name, @address, @district, @category, @photo_url, @lat, @lng,
-             @maps_url, @rating, @hours, @note, @tags, @source, @enrichment_status,
-             @source_ref, @created_at, @deleted_at)`,
+    `INSERT INTO places (id, owner_id, name, address, district, category, photos, photo_url,
+                         lat, lng, maps_url, rating, hours, note, tags, source,
+                         enrichment_status, source_ref, created_at, deleted_at)
+     VALUES (@id, @owner_id, @name, @address, @district, @category, @photos, @photo_url,
+             @lat, @lng, @maps_url, @rating, @hours, @note, @tags, @source,
+             @enrichment_status, @source_ref, @created_at, @deleted_at)`,
   );
   const insertCandidate = db.prepare(
     `INSERT INTO place_candidates (id, place_id, position, name, address, district, category,
@@ -299,7 +307,7 @@ export interface PlacePatch {
   address?: string;
   district?: string | null;
   category?: string | null;
-  photo_url?: string | null;
+  photos?: string[];
   enrichment_status?: EnrichmentStatus;
   lat?: number | null;
   lng?: number | null;
@@ -318,7 +326,9 @@ export function updatePlace(db: Db, ownerId: string, placeId: string, patch: Pla
     ...(patch.address !== undefined ? { address: patch.address } : {}),
     ...(patch.district !== undefined ? { district: patch.district } : {}),
     ...(patch.category !== undefined ? { category: patch.category } : {}),
-    ...(patch.photo_url !== undefined ? { photo_url: patch.photo_url } : {}),
+    ...(patch.photos !== undefined
+      ? { photos: JSON.stringify(patch.photos), photo_url: patch.photos[0] ?? null }
+      : {}),
     ...(patch.enrichment_status !== undefined ? { enrichment_status: patch.enrichment_status } : {}),
     ...(patch.lat !== undefined ? { lat: patch.lat } : {}),
     ...(patch.lng !== undefined ? { lng: patch.lng } : {}),
@@ -327,8 +337,9 @@ export function updatePlace(db: Db, ownerId: string, placeId: string, patch: Pla
 
   db.prepare(
     `UPDATE places SET name = @name, address = @address, district = @district, category = @category,
-                       photo_url = @photo_url, lat = @lat, lng = @lng, maps_url = @maps_url,
-                       note = @note, tags = @tags, enrichment_status = @enrichment_status
+                       photos = @photos, photo_url = @photo_url, lat = @lat, lng = @lng,
+                       maps_url = @maps_url, note = @note, tags = @tags,
+                       enrichment_status = @enrichment_status
      WHERE id = @id`,
   ).run(next);
 

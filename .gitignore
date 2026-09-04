@@ -9,3 +9,6 @@ data/*.db-wal
 data/media/*
 !data/media/.gitkeep
 packages/miniapp/.env.local
+
+# Фото для демо-прототипа — реальные снимки мест, в репозиторий не кладём
+packages/guest/public/demo/

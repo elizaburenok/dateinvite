@@ -72,91 +72,158 @@
 }
 
 .card {
+  /* Кегли на карточке заданы в cqw и меряются от неё самой: макет нарисован
+     на 480px, а на телефоне карточка ~340px, и текст обязан ужаться вместе с ней. */
+  container-type: inline-size;
   position: relative;
   display: block;
   width: 100%;
-  padding: 0;
+  /* Пропорция фиксированная (480×314 из макета). Стопка мерит высоту карточек,
+     и разнобой в пропорциях развалил бы её раскладку. */
+  aspect-ratio: var(--card-ratio);
+  /* Кромка сделана отступом и фоном, а не border: так внутренний блик по ней
+     (.card::before) ложится ровно на жёлтое поле, а внешний и внутренний радиусы
+     живут каждый своей жизнью — в макете они разные, 15 и 10. */
+  padding: var(--frame-w);
   text-align: left;
-  background: var(--c-surface);
-  border: 1px solid var(--c-hairline);
-  border-radius: var(--r-lg);
+  background: var(--c-frame);
+  border: none;
+  border-radius: var(--r-card);
   box-shadow: var(--sh-card);
   overflow: hidden;
   transition:
     transform var(--dur-base) var(--ease),
     box-shadow var(--dur-base) var(--ease),
-    border-color var(--dur-base) var(--ease);
+    background-color var(--dur-base) var(--ease);
+}
+
+/* Внутренняя тень из макета: мягкий светлый блик по верхней кромке карточки.
+   Тёплый, но почти белый, поэтому виден только тонкой полосой вверху. */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow: inset 0 6px 13px rgba(235, 226, 226, 0.25);
+  pointer-events: none;
 }
 
 .card--pickable:hover {
-  transform: translateY(-2px);
   box-shadow: var(--sh-lift);
 }
 
-.card--pickable:active {
-  transform: translateY(0) scale(0.995);
+/* Выбор места — подложка во всю карточку. Она лежит ниже точек листания
+   по z-index, поэтому клик по ним до неё не доходит. */
+.card__pick {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border-radius: inherit;
 }
 
+.card__pick:active {
+  transform: scale(0.995);
+}
+
+/* Выбранное место. Жёлтой кромки, которая раньше краснела, больше нет, поэтому
+   выбор отмечает сургучное кольцо поверх фотографии (в блике .card::before,
+   лежащем выше кадра) плюс приподнятая тень. Красный — единственный на всё
+   приложение и читается издалека даже кольцом. */
 .card--chosen {
-  border-color: var(--c-seal);
-  box-shadow: var(--sh-lift), 0 0 0 1px var(--c-seal);
+  box-shadow: var(--sh-lift);
 }
 
+.card--chosen::before {
+  box-shadow:
+    inset 0 0 0 3px var(--c-seal),
+    inset 0 6px 13px rgba(235, 226, 226, 0.25);
+}
+
+/* --- Текст поверх фотографии ---------------------------------------------- */
+
+/*
+ * Название с адресом стоят в левом нижнем углу, реплика хоста — в правом верхнем.
+ * По диагонали друг от друга: так они не спорят за место и попадают ровно в те
+ * два угла, которые затемняет градиент.
+ */
 .card__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  padding: var(--s-4) var(--s-5) var(--s-5);
+  position: absolute;
+  z-index: 2;
+  /* Название с адресом прижаты к левому нижнему углу карточки: 16px от края
+     по обеим осям, как в макете (16 из 480). */
+  left: calc(var(--frame-w) + 3.33cqw);
+  bottom: calc(var(--frame-w) + 3.33cqw);
+  max-width: 62%;
 }
 
 .card__name {
-  font-family: var(--font-display);
-  font-size: var(--t-title);
-  font-weight: var(--w-semibold);
-  line-height: var(--lh-tight);
+  font-family: var(--font-poster);
+  /* 33px из макета = 7.02cqw. Потолок держит кегль ровно по макету на широком
+     экране, пол — читаемость на узком, где чистая пропорция дала бы мелко. */
+  font-size: 32px;
+  font-weight: var(--w-regular); /* в файле одно начертание, Ultra */
+  /*
+   * Межстрочное из макета: строчная коробка 22px при кегле 32 (0.6875) — плотно,
+   * буква к букве. Блок прижат к низу и вне обрезающего контейнера, поэтому даже
+   * коробка ниже капители глифам ничего не срезает.
+   */
+  line-height: 0.6875;
+  /* Адрес идёт вплотную под названием, без наезда: в макете он ровно под
+     строчной коробкой имени. */
+  margin-bottom: 0;
+  color: var(--c-frame-ink);
+  /* Блок прижат к нижней кромке, поэтому длинное название растёт вверх, на фото,
+     а не выдавливает адрес за край. Обрезать его нечем и незачем. */
   text-wrap: balance;
 }
 
-.card__district {
-  font-size: var(--t-meta);
-  color: var(--c-ink-soft);
+.card__address {
+  font-family: var(--font-poster);
+  font-size: 15px;
+  line-height: 1; /* строчная коробка равна кеглю — как в макете */
+  color: var(--c-frame-ink);
 }
 
-/* Пометка хоста — третья строка иерархии (§11) и единственная «живая» реплика
-   на карточке, поэтому она набрана тем же курсивом, что и подпись к конверту. */
+/*
+ * Реплика хоста — не подпись интерфейса, а строчка от руки, поэтому машинописная
+ * моноширинная и прижата к правому краю: письмо, а не карточка справочника.
+ *
+ * По новому макету заметка съехала с фотографии на собственную жёлтую полосу
+ * во всю ширину внизу карточки: текст на плашке того же цвета, что и кромка,
+ * приглушённым оливковым. Одна строка, длинное обрезается многоточием — полоса
+ * держит фиксированную высоту, чтобы не наезжать на название над ней.
+ */
 .card__note {
-  margin-top: var(--s-2);
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: var(--t-body);
-  color: var(--c-ink);
+  position: absolute;
+  z-index: 2;
+  left: var(--frame-w);
+  right: var(--frame-w);
+  bottom: var(--frame-w);
+  /* Отступы строки из макета: по бокам 14, сверху 4, снизу 6. */
+  padding: 4px 14px 6px;
+  background: var(--c-frame-ink);
+  border-radius: 0 0 var(--r-card-inner) var(--r-card-inner);
+  font-family: var(--font-letter);
+  font-size: 0.75rem; /* 12 по макету */
+  line-height: 11px;  /* высота строки из макета: 11 при кегле 12 */
+  letter-spacing: -0.04em;
+  text-align: right;
+  color: var(--c-note-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.card__foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  margin-top: var(--s-3);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--c-hairline);
-}
-
-.card__maps {
-  font-size: var(--t-meta);
-  font-weight: var(--w-medium);
-  color: var(--c-seal);
-  text-decoration: none;
-}
-
-.card__maps:hover {
-  text-decoration: underline;
-}
-
+/* Печать садится на фотографию по центру: углы заняты текстом, а «выбрано» —
+   не пометка на полях, а штамп по всей карточке. */
 .card__seal {
   position: absolute;
-  top: var(--s-3);
-  right: var(--s-3);
+  z-index: 2;
+  inset: 0;
+  display: grid;
+  place-items: center;
   opacity: 0;
   transform: scale(0.6) rotate(-12deg);
   transition: opacity var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
@@ -171,15 +238,75 @@
 
 /* --- Фото ----------------------------------------------------------------- */
 
+/* Фотография занимает всю карточку внутри кромки. Пропорцию держит сама
+   карточка, поэтому своей у фото больше нет. */
 .photo {
-  aspect-ratio: 4 / 3;
+  position: absolute;
+  inset: var(--frame-w);
+  border-radius: var(--r-card-inner);
   background: var(--c-surface-sunk);
+  overflow: hidden;
 }
 
+/* Кадры лежат стопкой и переключаются кроссфейдом: перекладывать их в потоке —
+   значит дёргать высоту карточки, а её высоту мерит стопка. */
 .photo__img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease);
+}
+
+.photo__img--on {
+  opacity: 1;
+}
+
+/*
+ * Затемнение под текст. Градиент из макета идёт по диагонали: тёмный левый нижний
+ * угол под название с адресом, светлая середина, приглушённый правый верхний под
+ * заметку. Внутренняя тень сверху добавляет ту же заметку подложкой и заодно
+ * отделяет фотографию от жёлтой кромки — без неё светлый кадр с ней сливается.
+ */
+.photo__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: linear-gradient(
+    57.33deg,
+    rgba(0, 0, 0, 0.4) 0.9%,
+    rgba(255, 255, 255, 0) 49.86%,
+    rgba(61, 61, 59, 0.28) 84.24%
+  );
+  box-shadow: inset 0 4px 17px 8px rgba(0, 0, 0, 0.19);
+  pointer-events: none;
+}
+
+.photo__dots {
+  position: absolute;
+  z-index: 2;
+  /* Точки уехали к правому нижнему углу: левый низ занят названием с адресом. */
+  inset: auto var(--s-3) var(--s-3) auto;
+  display: flex;
+  gap: var(--s-2);
+}
+
+.photo__dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border-radius: var(--r-pill);
+  background: rgba(255, 253, 248, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.photo__dot--on {
+  background: var(--c-surface);
+  transform: scale(1.25);
 }
 
 .photo--empty {
@@ -234,6 +361,41 @@
 
 .tray__submit {
   width: 100%;
+}
+
+/* Строка второстепенных действий над полем: ссылка на карту слева, выход из
+   фокуса справа. Переносится, если название места длинное. */
+.tray__aside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-3);
+}
+
+/* Всегда у правого края, даже когда ссылки на карту у места нет. */
+.tray__back {
+  margin-inline-start: auto;
+  padding: 0;
+  font-size: var(--t-meta);
+  font-weight: var(--w-medium);
+  color: var(--c-ink-soft);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.tray__back:hover {
+  color: var(--c-ink);
+}
+
+/* Появляется вместе с панелью: до выбора места ссылке некуда вести. */
+.tray__maps {
+  font-size: var(--t-meta);
+  font-weight: var(--w-medium);
+  color: var(--c-seal);
+  text-decoration: none;
+}
+
+.tray__maps:hover {
+  text-decoration: underline;
 }
 
 .tray__error {

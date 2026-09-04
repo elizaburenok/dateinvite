@@ -6,7 +6,9 @@ export default defineConfig({
   base: '/app/',
   plugins: [react()],
   server: {
-    port: 5175,
+    // Порт задаёт окружение: собственный адрес дев-сервера ни на что
+    // не завязан, а фиксированный номер конфликтует с соседними запусками.
+    port: Number(process.env.PORT) || 5175,
     proxy: {
       '/api': 'http://localhost:3000',
       '/media': 'http://localhost:3000',

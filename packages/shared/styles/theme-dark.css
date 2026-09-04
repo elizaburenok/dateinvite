@@ -1,0 +1,40 @@
+/*
+ * Тёмная тема. Вынесена из tokens.css отдельным файлом и подключается только там,
+ * где тёмный вид уместен (миниапп хоста). Гость-страница живёт по макету — всегда
+ * светлая, кремовая, — и этот файл не импортит, поэтому не переключается.
+ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: light dark;
+
+    --c-paper: #17130f;
+    --c-table: #15120e;
+    --c-surface: #221c17;
+    --c-surface-sunk: #2c251e;
+    --c-ink: #f3ece1;
+    --c-ink-soft: #b3a696;
+    --c-ink-faint: #7d7266;
+    --c-hairline: #383027;
+
+    --c-seal: #e0705a;
+    --c-seal-deep: #f08a75;
+    --c-seal-wash: #3a221c;
+    --c-sage: #9db289;
+    --c-sage-wash: #232b1e;
+
+    --c-status-opened: #d9a94e;
+
+    --sh-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --sh-lift: 0 2px 6px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.5);
+
+    --env-face: #2a231c;
+    --env-fold: #302820;
+    --env-flap-face: #342c22;
+    --env-face-reverse: #201a14;
+    --env-edge: #453a2c;
+    --env-stitch: #4a3f31;
+    --sh-env: 0 4px 9px rgba(0, 0, 0, 0.5);
+    --sh-flap: 0 8px 5px rgba(0, 0, 0, 0.4);
+  }
+}

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ENVELOPE_MAX_PLACES, ENVELOPE_MIN_PLACES } from './constants.js';
+import { ENVELOPE_MAX_PLACES, ENVELOPE_MIN_PLACES, PLACE_MAX_PHOTOS } from './constants.js';
 
 /**
  * Контракт данных между бэкендом, Mini App и гость-страницей.
@@ -7,7 +7,12 @@ import { ENVELOPE_MAX_PLACES, ENVELOPE_MIN_PLACES } from './constants.js';
  * ни один из пакетов не описывает эти формы у себя заново.
  */
 
-export { ENVELOPE_MIN_PLACES, ENVELOPE_MAX_PLACES, INIT_DATA_MAX_AGE_SEC } from './constants.js';
+export {
+  ENVELOPE_MIN_PLACES,
+  ENVELOPE_MAX_PLACES,
+  INIT_DATA_MAX_AGE_SEC,
+  PLACE_MAX_PHOTOS,
+} from './constants.js';
 
 export const placeSourceSchema = z.enum(['telegram', 'yandex', 'manual']);
 export type PlaceSource = z.infer<typeof placeSourceSchema>;
@@ -25,6 +30,9 @@ export const placeSchema = z.object({
   address: z.string(),
   district: z.string().nullable(),
   category: z.string().nullable(),
+  /** Все фото места. Порядок в массиве — порядок показа. */
+  photos: z.array(z.string()),
+  /** Обложка = photos[0]. Отдельное поле, чтобы списки и тумбы не разбирали массив. */
   photo_url: z.string().nullable(),
   lat: z.number().nullable(),
   lng: z.number().nullable(),
@@ -92,6 +100,7 @@ export type PlacesResponse = z.infer<typeof placesResponseSchema>;
 export const updatePlaceSchema = z
   .object({
     note: z.string().max(500).nullable().optional(),
+    photos: z.array(z.string().min(1).max(500)).max(PLACE_MAX_PHOTOS).optional(),
     tags: z.array(z.string().min(1).max(40)).max(20).optional(),
     /** Подтверждение кандидата: enrichment_status → resolved (§8). */
     confirm_candidate_id: z.string().optional(),
@@ -114,7 +123,7 @@ export const createPlaceSchema = z
     lat: z.number().nullable().default(null),
     lng: z.number().nullable().default(null),
     maps_url: z.string().url().nullable().default(null),
-    photo_url: z.string().nullable().default(null),
+    photos: z.array(z.string().min(1).max(500)).max(PLACE_MAX_PHOTOS).default([]),
   })
   .strict();
 export type CreatePlaceRequest = z.infer<typeof createPlaceSchema>;
@@ -168,8 +177,12 @@ export type EnvelopeSummary = z.infer<typeof envelopeSummarySchema>;
 export const guestPlaceSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /* Адрес нужен самой карточке: на ней он стоит второй строкой под названием.
+     Район остаётся отдельно — он подпись покрупнее, для корешка в стопке. */
+  address: z.string(),
   district: z.string().nullable(),
   category: z.string().nullable(),
+  photos: z.array(z.string()),
   photo_url: z.string().nullable(),
   note: z.string().nullable(),
   lat: z.number().nullable(),

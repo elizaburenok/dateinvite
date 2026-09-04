@@ -97,7 +97,7 @@ export function seedPlaces(
         district: index % 2 === 0 ? 'Патриаршие' : 'Басманный',
         category: index % 2 === 0 ? 'Кофейня' : 'Бар',
         note: `почему сюда ${index + 1}`,
-        photo_url: `/media/place-${index + 1}.jpg`,
+        photos: [`/media/place-${index + 1}.jpg`],
         lat: 55.76 + index / 1000,
         lng: 37.59 + index / 1000,
         maps_url: `https://yandex.ru/maps/org/place-${index + 1}/`,

@@ -2,16 +2,22 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--env-file-if-exists=.env", "packages/api/dist/server.js"],
+      "port": 3000
+    },
+    {
       "name": "guest",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "@invite/guest"],
-      "port": 5174
+      "runtimeArgs": ["--prefix", "packages/guest", "run", "dev"],
+      "autoPort": true
     },
     {
       "name": "miniapp",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "@invite/miniapp"],
-      "port": 5175
+      "runtimeArgs": ["--prefix", "packages/miniapp", "run", "dev"],
+      "autoPort": true
     }
   ]
 }

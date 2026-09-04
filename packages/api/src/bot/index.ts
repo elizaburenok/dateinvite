@@ -303,7 +303,9 @@ export function createBot(deps: BotDeps): Bot {
         lat: draft.lat,
         lng: draft.lng,
         maps_url: draft.maps_url,
-        photo_url: photoUrl,
+        // Медиагруппа из Telegram приходит отдельными апдейтами и пока не собирается —
+        // из одного сообщения берём одно фото, но модель уже держит массив.
+        photos: photoUrl ? [photoUrl] : [],
         source: draft.source,
         enrichment_status: result.status,
         source_ref: input.sourceRef ?? null,
