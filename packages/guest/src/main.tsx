@@ -5,6 +5,7 @@ import '@invite/shared/styles/base.css';
 import './styles/wallpaper.css';
 import './styles/fonts.css';
 import './styles/invite.css';
+import './styles/note.css';
 import './styles/envelope.css';
 import './styles/cycle.css';
 // Последним из раскладочных: часть его правил гасит геометрию конверта у колоды

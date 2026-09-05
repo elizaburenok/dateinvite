@@ -1,6 +1,5 @@
 import type { GuestPlace } from '@invite/shared';
 import { PhotoFrame } from './PhotoFrame.js';
-import { WaxSeal } from './WaxSeal.js';
 
 interface PlaceCardProps {
   place: GuestPlace;
@@ -17,8 +16,13 @@ interface PlaceCardProps {
  * затемняет ровно те два угла, где стоит текст.
  *
  * Категория, рейтинг и ссылка на карты с карточки ушли: место выбирают по кадру
- * и по тому, что о нём сказал хост, а звёздочки — это уже справочник. Ссылка
- * «На карте» переехала в нижнюю панель, где она появляется у выбранного места.
+ * и по тому, что о нём сказал хост, а звёздочки — это уже справочник. Адрес
+ * написан на самом кадре, и отдельной ссылки на карты на гостевой странице нет.
+ *
+ * Печати поверх кадра больше нет: выбранная карточка вырастает, наклоняется и
+ * получает свою тень — этого хватает, а штамп закрывал ровно тот кадр, ради
+ * которого место и выбирают. Для скринридера выбор остаётся в aria-pressed и в
+ * подписи кнопки-подложки.
  *
  * Выбор живёт в кнопке-подложке, а не в обёртке всей карточки: внутри есть свои
  * интерактивные элементы (листание фото), а кнопку в кнопку вкладывать нельзя.
@@ -47,10 +51,6 @@ export function PlaceCard({ place, selected, readOnly, onSelect }: PlaceCardProp
         <h2 className="card__name">{place.name}</h2>
         {where && <p className="card__address">{where}</p>}
       </div>
-
-      <span className={`card__seal${selected ? ' card__seal--on' : ''}`}>
-        <WaxSeal size={96} checked={selected} />
-      </span>
 
       {!readOnly && (
         <button

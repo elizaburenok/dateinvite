@@ -1,0 +1,209 @@
+/*
+ * Поле-заметка под выбранной карточкой (макет 434:398).
+ *
+ * Цвета тёмного стекла живут здесь, а не в токенах: это единственное тёмное
+ * пятно на всей светлой странице, и в общей палитре им не с чем рифмоваться —
+ * заводить под них --c-* значило бы делать вид, что тёмная тема есть. Ровно так
+ * же рядом живут цвета мишени в pile.css.
+ */
+
+.note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  /* 328px из макета. На телефоне — во всю колонку: там ширину задаёт не макет,
+     а поля страницы. */
+  width: min(100%, 20.5rem);
+  /* 12px до нижней кромки карточки, как в макете, плюс те четыре, на которые
+     из-за наклона свисает её угол. */
+  margin: 16px auto 0;
+  padding: 12px 16px 15px;
+  border: 1px solid rgba(184, 182, 182, 0.5);
+  border-radius: 24px;
+  /*
+   * Два слоя: сплошная подложка и косой блик поверх неё. Блик идёт от левого
+   * верхнего угла к правому нижнему и к нему же светлеет — угол со «Send» и
+   * подсказками не проваливается в плоский чёрный.
+   */
+  background:
+    linear-gradient(
+      126.627deg,
+      rgb(41, 43, 43) 5.872%,
+      rgba(50, 53, 53, 0.37) 50.179%,
+      rgba(51, 54, 54, 0.21) 63.109%,
+      rgba(80, 93, 98, 0.26) 77.213%,
+      rgba(99, 105, 109, 0.79) 96.671%
+    ),
+    linear-gradient(90deg, rgb(41, 43, 43) 0%, rgb(41, 43, 43) 100%);
+  /* Внутренние тени из макета: сверху вдавленная кромка, снизу — подсветка.
+     Ими поле и читается углублением, а не наклейкой. */
+  box-shadow:
+    inset 0 4px 4px #282b2b,
+    inset 0 4px 4px rgba(79, 79, 79, 0.14),
+    inset 0 -3px 4px rgba(32, 33, 33, 0.25);
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-base) var(--ease),
+    transform var(--dur-base) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+/*
+ * Фокус. Родное свечение браузера у поля снято (см. .note__field), и взамен
+ * светлеет кромка всей плашки: курсор стоит внутри неё, а не в отдельной
+ * рамке, и подсказки под текстом — часть того же поля. Без этого состояния
+ * плашка выглядела одинаково и до, и во время набора.
+ */
+.note:focus-within {
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow:
+    inset 0 4px 4px #282b2b,
+    inset 0 4px 4px rgba(79, 79, 79, 0.14),
+    inset 0 -3px 4px rgba(32, 33, 33, 0.25),
+    0 0 0 3px rgba(41, 43, 43, 0.14);
+}
+
+/* Поле поднимается только когда есть что отправлять — до выбора места оно не
+   мешает читать колоду. */
+.note--open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.note__label {
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: -0.12px;
+  color: #cdcfcf;
+  opacity: 0.6;
+}
+
+/*
+ * Само поле. Растёт под текст (высоту пишет NoteComposer), поэтому ни своей
+ * прокрутки, ни ручки для растягивания у него нет.
+ */
+.note__field {
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  letter-spacing: -0.16px;
+  color: #e8ecec;
+  /* Каретка — жёлтая, как имя места на карточке: белая на почти белом тексте
+     теряется, а это единственная деталь, которая показывает, что поле живое,
+     ещё до первой буквы. */
+  caret-color: var(--c-frame);
+  resize: none;
+  overflow: hidden;
+}
+
+/* Рамку рисует вся плашка (.note:focus-within) — родная обводка стала бы
+   вторым контуром внутри первого. */
+.note__field:focus {
+  outline: none;
+}
+
+.note__field::placeholder {
+  color: #cdcfcf;
+  opacity: 0.5;
+}
+
+/*
+ * Готовые фразы. Стоят между полем и «Send» — по ходу дела: прочитал, тапнул
+ * или дописал, отправил. В отличие от «Send» они как раз плашки: это не
+ * действие страницы, а материал для строки выше, и обводка отделяет их от неё.
+ */
+.note__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -2px;
+}
+
+.note__chip {
+  padding: 5px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.13px;
+  color: #dfe3e3;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+}
+
+.note__chip:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.note__chip:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Фраза уже в тексте: гаснет, но остаётся на месте — иначе ряд подсказок
+   перескладывался бы после каждого тапа. */
+.note__chip:disabled {
+  opacity: 0.32;
+}
+
+/* «Send» — не плашка, а слово: кнопка живёт внутри поля, и подложка под ней
+   стала бы вторым прямоугольником в первом. */
+.note__send {
+  padding: 0;
+  font-size: 22px;
+  font-weight: var(--w-semibold);
+  line-height: 1.1;
+  color: #fff;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.note__send:hover {
+  opacity: 0.75;
+}
+
+.note__send:active {
+  transform: scale(0.97);
+}
+
+.note__send:disabled {
+  opacity: 0.45;
+}
+
+.note__error {
+  /* Ошибка — не часть заметки, поэтому и не под её отступ справа: место под
+     украшение ей ни к чему, а строка может быть длинной. */
+  width: 100%;
+  font-size: var(--t-meta);
+  /* Красный на тёмном стекле темнеет до нечитаемого — здесь он светлый. */
+  color: #ff9c86;
+}
+
+/*
+ * Без анимации поле просто появляется. Сдвиг — это движение, а карточка над ним
+ * в этом режиме и так меняется без перехода: два разных правила выглядели бы
+ * поломкой, а не сдержанностью.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .note {
+    transform: none;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  .note--open {
+    transform: none;
+  }
+}

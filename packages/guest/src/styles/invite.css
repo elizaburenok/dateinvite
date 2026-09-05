@@ -3,7 +3,7 @@
 .page {
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: var(--s-6) var(--s-4) calc(var(--s-7) * 2 + env(safe-area-inset-bottom));
+  padding: var(--s-6) var(--s-4) calc(var(--s-6) + env(safe-area-inset-bottom));
 }
 
 .page--center {
@@ -19,8 +19,7 @@
  *
  * Центрируется .page, а не сцена внутри: у страницы свои поля и предел ширины,
  * и min-height на вложенной сцене дал бы переполнение ровно на величину этих
- * полей. Нижний резерв под панель выбора здесь тоже не нужен — выбирать пока
- * не из чего, панели быть не может.
+ * полей.
  */
 .page[data-bare] {
   min-height: 100dvh;
@@ -35,12 +34,17 @@
 }
 
 /*
- * Шапка и подпись проявляются вместе с ростом кучки, одним движением с ним:
- * порознь смена раскладки читалась бы рывком посреди анимации.
+ * Шапка и подпись проявляются вместе с ростом кучки, одним движением с ним и по
+ * его же кривой.
+ *
+ * Место они занимают раньше — с самого тапа: раскладка перекладывается в тот
+ * кадр, где её прыжок не виден (разбор в InvitePage.tsx). Задержка разводит одно
+ * с другим: `both` держит шапку прозрачной всю дымку, и проступает она ровно
+ * тогда, когда кучка трогается с места.
  */
 .page[data-variant='pile']:not([data-bare]) > .hero,
 .page[data-variant='pile']:not([data-bare]) > .attribution {
-  animation: page-appear var(--dur-grow) var(--ease) both;
+  animation: page-appear var(--dur-grow) var(--ease-deal) var(--pile-lead) both;
 }
 
 @keyframes page-appear {
@@ -70,8 +74,8 @@
   align-items: center;
   text-align: center;
   gap: var(--s-3);
-  padding-top: 180px;
-  padding-bottom: var(--s-6);
+  padding-top: 80px;
+  padding-bottom: 56px;
 }
 
 .hero__seal {
@@ -80,15 +84,103 @@
 }
 
 /*
- * Заголовок-картинка: высота фиксированная, ширина считается по пропорции
- * исходника. На узком экране места на все 322 px нет — тогда надпись ужимается
+ * Шапка после выбора места — строка: кнопка назад слева, заголовок по центру.
+ * Кнопка занимает своё место всегда, даже когда её не видно: иначе заголовок
+ * прыгал бы вбок ровно в тот момент, когда карточка растёт, и два движения
+ * читались бы дёрганьем.
+ */
+.hero__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  max-width: 100%;
+}
+
+/*
+ * Две надписи лежат в одной ячейке грида и меняются кроссфейдом: до выбора —
+ * вопрос («Shall we meet up?»), после — ответ («Looks good»). Стопкой, а не
+ * подменой src, потому что подмена — это мигание, а высоту строки держат обе
+ * сразу и она не скачет.
+ */
+.hero__titles {
+  display: grid;
+  min-width: 0;
+}
+
+.hero__titles > * {
+  grid-area: 1 / 1;
+}
+
+/*
+ * Заголовок-картинка: 65 px по высоте из макета, ширина считается по пропорции
+ * исходника. На узком экране места на всю ширину нет — тогда надпись ужимается
  * целиком (object-fit), а не обрезается по краям.
+ *
+ * Высота при этом не постоянная, и вот почему. Рядом с надписью стоит кнопка
+ * назад, и место она занимает всегда — сорок пикселей плюс отступ. На 375px их
+ * не хватает: при 65px надпись шире оставшейся полосы, ужимается до неё и встаёт
+ * впритык к правому полю страницы, а весь заголовок съезжает с оптического
+ * центра вправо на ширину кнопки.
+ *
+ * 13.5vw — тот же кегль, что и в макете, только пересчитанный на экран: макет
+ * нарисован на 480px, где надпись 65px, и на 375px пропорция даёт ровно
+ * пятьдесят с небольшим. Так надпись уменьшается вместе со страницей — как
+ * уменьшается вместе с ней карточка, — и полоса рядом с кнопкой ей больше не
+ * тесна. С 480px и шире работает потолок, и высота снова макетные 65px.
  */
 .hero__title {
-  height: 60px;
+  height: min(65px, 13.5vw);
   width: auto;
   max-width: 100%;
   object-fit: contain;
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease);
+}
+
+.hero__title--on {
+  opacity: 1;
+}
+
+/*
+ * Кнопка назад. Стеклянный кружок — тот же материал, что и кромка карточки:
+ * это единственное, что лежит прямо на обоях, и сплошная заливка читалась бы
+ * заплаткой на них.
+ */
+.hero__back {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    var(--sh-card);
+  color: var(--c-ink);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-base) var(--ease),
+    visibility var(--dur-base) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.hero__back--on {
+  opacity: 1;
+  visibility: visible;
+}
+
+.hero__back:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.hero__back:active {
+  transform: scale(0.94);
 }
 
 .hero__expiry {
@@ -198,18 +290,11 @@
   transform: scale(0.995);
 }
 
-/* Выбранное место. Жёлтой кромки, которая раньше краснела, больше нет, поэтому
-   выбор отмечает сургучное кольцо поверх фотографии (в блике .card::before,
-   лежащем выше кадра) плюс приподнятая тень. Красный — единственный на всё
-   приложение и читается издалека даже кольцом. */
+/* Выбранное место. Ни кромки, ни кольца, ни печати: в макете выбор читается
+   тем, что карточка крупнее, наклонена и лежит на своей тени. Кольцо сургучом
+   поверх кадра тут было лишним контуром — край карточке и так даёт стекло. */
 .card--chosen {
-  box-shadow: var(--sh-lift);
-}
-
-.card--chosen::before {
-  box-shadow:
-    inset 0 0 0 3px var(--c-seal),
-    inset 0 6px 13px rgba(235, 226, 226, 0.25);
+  box-shadow: var(--sh-chosen);
 }
 
 /*
@@ -356,26 +441,6 @@
   text-overflow: ellipsis;
 }
 
-/* Печать садится на фотографию по центру: углы заняты текстом, а «выбрано» —
-   не пометка на полях, а штамп по всей карточке. */
-.card__seal {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  opacity: 0;
-  transform: scale(0.6) rotate(-12deg);
-  transition: opacity var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
-  filter: drop-shadow(0 2px 5px rgba(63, 46, 26, 0.3));
-  pointer-events: none;
-}
-
-.card__seal--on {
-  opacity: 1;
-  transform: scale(1) rotate(0deg);
-}
-
 /* --- Фото ----------------------------------------------------------------- */
 
 /* Фотография занимает всю карточку внутри кромки. Пропорцию держит сама
@@ -471,77 +536,6 @@
   font-style: italic;
   color: rgba(255, 253, 248, 0.92);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* --- Нижняя панель выбора ------------------------------------------------- */
-
-.tray {
-  position: fixed;
-  inset: auto 0 0 0;
-  padding: var(--s-3) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
-  /* Панель лежит на обоях, а не на бумаге, — и тон берёт у них. */
-  background: color-mix(in srgb, var(--c-wallpaper) 88%, transparent);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid var(--c-hairline);
-  transform: translateY(105%);
-  transition: transform var(--dur-base) var(--ease);
-}
-
-/* Панель поднимается только когда есть что отправлять — до выбора она не мешает читать. */
-.tray--open {
-  transform: translateY(0);
-}
-
-.tray__inner {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  max-width: var(--page-max);
-  margin: 0 auto;
-}
-
-.tray__submit {
-  width: 100%;
-}
-
-/* Строка второстепенных действий над полем: ссылка на карту слева, выход из
-   фокуса справа. Переносится, если название места длинное. */
-.tray__aside {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--s-3);
-}
-
-/* Всегда у правого края, даже когда ссылки на карту у места нет. */
-.tray__back {
-  margin-inline-start: auto;
-  padding: 0;
-  font-size: var(--t-meta);
-  font-weight: var(--w-medium);
-  color: var(--c-ink-soft);
-  transition: color var(--dur-fast) var(--ease);
-}
-
-.tray__back:hover {
-  color: var(--c-ink);
-}
-
-/* Появляется вместе с панелью: до выбора места ссылке некуда вести. */
-.tray__maps {
-  font-size: var(--t-meta);
-  font-weight: var(--w-medium);
-  color: var(--c-seal);
-  text-decoration: none;
-}
-
-.tray__maps:hover {
-  text-decoration: underline;
-}
-
-.tray__error {
-  font-size: var(--t-meta);
-  color: var(--c-seal);
 }
 
 /* --- Служебные экраны ------------------------------------------------------ */
