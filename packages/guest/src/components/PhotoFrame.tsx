@@ -50,6 +50,7 @@ export function PhotoFrame({ photos, alt, seed, category }: PhotoFrameProps) {
   }
 
   const current = Math.min(index, photos.length - 1);
+  const shown = photos[current];
 
   return (
     <div className="photo">

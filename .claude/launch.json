@@ -14,6 +14,12 @@
       "autoPort": true
     },
     {
+      "name": "guest-demo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "packages/guest", "run", "dev:demo"],
+      "port": 5180
+    },
+    {
       "name": "miniapp",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "packages/miniapp", "run", "dev"],

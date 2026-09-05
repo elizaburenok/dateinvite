@@ -1,28 +1,30 @@
 import { useMemo, useState } from 'react';
 import type { AnswerResponse, InviteResponse } from '@invite/shared';
 import { AnswerError } from './api.js';
+import titleUrl from './assets/title.svg';
+import { LensFilter } from './components/LensFilter.js';
 import { PlaceCard } from './components/PlaceCard.js';
 import { WaxSeal } from './components/WaxSeal.js';
 import { CardCycle } from './components/envelope/CardCycle.js';
-import { CardStack } from './components/envelope/CardStack.js';
 import { Envelope, useEnvelopeOpening } from './components/envelope/Envelope.js';
-import { usePrefersReducedMotion } from './components/envelope/useStackProgress.js';
-import type { StackVariant } from './demo/variant.js';
+import { Pile, usePileReveal } from './components/pile/Pile.js';
+import { usePrefersReducedMotion } from './components/envelope/usePrefersReducedMotion.js';
+import type { Entry } from './entry.js';
 
 interface InvitePageProps {
   invite: InviteResponse;
+  /** Чем открывается приглашение: кучкой мини-превью или конвертом. */
+  entry: Entry;
   /** Отправку внедряет App: у демо-режима она своя, без бэкенда. */
   onSubmit(chosenPlaceId: string, message: string | null): Promise<AnswerResponse>;
   onUpdate(invite: InviteResponse): void;
-  /** Какой стопкой показывать места. Запасной вариант живёт только в демо-режиме. */
-  variant?: StackVariant;
 }
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
-export function InvitePage({ invite, onSubmit, onUpdate, variant = 'cycle' }: InvitePageProps) {
+export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProps) {
   const answered = invite.answer !== null;
   const expired = invite.status === 'expired';
   const readOnly = answered || expired;
@@ -33,9 +35,16 @@ export function InvitePage({ invite, onSubmit, onUpdate, variant = 'cycle' }: In
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Истёкший конверт и просьбу не анимировать открываем сразу: в первом случае
-  // распечатывать нечего, во втором человек попросил не двигать интерфейс.
-  const { state, open } = useEnvelopeOpening(readOnly || reducedMotion, invite.places.length);
+  // Истёкшее приглашение и просьбу не анимировать открываем сразу: в первом
+  // случае распечатывать нечего, во втором человек попросил не двигать интерфейс.
+  //
+  // Хук у каждого входа свой, и зовут их оба: условных хуков не бывает. Тот, что
+  // сейчас не выбран, получает autoOpen и сразу садится в 'open' — он не держит
+  // таймеров и ничего не считает, пока его не позовут.
+  const skip = readOnly || reducedMotion;
+  const envelope = useEnvelopeOpening(entry !== 'envelope' || skip, invite.places.length);
+  const pile = usePileReveal(entry !== 'pile' || skip, invite.places.length);
+  const { state, open } = entry === 'envelope' ? envelope : pile;
 
   // Ссылка на карты ушла с карточки — там теперь только фотография и текст поверх
   // неё. Живёт она в нижней панели и появляется вместе с ней: до выбора места
@@ -74,6 +83,10 @@ export function InvitePage({ invite, onSubmit, onUpdate, variant = 'cycle' }: In
   if (answered && chosenPlace) {
     return (
       <main className="page">
+        {/* Фильтр стеклянной кромки — по одному на страницу, у него общий id.
+            Стоит в обеих ветках, потому что карточка есть и здесь. */}
+        <LensFilter />
+
         <header className="done">
           <WaxSeal size={64} checked />
           <h1 className="done__title">Ответ отправлен</h1>
@@ -93,48 +106,55 @@ export function InvitePage({ invite, onSubmit, onUpdate, variant = 'cycle' }: In
     );
   }
 
-  const sealed = state === 'sealed';
+  // Голый экран: до тапа на кучке нет ничего, кроме неё самой, — так в макете.
+  // Держится он до конца дымки и снимается вместе с ростом кучки: два движения
+  // разом читаются одним, а порознь — рывком раскладки посреди анимации.
+  const bare = entry === 'pile' && (state === 'sealed' || state === 'unsealing');
 
   return (
-    <main className="page">
+    <main className="page" data-variant={entry} data-bare={bare || undefined}>
+      <LensFilter />
+
       <header className="hero">
-        <p className="hero__kicker">Вам приглашение</p>
-        {invite.host_note && <p className="hero__note">{invite.host_note}</p>}
-        <p className="hero__lead">
-          {expired
-            ? 'Срок этого приглашения истёк.'
-            : sealed
-              ? 'Нажмите на печать, чтобы открыть.'
-              : // Место выбрано — колода стоит на нём одном, и звать выбирать
-                // больше некуда: дальше или заметка с отправкой, или назад к колоде.
-                selected
-                ? 'Можно оставить заметку и отправить.'
-                : `Выберите одно место из ${invite.places.length}.`}
-        </p>
+        {/* Заголовок — не набранный текст, а готовая надпись: буквы в ней
+            подогнаны вручную, шрифтом такое не повторить. Отсюда и картинка
+            вместо заметки хоста. */}
+        <img
+          className="hero__title"
+          src={titleUrl}
+          alt="Shall we meet up? Where do you want to go?"
+        />
         {!expired && invite.expires_at && (
           <p className="caption hero__expiry">Ответить можно до {formatDate(invite.expires_at)}</p>
         )}
       </header>
 
-      <section className="reveal" data-state={state}>
-        <Envelope state={state} onOpen={open} />
-        {variant === 'deck' ? (
-          <CardStack
-            places={invite.places}
-            selected={selected}
-            readOnly={readOnly}
-            state={state}
-            onSelect={toggle}
-          />
+      <section
+        className="reveal"
+        data-state={state}
+        data-variant={entry}
+        /*
+         * Размер колоды нужен самой сцене, а не только колоде: по нему кучка
+         * считает свою высоту в уменьшенном виде и ставит мишень с глифом ровно
+         * на верхнюю карточку. Колода объявляет его же у себя — она умеет
+         * работать и вне этой сцены.
+         */
+        style={{ '--n': Math.max(1, invite.places.length) } as React.CSSProperties}
+      >
+        {entry === 'envelope' ? (
+          <Envelope state={state} onOpen={open} />
         ) : (
-          <CardCycle
-            places={invite.places}
-            selected={selected}
-            readOnly={readOnly}
-            state={state}
-            onSelect={toggle}
-          />
+          // Кучка доживает до конца роста и уходит: в раскрытой карусели ни
+          // пелене, ни мишени делать нечего.
+          state !== 'open' && <Pile state={state} onOpen={open} />
         )}
+        <CardCycle
+          places={invite.places}
+          selected={selected}
+          readOnly={readOnly}
+          state={state}
+          onSelect={toggle}
+        />
       </section>
 
       <p className="attribution">Данные о местах — © участники OpenStreetMap</p>

@@ -77,7 +77,12 @@ export const DEMO_INVITE: InviteResponse = {
   ],
 };
 
-/** Демо-режим — только по явному `?demo` в адресе, случайно в него не попасть. */
+/**
+ * Демо-режим — по явному `?demo` в адресе (случайно не попасть) либо по
+ * сборочному флагу VITE_FORCE_DEMO: он поднимает отдельный дев-сервер, где
+ * карточки открываются всегда, без реальной ссылки приглашения.
+ */
 export function isDemo(search = window.location.search): boolean {
+  if (import.meta.env.VITE_FORCE_DEMO) return true;
   return new URLSearchParams(search).has('demo');
 }

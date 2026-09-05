@@ -1,49 +1,35 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { EnvelopePanel } from './EnvelopeSkin.js';
+import { playEnvelopeOpen } from './sound.js';
+import { useReveal, type RevealChain, type RevealState } from './useReveal.js';
 import stampUrl from '../../assets/stamp.png';
 
 /**
- * Раскрытие конверта. Состояния идут строго по порядку и каждое отвечает
- * за свой кусок движения — так анимации не наезжают друг на друга и
- * можно в любой момент сказать, где мы находимся.
+ * Состояния раскрытия общие у конверта и у кучки мини-превью — они живут в
+ * useReveal.ts, где заодно объяснено, почему имена одни на два входа. Здесь
+ * оставлено привычное имя: колода и страница знают тип под ним.
  */
-export type EnvelopeState = 'sealed' | 'unsealing' | 'opening' | 'dealing' | 'open';
+export type EnvelopeState = RevealState;
 
 /**
  * Тайминги дублируют токены `--dur-unseal` / `--dur-flap` / `--dur-deal`.
- * Дублирование осознанное: CSS двигает пиксели, а JS переключает состояния,
- * и синхронизировать их можно либо этими числами, либо ловлей transitionend
- * на каждом слое — второе хрупче.
+ * Почему дублирование осознанное — разобрано в useReveal.ts.
  */
 export const TIMING = { unseal: 280, flap: 720, deal: 640, stagger: 60 } as const;
 
 export function useEnvelopeOpening(autoOpen: boolean, cardCount: number) {
-  const [state, setState] = useState<EnvelopeState>(autoOpen ? 'open' : 'sealed');
-
-  const open = useCallback(() => {
-    setState((current) => (current === 'sealed' ? 'unsealing' : current));
-  }, []);
-
-  useEffect(() => {
-    if (autoOpen) {
-      setState('open');
-      return;
-    }
-    if (state === 'sealed' || state === 'open') return;
-
-    const next: Record<'unsealing' | 'opening' | 'dealing', [EnvelopeState, number]> = {
+  const chain = useMemo<RevealChain>(
+    () => ({
       unsealing: ['opening', TIMING.unseal],
       opening: ['dealing', TIMING.flap],
       // Последняя карточка стартует позже всех — ждём и её.
       dealing: ['open', TIMING.deal + TIMING.stagger * Math.max(0, cardCount - 1)],
-    };
+    }),
+    [cardCount],
+  );
 
-    const [target, delay] = next[state];
-    const timer = window.setTimeout(() => setState(target), delay);
-    return () => window.clearTimeout(timer);
-  }, [state, autoOpen, cardCount]);
-
-  return { state, open };
+  // Шуршание бумаги — на срыве печати: у конверта есть чему шуршать.
+  return useReveal(chain, autoOpen, playEnvelopeOpen);
 }
 
 interface EnvelopeProps {
@@ -58,7 +44,7 @@ export function Envelope({ state, onOpen }: EnvelopeProps) {
    * Конверт разрезан на два слоя, между которыми лежит стопка карточек, — иначе
    * «внутри конверта» получиться не может. Карточки обязаны быть впереди задней
    * стенки (её видно в устье над ними) и позади кармана с клапаном (те их
-   * закрывают). Одним элементом это не выражается: соседний .deck встанет либо
+   * закрывают). Одним элементом это не выражается: соседняя колода встанет либо
    * целиком за конвертом, либо целиком перед ним. Порядок задают z-index'ы в
    * envelope.css, а не порядок в разметке.
    */
