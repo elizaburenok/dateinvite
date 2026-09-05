@@ -46,8 +46,11 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
 
   app.addHook('preHandler', requireHost);
 
-  const withPublicPhoto = <T extends { photo_url: string | null }>(place: T): T => ({
+  const withPublicPhoto = <T extends { photos: string[]; photo_url: string | null }>(
+    place: T,
+  ): T => ({
     ...place,
+    photos: place.photos.map(toPublicUrl).filter((url): url is string => url !== null),
     photo_url: toPublicUrl(place.photo_url),
   });
 

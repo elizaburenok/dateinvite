@@ -23,7 +23,7 @@ const seed = [
     lng: 37.6518326,
     rating: 4.7,
     tags: ['утро', 'работа'],
-    photo_url: null,
+    photos: [],
   },
   {
     name: 'Профсоюз',
@@ -35,7 +35,7 @@ const seed = [
     lng: 37.6004424,
     rating: 4.5,
     tags: ['вечер'],
-    photo_url: null,
+    photos: [],
   },
   {
     name: 'Кофемания',
@@ -47,7 +47,7 @@ const seed = [
     lng: 37.6157368,
     rating: 4.6,
     tags: ['завтрак'],
-    photo_url: null,
+    photos: [],
   },
   {
     name: 'Март',
@@ -59,7 +59,7 @@ const seed = [
     lng: 37.6161,
     rating: 4.8,
     tags: ['вечер'],
-    photo_url: null,
+    photos: [],
   },
 ];
 

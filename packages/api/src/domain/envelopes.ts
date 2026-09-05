@@ -225,6 +225,18 @@ export function requireEnvelopeByToken(db: Db, token: string): EnvelopeRow {
   return envelope;
 }
 
+/**
+ * Адрес для гостя без города в конце. Гость и все места — в одном городе, поэтому
+ * «…, Москва» в каждой карточке лишь повторяется; на экране нужна только улица с
+ * домом. Город добавляется резолвером последним сегментом (см. shortAddress), так
+ * что срезаем всё после последней запятой. Адрес без запятой (одинокая улица или
+ * сам город) не трогаем — угадать там нечего, а пустой адрес был бы хуже.
+ */
+function guestAddress(address: string): string {
+  const cut = address.lastIndexOf(',');
+  return cut === -1 ? address : address.slice(0, cut).trim();
+}
+
 /** Тело ответа `GET /invite/{token}` — собирается только из снапшота в БД (§8, §12). */
 export function toInviteResponse(
   envelope: EnvelopeRow,
@@ -237,8 +249,10 @@ export function toInviteResponse(
     return {
       id: place.id,
       name: place.name,
+      address: guestAddress(place.address),
       district: place.district,
       category: place.category,
+      photos: place.photos.map(toPublicUrl).filter((url): url is string => url !== null),
       photo_url: toPublicUrl(place.photo_url),
       note: place.note,
       lat: place.lat,

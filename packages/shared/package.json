@@ -12,6 +12,7 @@
     },
     "./styles/tokens.css": "./styles/tokens.css",
     "./styles/base.css": "./styles/base.css",
+    "./styles/theme-dark.css": "./styles/theme-dark.css",
     "./constants": {
       "types": "./dist/constants.d.ts",
       "default": "./dist/constants.js"

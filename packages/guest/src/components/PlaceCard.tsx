@@ -11,65 +11,59 @@ interface PlaceCardProps {
 }
 
 /**
- * Иерархия ровно по §11: фото → название + район → пометка хоста.
- * Категория, рейтинг и ссылка на карты — вторичны и уезжают в подвал карточки.
+ * Карточка-афиша по макету: фотография во всю плоскость, жёлтая кромка, а весь
+ * текст лежит поверх кадра. Название с адресом — в левом нижнем углу, реплика
+ * хоста — в правом верхнем, по диагонали от них; между ними градиент, который
+ * затемняет ровно те два угла, где стоит текст.
+ *
+ * Категория, рейтинг и ссылка на карты с карточки ушли: место выбирают по кадру
+ * и по тому, что о нём сказал хост, а звёздочки — это уже справочник. Ссылка
+ * «На карте» переехала в нижнюю панель, где она появляется у выбранного места.
+ *
+ * Выбор живёт в кнопке-подложке, а не в обёртке всей карточки: внутри есть свои
+ * интерактивные элементы (листание фото), а кнопку в кнопку вкладывать нельзя.
+ * Подложка лежит ниже них по z-index, поэтому клик по точке до выбора не доходит.
  */
 export function PlaceCard({ place, selected, readOnly, onSelect }: PlaceCardProps) {
-  const meta = [place.category, place.rating ? `★ ${place.rating.toFixed(1)}` : null]
-    .filter(Boolean)
-    .join(' · ');
+  // У мест, заведённых до появления адреса в гостевом ответе, он пустой —
+  // тогда вторую строку держит район, лишь бы она не пропала вовсе.
+  const where = place.address || place.district;
 
-  const body = (
-    <>
+  return (
+    <article
+      className={`card${readOnly ? '' : ' card--pickable'}${selected ? ' card--chosen' : ''}`}
+    >
       <PhotoFrame
-        src={place.photo_url}
+        photos={place.photos}
         alt={place.name}
         seed={place.id}
         category={place.category}
       />
 
+      {/* Заметка хоста временно снята с карточки — её новую подачу собираем
+          отдельно. Сам текст (place.note) остаётся в данных ответа. */}
+
       <div className="card__body">
         <h2 className="card__name">{place.name}</h2>
-        {place.district && <p className="card__district">{place.district}</p>}
-        {place.note && <p className="card__note">{place.note}</p>}
-
-        {(meta || place.maps_url) && (
-          <div className="card__foot">
-            {meta && <span className="meta">{meta}</span>}
-            {place.maps_url && (
-              <a
-                className="card__maps"
-                href={place.maps_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                // Клик по ссылке не должен заодно выбирать место.
-                onClick={(event) => event.stopPropagation()}
-              >
-                На карте
-              </a>
-            )}
-          </div>
-        )}
+        {where && <p className="card__address">{where}</p>}
       </div>
 
       <span className={`card__seal${selected ? ' card__seal--on' : ''}`}>
-        <WaxSeal size={38} checked={selected} />
+        <WaxSeal size={96} checked={selected} />
       </span>
-    </>
-  );
 
-  if (readOnly) {
-    return <article className={`card${selected ? ' card--chosen' : ''}`}>{body}</article>;
-  }
-
-  return (
-    <button
-      type="button"
-      className={`card card--pickable${selected ? ' card--chosen' : ''}`}
-      aria-pressed={selected}
-      onClick={() => onSelect(place.id)}
-    >
-      {body}
-    </button>
+      {!readOnly && (
+        <button
+          type="button"
+          className="card__pick"
+          aria-pressed={selected}
+          onClick={() => onSelect(place.id)}
+        >
+          <span className="visually-hidden">
+            {selected ? `${place.name} — выбрано` : `Выбрать ${place.name}`}
+          </span>
+        </button>
+      )}
+    </article>
   );
 }

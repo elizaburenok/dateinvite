@@ -6,10 +6,12 @@ export default defineConfig({
   base: '/i/',
   plugins: [react()],
   server: {
-    port: 5174,
+    // Порт задаёт окружение: собственный адрес дев-сервера ни на что
+    // не завязан, а фиксированный номер конфликтует с соседними запусками.
+    port: Number(process.env.PORT) || 5174,
     proxy: {
-      '/api': 'http://localhost:3000',
-      '/media': 'http://localhost:3000',
+      '/api': process.env.API_TARGET || 'http://localhost:3000',
+      '/media': process.env.API_TARGET || 'http://localhost:3000',
     },
   },
 });

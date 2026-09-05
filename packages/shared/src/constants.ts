@@ -10,5 +10,11 @@
 export const ENVELOPE_MIN_PLACES = 3;
 export const ENVELOPE_MAX_PLACES = 5;
 
+/**
+ * Фотографий у места — не больше восьми. Ограничение не техническое:
+ * карточка в конверте перестаёт читаться раньше, чем кончается место на диске.
+ */
+export const PLACE_MAX_PHOTOS = 8;
+
 /** initData считается протухшей через сутки — §3, асимметрия авторизации. */
 export const INIT_DATA_MAX_AGE_SEC = 24 * 60 * 60;

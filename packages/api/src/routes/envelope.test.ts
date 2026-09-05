@@ -192,7 +192,8 @@ describe('контракт GET /invite/{token} (§8)', () => {
     expect(body.places).toHaveLength(3);
     // Гостю не утекают ни владелец, ни служебные статусы места, ни исходная ссылка.
     expect(Object.keys(body.places[0]).sort()).toEqual(
-      ['category', 'district', 'id', 'lat', 'lng', 'maps_url', 'name', 'note', 'photo_url', 'rating'].sort(),
+      ['address', 'category', 'district', 'id', 'lat', 'lng', 'maps_url', 'name', 'note',
+       'photo_url', 'photos', 'rating'].sort(),
     );
     // Относительный путь к фото развёрнут в абсолютный — страница живёт на другом домене.
     expect(body.places[0].photo_url).toBe('https://invite.test/media/place-1.jpg');
