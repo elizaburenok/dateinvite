@@ -14,6 +14,7 @@ import { upsertUser, type UserRow } from '../domain/users.js';
 import { resolvePlace, type ResolverInput } from '../resolver/index.js';
 import type { NominatimClient } from '../resolver/nominatim.js';
 import type { PhotoStore } from '../resolver/photos.js';
+import type { Locale } from '../locale/index.js';
 import { candidateLine, escapeHtml, placeCard } from './format.js';
 
 export interface BotDeps {
@@ -22,6 +23,8 @@ export interface BotDeps {
   nominatim: NominatimClient;
   photoStore: PhotoStore;
   miniAppUrl: string;
+  /** Перевод места на английский при сохранении. Без него место ляжет как есть. */
+  locale?: Locale;
 }
 
 /** Telegram отдаёт размеры по возрастанию — берём самый крупный. */
@@ -251,7 +254,7 @@ export function createBot(deps: BotDeps): Bot {
 
     let result;
     try {
-      result = await resolvePlace(input, { nominatim: deps.nominatim });
+      result = await resolvePlace(input, { nominatim: deps.nominatim, locale: deps.locale });
     } catch (error) {
       await ctx.api.editMessageText(
         ctx.chat.id,
@@ -300,6 +303,9 @@ export function createBot(deps: BotDeps): Bot {
         address: draft.address,
         district: draft.district,
         category: draft.category,
+        name_ru: draft.name_ru,
+        address_ru: draft.address_ru,
+        district_ru: draft.district_ru,
         lat: draft.lat,
         lng: draft.lng,
         maps_url: draft.maps_url,
@@ -315,6 +321,9 @@ export function createBot(deps: BotDeps): Bot {
         address: candidate.address,
         district: candidate.district,
         category: candidate.category,
+        name_ru: candidate.name_ru,
+        address_ru: candidate.address_ru,
+        district_ru: candidate.district_ru,
         lat: candidate.lat,
         lng: candidate.lng,
         maps_url: candidate.maps_url,

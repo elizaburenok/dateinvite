@@ -37,6 +37,14 @@ export const config = {
   nominatimUserAgent: optional('NOMINATIM_USER_AGENT', 'invite-app/0.1 (self-hosted personal use)'),
   nominatimBaseUrl: optional('NOMINATIM_BASE_URL', 'https://nominatim.openstreetmap.org'),
 
+  /**
+   * Перевод названий и адресов на английский. Без ключа остаются тег name:en
+   * из OSM и транслитерация — места всё равно сохраняются латиницей,
+   * просто «Цветочная лавка» станет Tsvetochnaya Lavka, а не Flower Shop.
+   */
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
+  translationModel: optional('TRANSLATION_MODEL', 'claude-opus-5'),
+
   /** Бот включается только когда есть токен — тесты и локальная разработка живут без него. */
   get botEnabled(): boolean {
     return this.botToken.length > 0;

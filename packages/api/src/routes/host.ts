@@ -30,17 +30,20 @@ import {
 import { setUserCity } from '../domain/users.js';
 import { makePublicUrl } from '../lib/media.js';
 import { badRequest, notFound } from '../domain/errors.js';
+import { passthroughLocale, type Locale } from '../locale/index.js';
 
 export interface HostRoutesDeps {
   db: Db;
   botToken: string;
   publicBaseUrl: string;
   envelopeTtlDays: number;
+  locale?: Locale;
 }
 
 /** Роуты Mini App (§8). Каждый запрос подтверждается свежей initData. */
 export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Promise<void> {
   const { db } = deps;
+  const locale = deps.locale ?? passthroughLocale;
   const toPublicUrl = makePublicUrl(deps.publicBaseUrl);
   const requireHost = makeRequireHost({ db, botToken: deps.botToken });
 
@@ -104,9 +107,20 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
         .code(400)
         .send({ error: 'invalid_body', message: 'Проверьте поля места', issues: parsed.error.issues });
     }
+    // Правило «сохранённые места по-английски» не знает исключений: место, набранное
+    // руками по-русски, переводится так же, как пришедшее из поста. Латиница проходит
+    // насквозь — переводить нечего, и хост увидит ровно то, что напечатал.
+    const english = await locale.place({
+      name: parsed.data.name,
+      address: parsed.data.address ?? '',
+      district: parsed.data.district ?? null,
+      city: user.city,
+    });
+
     const row = insertPlace(db, {
       owner_id: user.id,
       ...parsed.data,
+      ...english,
       source: 'manual',
       // Хост вводит данные руками — подтверждать нечего, это уже его правда.
       enrichment_status: 'resolved',

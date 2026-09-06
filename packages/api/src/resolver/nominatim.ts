@@ -1,6 +1,7 @@
 import type { Db } from '../db/index.js';
 import { nowIso } from '../lib/ids.js';
 import { humanCategory } from './categories.js';
+import { addressToEnglish } from '../locale/translit.js';
 
 /**
  * Клиент OpenStreetMap Nominatim.
@@ -39,6 +40,8 @@ export interface NominatimPlace {
   category?: string;
   type?: string;
   address?: NominatimAddress;
+  /** Все варианты имени, включая name:en, — запрашиваются через namedetails=1. */
+  namedetails?: Record<string, string>;
 }
 
 /** Нормализованная точка: то, чем мы заполняем Place и кандидатов. */
@@ -49,6 +52,10 @@ export interface GeoPoint {
   category: string | null;
   lat: number;
   lng: number;
+  /** Английское имя, размеченное в OSM. null — мапперы его не проставили. */
+  nameEn: string | null;
+  /** Английский адрес, собранный из разобранных частей ответа. */
+  addressEn: string | null;
 }
 
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -64,9 +71,31 @@ export function shortAddress(place: NominatimPlace): string {
   return place.display_name.split(',').slice(0, 3).join(',').trim();
 }
 
+/**
+ * Тот же адрес по-английски. Собирается из разобранных частей, а не переводится
+ * строкой: части дают порядок («5 Lyalin Lane»), которого в русской записи нет.
+ * display_name сюда не годится — его разобрать уже нельзя, поэтому у объектов
+ * без адресных полей английского адреса не будет, и его допереведут выше.
+ */
+export function shortAddressEn(place: NominatimPlace): string | null {
+  const a = place.address ?? {};
+  return addressToEnglish({
+    road: a.road ?? null,
+    house: a.house_number ?? null,
+    city: a.city ?? a.town ?? a.village ?? null,
+  });
+}
+
 export function districtOf(place: NominatimPlace): string | null {
   const a = place.address ?? {};
   return a.suburb ?? a.quarter ?? a.neighbourhood ?? a.city_district ?? null;
+}
+
+/** name:en, а если его нет — int_name, международное имя объекта. */
+export function nameEnOf(place: NominatimPlace): string | null {
+  const details = place.namedetails ?? {};
+  const english = details['name:en'] ?? details['int_name'];
+  return english?.trim() || null;
 }
 
 /**
@@ -115,6 +144,8 @@ export function toGeoPoint(place: NominatimPlace): GeoPoint | null {
     category: humanCategory(place.category, place.type),
     lat,
     lng,
+    nameEn: nameEnOf(place),
+    addressEn: shortAddressEn(place),
   };
 }
 
@@ -210,6 +241,8 @@ export class NominatimClient {
       q: text,
       format: 'jsonv2',
       addressdetails: '1',
+      // name:en, если он есть в OSM: разметка живых мапперов лучше любого перевода.
+      namedetails: '1',
       limit: String(options.limit ?? 3),
     });
     return places
@@ -231,6 +264,7 @@ export class NominatimClient {
       q: city ? `${query}, ${city}` : query,
       format: 'jsonv2',
       addressdetails: '1',
+      namedetails: '1',
       limit: String(limit),
     });
 
@@ -249,6 +283,8 @@ export class NominatimClient {
           category: null,
           lat,
           lng,
+          nameEn: null,
+          addressEn: shortAddressEn(place),
         };
       })
       .filter((p): p is GeoPoint => p !== null);
@@ -260,6 +296,7 @@ export class NominatimClient {
       lon: String(lng),
       format: 'jsonv2',
       addressdetails: '1',
+      namedetails: '1',
       zoom: '18',
     });
     const first = places[0];

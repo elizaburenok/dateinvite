@@ -4,7 +4,7 @@ import { fetchInvite, sendAnswer, tokenFromLocation, type LoadState } from './ap
 import { InvitePage } from './InvitePage.js';
 import { WaxSeal } from './components/WaxSeal.js';
 import { DEMO_INVITE, isDemo } from './demo/fixture.js';
-import { VariantSwitch, stackVariant } from './demo/variant.js';
+import { entryFromLocation } from './entry.js';
 
 function Message({ title, text }: { title: string; text: string }) {
   return (
@@ -21,10 +21,10 @@ function Message({ title, text }: { title: string; text: string }) {
 export function App() {
   const token = tokenFromLocation();
   const demo = isDemo();
+  const entry = entryFromLocation();
   const [state, setState] = useState<LoadState>(
     demo ? { kind: 'ready', invite: DEMO_INVITE } : { kind: 'loading' },
   );
-
   useEffect(() => {
     if (demo) return;
     if (!token) {
@@ -64,19 +64,13 @@ export function App() {
     return <Message title="Не открылось" text={state.message} />;
   }
 
-  // Вариант стопки выбирается только в демо: боевая страница всегда основная.
-  const variant = demo ? stackVariant() : 'cycle';
-
   return (
-    <>
-      <InvitePage
-        invite={state.invite}
-        onSubmit={demo ? answerLocally : (placeId, message) => sendAnswer(token!, placeId, message)}
-        onUpdate={updateInvite(setState)}
-        variant={variant}
-      />
-      {demo && <VariantSwitch current={variant} />}
-    </>
+    <InvitePage
+      invite={state.invite}
+      entry={entry}
+      onSubmit={demo ? answerLocally : (placeId, message) => sendAnswer(token!, placeId, message)}
+      onUpdate={updateInvite(setState)}
+    />
   );
 }
 
