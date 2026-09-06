@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { GuestPlace } from '@invite/shared';
 import { PhotoFrame } from './PhotoFrame.js';
 
@@ -33,6 +34,44 @@ export function PlaceCard({ place, selected, readOnly, onSelect }: PlaceCardProp
   // тогда вторую строку держит район, лишь бы она не пропала вовсе.
   const where = place.address || place.district;
 
+  const name = useRef<HTMLHeadingElement>(null);
+  // Межстрочное название подобрано под одну строку (--font-card в invite.css):
+  // это высота её собственной коробки, а не расстояние до соседней. Когда
+  // название не помещается и переносится, то же число становится ещё и
+  // промежутком между двумя строками — и там оно слишком свободное. В CSS
+  // нет способа спросить «перенеслось ли», поэтому считаем строки в рантайме.
+  const [wrapped, setWrapped] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = name.current;
+    if (!el) return;
+
+    // Число строк текстового узла — не элемента: у блочного элемента
+    // getClientRects() всегда вернёт один прямоугольник на весь блок, а у
+    // Range по его содержимому — один на каждую фактическую строку.
+    function measure() {
+      if (!el) return;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      setWrapped(range.getClientRects().length > 1);
+    }
+
+    measure();
+
+    // Ширина карточки — не пиксели, а cqw (invite.css): то же название на
+    // другом экране может перенестись иначе. ResizeObserver на самом
+    // заголовке ловит и это, и смену раскладки при выборе карточки.
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+
+    // Inter Tight грузится асинхронно (index.html): до его подстановки текст
+    // короткое время стоит на запасной гарнитуре с другой шириной букв, и
+    // перенос по нему может отличаться от итогового.
+    document.fonts.ready.then(measure);
+
+    return () => observer.disconnect();
+  }, [place.name]);
+
   return (
     <article
       className={`card${readOnly ? '' : ' card--pickable'}${selected ? ' card--chosen' : ''}`}
@@ -48,7 +87,9 @@ export function PlaceCard({ place, selected, readOnly, onSelect }: PlaceCardProp
           отдельно. Сам текст (place.note) остаётся в данных ответа. */}
 
       <div className="card__body">
-        <h2 className="card__name">{place.name}</h2>
+        <h2 ref={name} className={`card__name${wrapped ? ' card__name--wrapped' : ''}`}>
+          {place.name}
+        </h2>
         {where && <p className="card__address">{where}</p>}
       </div>
 

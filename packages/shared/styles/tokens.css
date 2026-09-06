@@ -49,9 +49,10 @@
   /* --- Типографика --------------------------------------------------------- */
   --font-display: 'Playfair Display', 'Iowan Old Style', Georgia, serif;
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  /* Афишный узкий гротеск: название и адрес поверх фото на карточке места.
-     Подключается только гостевой страницей (guest/src/styles/fonts.css). */
-  --font-poster: 'ABC Gravity Compressed', var(--font-ui);
+  /* Название и адрес поверх фото на карточке места — Inter Tight SemiBold по
+     макету (Figma node 440-540). Приезжает из Google Fonts вместе с остальными
+     (guest/index.html). Раньше здесь стоял узкий гротеск ABC Gravity. */
+  --font-card: 'Inter Tight', var(--font-ui);
   /* Машинописная моноширинная: реплика хоста на карточке. Заметка — не подпись
      интерфейса, а строчка от руки, и набрана она отдельной гарнитурой. */
   --font-letter: 'Roboto Mono', ui-monospace, 'SF Mono', monospace;
