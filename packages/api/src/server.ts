@@ -10,6 +10,7 @@ import { configureBotCommands, createBot } from './bot/index.js';
 import { createTelegramNotifier } from './bot/notifier.js';
 import { noopNotifier, type Notifier } from './notify.js';
 import { registerFrontend } from './frontends.js';
+import { createLocale } from './locale/index.js';
 
 const packagesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -71,6 +72,14 @@ async function main(): Promise<void> {
   });
   const photoStore = new PhotoStore({ mediaDir: config.mediaDir });
   const miniAppUrl = `${config.publicBaseUrl}/app/`;
+  const locale = createLocale({
+    db,
+    apiKey: config.anthropicApiKey,
+    model: config.translationModel,
+    // Перевод не должен ронять сохранение места: упал — в карточку идёт транслит,
+    // а причина остаётся в логах, а не в тишине.
+    onError: (error) => console.error('перевод места не удался, беру транслит', error),
+  });
 
   let notifier: Notifier = noopNotifier;
   let bot: ReturnType<typeof createBot> | null = null;
@@ -79,7 +88,7 @@ async function main(): Promise<void> {
   // но без подключения к Telegram — так Mini App отлаживается локально.
   const botRuns = config.botEnabled && process.env.DEV_SKIP_BOT !== '1';
   if (botRuns) {
-    bot = createBot({ db, token: config.botToken, nominatim, photoStore, miniAppUrl });
+    bot = createBot({ db, token: config.botToken, nominatim, photoStore, miniAppUrl, locale });
     notifier = createTelegramNotifier(bot, config.publicBaseUrl);
   }
 
@@ -90,6 +99,7 @@ async function main(): Promise<void> {
     envelopeTtlDays: config.envelopeTtlDays,
     mediaDir: config.mediaDir,
     notifier,
+    locale,
     logger: true,
   });
 

@@ -13,10 +13,15 @@ import { nowIso, uuid } from '../lib/ids.js';
 export interface PlaceRow {
   id: string;
   owner_id: string;
+  /** Английские значения — их и показывают бот, мини-апп и конверт. */
   name: string;
   address: string;
   district: string | null;
   category: string | null;
+  /** Как было в русском источнике; null — строку не переводили (см. миграцию 003). */
+  name_ru: string | null;
+  address_ru: string | null;
+  district_ru: string | null;
   /** JSON-массив путей — см. миграцию 002. */
   photos: string;
   photo_url: string | null;
@@ -42,6 +47,9 @@ export interface CandidateRow {
   address: string;
   district: string | null;
   category: string | null;
+  name_ru: string | null;
+  address_ru: string | null;
+  district_ru: string | null;
   lat: number | null;
   lng: number | null;
   maps_url: string | null;
@@ -53,6 +61,9 @@ export interface NewPlace {
   address?: string;
   district?: string | null;
   category?: string | null;
+  name_ru?: string | null;
+  address_ru?: string | null;
+  district_ru?: string | null;
   photos?: string[];
   lat?: number | null;
   lng?: number | null;
@@ -71,6 +82,9 @@ export interface NewCandidate {
   address?: string;
   district?: string | null;
   category?: string | null;
+  name_ru?: string | null;
+  address_ru?: string | null;
+  district_ru?: string | null;
   lat?: number | null;
   lng?: number | null;
   maps_url?: string | null;
@@ -133,6 +147,9 @@ export function insertPlace(db: Db, input: NewPlace, candidates: NewCandidate[] 
     address: input.address ?? '',
     district: input.district ?? null,
     category: input.category ?? null,
+    name_ru: input.name_ru ?? null,
+    address_ru: input.address_ru ?? null,
+    district_ru: input.district_ru ?? null,
     photos: JSON.stringify(input.photos ?? []),
     photo_url: input.photos?.[0] ?? null,
     lat: input.lat ?? null,
@@ -150,18 +167,20 @@ export function insertPlace(db: Db, input: NewPlace, candidates: NewCandidate[] 
   };
 
   const insertRow = db.prepare(
-    `INSERT INTO places (id, owner_id, name, address, district, category, photos, photo_url,
+    `INSERT INTO places (id, owner_id, name, address, district, category,
+                         name_ru, address_ru, district_ru, photos, photo_url,
                          lat, lng, maps_url, rating, hours, note, tags, source,
                          enrichment_status, source_ref, created_at, deleted_at)
-     VALUES (@id, @owner_id, @name, @address, @district, @category, @photos, @photo_url,
+     VALUES (@id, @owner_id, @name, @address, @district, @category,
+             @name_ru, @address_ru, @district_ru, @photos, @photo_url,
              @lat, @lng, @maps_url, @rating, @hours, @note, @tags, @source,
              @enrichment_status, @source_ref, @created_at, @deleted_at)`,
   );
   const insertCandidate = db.prepare(
     `INSERT INTO place_candidates (id, place_id, position, name, address, district, category,
-                                   lat, lng, maps_url)
+                                   name_ru, address_ru, district_ru, lat, lng, maps_url)
      VALUES (@id, @place_id, @position, @name, @address, @district, @category,
-             @lat, @lng, @maps_url)`,
+             @name_ru, @address_ru, @district_ru, @lat, @lng, @maps_url)`,
   );
 
   db.transaction(() => {
@@ -175,6 +194,9 @@ export function insertPlace(db: Db, input: NewPlace, candidates: NewCandidate[] 
         address: candidate.address ?? '',
         district: candidate.district ?? null,
         category: candidate.category ?? null,
+        name_ru: candidate.name_ru ?? null,
+        address_ru: candidate.address_ru ?? null,
+        district_ru: candidate.district_ru ?? null,
         lat: candidate.lat ?? null,
         lng: candidate.lng ?? null,
         maps_url: candidate.maps_url ?? null,
@@ -307,6 +329,9 @@ export interface PlacePatch {
   address?: string;
   district?: string | null;
   category?: string | null;
+  name_ru?: string | null;
+  address_ru?: string | null;
+  district_ru?: string | null;
   photos?: string[];
   enrichment_status?: EnrichmentStatus;
   lat?: number | null;
@@ -326,6 +351,9 @@ export function updatePlace(db: Db, ownerId: string, placeId: string, patch: Pla
     ...(patch.address !== undefined ? { address: patch.address } : {}),
     ...(patch.district !== undefined ? { district: patch.district } : {}),
     ...(patch.category !== undefined ? { category: patch.category } : {}),
+    ...(patch.name_ru !== undefined ? { name_ru: patch.name_ru } : {}),
+    ...(patch.address_ru !== undefined ? { address_ru: patch.address_ru } : {}),
+    ...(patch.district_ru !== undefined ? { district_ru: patch.district_ru } : {}),
     ...(patch.photos !== undefined
       ? { photos: JSON.stringify(patch.photos), photo_url: patch.photos[0] ?? null }
       : {}),
@@ -337,6 +365,7 @@ export function updatePlace(db: Db, ownerId: string, placeId: string, patch: Pla
 
   db.prepare(
     `UPDATE places SET name = @name, address = @address, district = @district, category = @category,
+                       name_ru = @name_ru, address_ru = @address_ru, district_ru = @district_ru,
                        photos = @photos, photo_url = @photo_url, lat = @lat, lng = @lng,
                        maps_url = @maps_url, note = @note, tags = @tags,
                        enrichment_status = @enrichment_status
@@ -372,6 +401,11 @@ export function confirmCandidate(
       address: candidate.address,
       district: candidate.district,
       category: candidate.category,
+      // Оригинал переезжает вместе с переводом: иначе у подтверждённого места
+      // осталась бы русская строка от черновика, к которой английская уже не относится.
+      name_ru: candidate.name_ru,
+      address_ru: candidate.address_ru,
+      district_ru: candidate.district_ru,
       lat: candidate.lat,
       lng: candidate.lng,
       maps_url: candidate.maps_url,

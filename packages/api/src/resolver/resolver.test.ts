@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDb, type Db } from '../db/index.js';
 import { NominatimClient, type NominatimPlace } from './nominatim.js';
 import { resolvePlace } from './index.js';
+import { createLocale } from '../locale/index.js';
 
 const KOOPERATIV: NominatimPlace = {
   place_id: 1,
@@ -70,7 +71,7 @@ describe('ветка «ссылка Яндекс.Карт» (§7)', () => {
       name: 'Кооператив «Чёрный»',
       address: 'Лялин переулок, 5 с1, Москва',
       district: 'Бауманка',
-      category: 'Кофейня',
+      category: 'Coffee shop',
       source: 'yandex',
     });
     // maps_url — исходная ссылка хоста, а не выдуманная нами.
@@ -166,7 +167,7 @@ describe('ветка «только текст» (§7, §12)', () => {
     if (result.status !== 'needs_confirmation') return;
     expect(result.candidates.length).toBeGreaterThanOrEqual(1);
     expect(result.candidates.length).toBeLessThanOrEqual(3);
-    expect(result.candidates[0]).toMatchObject({ name: 'Март', category: 'Бар' });
+    expect(result.candidates[0]).toMatchObject({ name: 'Март', category: 'Bar' });
   });
 
   it('не отдаёт больше трёх кандидатов', async () => {
@@ -453,5 +454,57 @@ describe('живой случай: адрес важнее одноимённо�
     if (result.status !== 'needs_confirmation') return;
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0]?.address).toContain('Малая Зеленина');
+  });
+});
+
+describe('английский на выходе резолвера', () => {
+  /** Переводчик-заглушка: настоящий вызов Claude в тестах не нужен. */
+  const translate = (async (requests: { source: string }[]) =>
+    requests.map((request) => `EN:${request.source}`)) as never;
+
+  it('место сохраняется по-английски, а русский оригинал едет рядом', async () => {
+    const { client } = clientReturning(() => [MART]);
+    const result = await resolvePlace(
+      { location: { lat: 55.7501, lng: 37.6301 } },
+      { nominatim: client, locale: createLocale({ db, apiKey: 'test', translate }) },
+    );
+
+    expect(result.status).toBe('resolved');
+    if (result.status !== 'resolved') return;
+    expect(result.place).toMatchObject({
+      name: 'EN:Март',
+      name_ru: 'Март',
+      // Адрес собран из разобранных частей: номер дома впереди, тип улицы переведён.
+      address: '12 Solyanka, Moscow',
+      address_ru: 'Солянка, 12, Москва',
+      district: 'EN:Китай-город',
+      category: 'Bar',
+    });
+  });
+
+  it('тег name:en из OSM важнее любого перевода', async () => {
+    const tagged: NominatimPlace = { ...MART, namedetails: { 'name:en': 'March Wine Bar' } };
+    const { client } = clientReturning(() => [tagged]);
+    const result = await resolvePlace(
+      { location: { lat: 55.7501, lng: 37.6301 } },
+      { nominatim: client, locale: createLocale({ db, apiKey: 'test', translate }) },
+    );
+
+    expect(result.status).toBe('resolved');
+    if (result.status !== 'resolved') return;
+    expect(result.place.name).toBe('March Wine Bar');
+    expect(result.place.name_ru).toBe('Март');
+  });
+
+  it('без локализатора место остаётся как есть — перевод не включается сам собой', async () => {
+    const { client } = clientReturning(() => [MART]);
+    const result = await resolvePlace(
+      { location: { lat: 55.7501, lng: 37.6301 } },
+      { nominatim: client },
+    );
+
+    expect(result.status).toBe('resolved');
+    if (result.status !== 'resolved') return;
+    expect(result.place).toMatchObject({ name: 'Март', name_ru: null });
   });
 });

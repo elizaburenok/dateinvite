@@ -7,6 +7,7 @@ import { DomainError } from './domain/errors.js';
 import { hostRoutes } from './routes/host.js';
 import { inviteRoutes } from './routes/invite.js';
 import { noopNotifier, type Notifier } from './notify.js';
+import type { Locale } from './locale/index.js';
 
 export interface AppDeps {
   db: Db;
@@ -16,6 +17,8 @@ export interface AppDeps {
   mediaDir: string;
   notifier?: Notifier;
   logger?: boolean;
+  /** Перевод места на английский при сохранении вручную. */
+  locale?: Locale;
 }
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
@@ -61,6 +64,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     botToken: deps.botToken,
     publicBaseUrl: deps.publicBaseUrl,
     envelopeTtlDays: deps.envelopeTtlDays,
+    locale: deps.locale,
   });
 
   await app.register(inviteRoutes, {

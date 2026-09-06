@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GuestPlace } from '@invite/shared';
 import { PlaceCard } from '../PlaceCard.js';
 import { jitter } from '../pile/jitter.js';
@@ -45,6 +45,58 @@ const EXIT_MS = 560;
 const PULL_MS = MOVE_MS - EXIT_MS;
 
 /**
+ * Пружина подачи выбранной карточки вперёд.
+ *
+ * Пружина, а не кривая с длительностью, потому что подача обязана стыковаться с
+ * ходом колоды: нажимают в любой момент шага, и карточка в этот момент лежит где
+ * угодно между своим слотом и верхом стопки. Кривая начинает движение заново, от
+ * нуля до единицы за своё время, — и пока колода рядом доводила свой шаг сама,
+ * движений выходило два подряд: карточка успевала вырасти, постоять пустой такт
+ * и только потом доехать до места. Пружина же идёт из того положения, в каком
+ * карточку застали, и приходит в подачу одним ходом.
+ *
+ * Затухание чуть ниже критического: перелёт около четырёх процентов читается
+ * тем, что карточку подали в руку, а не выдвинули по направляющей. Больше брать
+ * нельзя — на телефоне выросшая карточка и так почти во всю ширину экрана
+ * (разбор при --cycle-focus в tokens.css), и перелёт ушёл бы за поля.
+ *
+ * Частота задаёт время хода: половина роста проходит за ~133ms, весь рост — за
+ * ~300ms. Прежние числа (14.2) были заметно резче: там половина укладывалась в
+ * сотню миллисекунд, и подача читалась щелчком, а не ходом.
+ */
+const PICK_FREQ = 11.5;
+const PICK_DAMP = 0.75;
+
+/**
+ * Дуга подъёма: карточку не просто раздувают на месте, её вынимают из колоды —
+ * значит в процессе она обязана приподняться и сесть обратно.
+ *
+ * Форма — импульс p²(1-p), нормированный так, чтобы пик равнялся единице (он
+ * приходится на p = 2/3, где выражение даёт 4/27, отсюда и множитель). Годится
+ * она тем, что зануляется на обоих концах хода: в начале — вместе с самой
+ * подачей, в покое — точно в единице. Причём в начале зануляется дважды, вместе
+ * с производной (за это отвечает квадрат), поэтому карточка трогается без
+ * толчка вверх.
+ *
+ * Считать подъём от скорости пружины было бы физичнее, но пик тогда приходится
+ * на ~100ms — карточка успевает подскочить раньше, чем заметно вырастет, и
+ * подъём читается отдельным движением. Здесь пик стоит на 167ms, ровно посреди
+ * роста, и оба движения читаются одним.
+ *
+ * За единицей выражение уходит в минус — и хорошо: на перелёте пружины карточка
+ * оседает на пару пикселей ниже места и возвращается. Это её посадка.
+ */
+function pickLift(p: number): number {
+  return 6.75 * p * p * (1 - p);
+}
+/**
+ * Шаг интегрирования. Вчетверо мельче обычного кадра: кадры приходят неровно, а
+ * на длинном кадре явный шаг у пружины расходится. На потолке dt в 64ms это
+ * пятнадцать подшагов — для одной пружины ничто.
+ */
+const PICK_SUB_MS = 1000 / 240;
+
+/**
  * Стопка мест: компактная колода, которая сама перебирает карточки.
  *
  * Колода занимает высоту одной карточки плюс кромки соседей и целиком помещается
@@ -84,10 +136,37 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
   const dealt = state === 'dealing' || state === 'open';
   const reducedMotion = usePrefersReducedMotion();
 
+  // Курсор на передней карточке останавливает перебор: место читают, а не
+  // листают мимо. Держим флагом, а не CSS-ом, потому что остановка — это
+  // поведение колоды (часы замирают), а не вид карточки; сам подъём рисует уже
+  // :hover в cycle.css. На тач-экранах наведения нет, и синтетический mouseenter
+  // от тапа паузу бы не значил, поэтому включаем флаг только там, где ховер есть.
+  const [hovered, setHovered] = useState(false);
+  const canHover = useRef(false);
+  useEffect(() => {
+    canHover.current = typeof matchMedia === 'function' && matchMedia('(hover: hover)').matches;
+  }, []);
+
   const deckRef = useRef<HTMLDivElement>(null);
   // Часы колоды. Замкнуты по всему кругу (count * STEP_MS), чтобы не расти
   // бесконечно: за круг колода возвращается в то же положение.
   const clock = useRef(0);
+
+  /**
+   * Состояние подачи: прогресс пружины, её скорость, глубина выбранной карточки
+   * в момент нажатия и она сама.
+   *
+   * Карточку держим ссылкой, а не ищем каждый раз по data-chosen: снятие выбора
+   * убирает признак в тот же кадр, а пружине после этого ещё идти назад — и
+   * вести ей будет некого.
+   */
+  const pick = useRef(0);
+  const pickVel = useRef(0);
+  const pickFrom = useRef(0);
+  const pickEl = useRef<HTMLElement | null>(null);
+  // Первый кадр в подаче не участвует: карточка может быть выбрана уже к
+  // загрузке, и разворачивать её тогда неоткуда и незачем.
+  const first = useRef(true);
 
   // Выбранное место останавливает колоду: место читают, а не перебирают, и
   // уезжать из-под глаз карточка не должна. Соседей в этот момент не видно
@@ -165,62 +244,122 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
       });
     };
 
+    /**
+     * Поза подачи. Сам прогресс пишем на колоду — из него CSS считает рост,
+     * наклон, прозрачность соседей и поле под выросшей карточкой, — а глубину
+     * выбранной карточки на неё саму: из своего слота в колоде она выходит той
+     * же пружиной, которой растёт. Оттого движение и одно: обе половины позы
+     * ведёт одно число.
+     */
+    const paintPick = () => {
+      deck.style.setProperty('--pick', pick.current.toFixed(4));
+      deck.style.setProperty('--lift', pickLift(pick.current).toFixed(4));
+      const el = pickEl.current;
+      if (el) el.style.setProperty('--d', (pickFrom.current * (1 - pick.current)).toFixed(4));
+    };
+
+    /** Признаки подачи снимаем не по снятию выбора, а по остановке пружины. */
+    const clearPick = () => {
+      pickEl.current?.removeAttribute('data-pick');
+      pickEl.current = null;
+      deck.removeAttribute('data-focus');
+    };
+
+    const target = focused ? 1 : 0;
+
+    if (focused) {
+      const el = deck.querySelector<HTMLElement>('.cycle__item[data-chosen]');
+      if (el) {
+        if (pickEl.current && pickEl.current !== el) pickEl.current.removeAttribute('data-pick');
+        // Слот, из которого карточку подают. Перечитывать его, пока пружина не
+        // вернулась в ноль, нельзя: в --d тогда лежит поза подачи, а не глубина
+        // в колоде. Колода всё это время стоит, так что слот и так прежний.
+        if (pick.current === 0) {
+          pickFrom.current = parseFloat(el.style.getPropertyValue('--d')) || 0;
+        }
+        pickEl.current = el;
+        el.setAttribute('data-pick', '');
+        deck.setAttribute('data-focus', '');
+      }
+    }
+
+    // Без анимации и на первом кадре подача не разыгрывается, а просто есть:
+    // движение либо попросили не показывать, либо показывать его ещё некому.
+    if (first.current || reducedMotion) {
+      pick.current = target;
+      pickVel.current = 0;
+    }
+    first.current = false;
+
     paint();
+    paintPick();
+    if (pick.current === 0 && !focused) clearPick();
+
+    // Шаг колоды больше не доводится до конца. Доводили его затем, чтобы колода
+    // не вставала колом посреди смены, — но вставать ей теперь есть где: в
+    // подаче соседей не видно вовсе, а выбранная карточка выходит из своего
+    // слота пружиной, откуда бы её ни застали. Часы поэтому просто замирают, и
+    // снятие выбора продолжает шаг ровно с того места, где его прервали.
+    if (!running && pick.current === target) return;
 
     let raf = 0;
+    let last = performance.now();
 
-    if (running) {
-      let last = performance.now();
-      const run = (now: number) => {
-        // Кадры не выдаются, когда вкладка в фоне: без потолка на dt колода
-        // после возвращения прыгнула бы сразу на несколько карточек вперёд.
-        clock.current = (clock.current + Math.min(now - last, 64)) % round;
-        last = now;
-        paint();
-        raf = requestAnimationFrame(run);
-      };
-      raf = requestAnimationFrame(run);
-      return () => cancelAnimationFrame(raf);
-    }
+    const frame = (now: number) => {
+      // Кадры не выдаются, когда вкладка в фоне: без потолка на dt колода после
+      // возвращения прыгнула бы сразу на несколько карточек вперёд, а пружина —
+      // сразу в конец хода.
+      const dt = Math.min(now - last, 64);
+      last = now;
 
-    // Колода встала (выбрали место). На паузе она и так стоит ровно — вставать
-    // никуда не надо.
-    const step = Math.floor(clock.current / STEP_MS);
-    const inStep = clock.current - step * STEP_MS;
-    if (inStep <= HOLD_MS) {
-      clock.current = step * STEP_MS;
-      paint();
-      return;
-    }
+      let alive = false;
 
-    // Посреди смены колода не встаёт колом: шаг доводится до конца и уже там она
-    // замирает. Доводка считается от абсолютного времени, а не покадрово: кадры
-    // не выдаются, когда вкладка в фоне, и покадровая доводка там просто не дошла
-    // бы до конца — вернувшись, человек застал бы карточку застывшей на полпути.
-    // Здесь же первый кадр после возвращения увидит, что время вышло, и доложит
-    // её на место.
-    const from = clock.current;
-    const to = (step + 1) * STEP_MS;
-    const started = performance.now();
-    const finish = (now: number) => {
-      // Часы идут своим темпом, поэтому и замедление к концу шага то же самое,
-      // что было бы на ходу: его держат ease и pullAt, а не эта доводка.
-      const k = Math.min(1, (now - started) / (to - from));
-      clock.current = k >= 1 ? to % round : from + (to - from) * k;
-      paint();
-      if (k < 1) raf = requestAnimationFrame(finish);
+      if (pick.current !== target || pickVel.current !== 0) {
+        const next = springStep(pick.current, pickVel.current, target, dt);
+        pick.current = next.p;
+        pickVel.current = next.v;
+        paintPick();
+        if (pick.current === 0 && target === 0) clearPick();
+        alive = true;
+      }
+
+      // Колода трогается, только когда карточка вернулась в свой слот. Иначе
+      // подача и ход шли бы одновременно — те самые двое часов, от которых всё
+      // это и уходит.
+      if (running && pick.current === 0) {
+        const phase = clock.current % STEP_MS;
+        // Наведение останавливает перебор, но не колом посреди смены: если
+        // курсор застал карточку в пути, шаг доводится до ближайшего покоя
+        // (границы шага, откуда начинается пауза следующей карточки) и уже там
+        // встаёт. В покое (фаза внутри HOLD) колода замирает сразу.
+        if (hovered && phase < HOLD_MS) {
+          // стоим — часы не трогаем
+        } else {
+          const stepEnd = (Math.floor(clock.current / STEP_MS) + 1) * STEP_MS;
+          const advance = hovered ? Math.min(dt, stepEnd - clock.current) : dt;
+          if (advance > 0) {
+            clock.current = (clock.current + advance) % round;
+            paint();
+            alive = true;
+          }
+        }
+      }
+
+      if (alive) raf = requestAnimationFrame(frame);
     };
-    raf = requestAnimationFrame(finish);
+
+    raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [running, count]);
+  }, [running, focused, hovered, reducedMotion, count]);
 
   return (
     <div
       className="cycle"
       ref={deckRef}
       data-dealt={dealt || undefined}
-      // Место выбрано — колода в фокусе: соседей не видно, выбранная крупнее.
-      data-focus={focused || undefined}
+      // data-focus здесь больше нет намеренно: его ставит и снимает эффект.
+      // React убрал бы признак в тот же кадр, в котором сняли выбор, — а подаче
+      // после этого ещё идти назад, и она осталась бы без своих правил.
       // Не меньше одного: на пустом списке (--n - 1) ушло бы в минус и колода
       // получила бы отрицательный отступ. Такого конверта не бывает, но ломаться
       // на вырожденных данных компонент всё равно не должен.
@@ -240,6 +379,12 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
             key={place.id}
             className="cycle__item"
             data-chosen={selected === place.id || undefined}
+            // Наведение на карточку останавливает перебор. События ловит только
+            // передняя: у остальных pointer-events сняты (cycle.css), и mouseenter
+            // на них не приходит вовсе — курсор проваливается к ней. Пока стоит
+            // наведение, колода не идёт, так что передняя под курсором не сменится.
+            onMouseEnter={canHover.current ? () => setHovered(true) : undefined}
+            onMouseLeave={() => setHovered(false)}
             // Начальное значение — чтобы до первого кадра колода уже лежала стопкой,
             // а не сваливалась в кучу. Дальше --d каждый кадр переписывает paint().
             style={
@@ -323,4 +468,37 @@ function ease(k: number): number {
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
+}
+
+/**
+ * Шаг пружины подачи — полуявный Эйлер с дроблением кадра.
+ *
+ * Дробление здесь не перестраховка: кадры приходят неровно, а на длинном кадре
+ * явный шаг у пружины расходится — она не успокаивается, а раскачивается.
+ *
+ * Защёлка в конце — тоже не украшение. Пружина подходит к цели асимптотически и
+ * сама в неё не приходит никогда; без защёлки колода не тронулась бы после
+ * снятия выбора вовсе (она ждёт ровного нуля), а кадры заказывались бы вечно.
+ *
+ * Порог взят по видимости, а не по числу: прибавка роста — четырнадцать
+ * процентов от 380px, то есть весь ход прогресса стоит 53px, и две тысячных от
+ * него — это одна десятая пикселя. Двигаться мельче незачем. Скорость меряется
+ * в долях прогресса за секунду, и 0.02 — это пиксель в секунду; она нужна
+ * отдельно затем, что на перелёте пружина проходит цель насквозь, и по одному
+ * положению защёлка сработала бы прямо посреди хода.
+ */
+function springStep(p: number, v: number, target: number, dtMs: number) {
+  const k = PICK_FREQ * PICK_FREQ;
+  const c = 2 * PICK_DAMP * PICK_FREQ;
+  let rest = dtMs;
+
+  while (rest > 0) {
+    const h = Math.min(rest, PICK_SUB_MS) / 1000;
+    rest -= PICK_SUB_MS;
+    v += (-k * (p - target) - c * v) * h;
+    p += v * h;
+  }
+
+  if (Math.abs(p - target) < 0.002 && Math.abs(v) < 0.02) return { p: target, v: 0 };
+  return { p, v };
 }
