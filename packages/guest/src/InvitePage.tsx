@@ -11,6 +11,18 @@ import { Pile, usePileReveal } from './components/pile/Pile.js';
 import { usePrefersReducedMotion } from './components/envelope/usePrefersReducedMotion.js';
 import type { Entry } from './entry.js';
 
+// Приезд надписи на экране «Ответ отправлен» — несколько вариантов (кадры в
+// invite.css). Какой играет, берём из ?anim=; дефолт — 'rise'. Это временный
+// переключатель для сравнения вариантов: как выберем один, останется дефолт.
+const DONE_ANIMS = ['rise', 'settle', 'float', 'unveil', 'grow'] as const;
+type DoneAnim = (typeof DONE_ANIMS)[number];
+
+function readDoneAnim(): DoneAnim {
+  if (typeof window === 'undefined') return 'rise';
+  const anim = new URLSearchParams(window.location.search).get('anim');
+  return DONE_ANIMS.includes(anim as DoneAnim) ? (anim as DoneAnim) : 'rise';
+}
+
 interface InvitePageProps {
   invite: InviteResponse;
   /** Чем открывается приглашение: кучкой мини-превью или конвертом. */
@@ -18,10 +30,6 @@ interface InvitePageProps {
   /** Отправку внедряет App: у демо-режима она своя, без бэкенда. */
   onSubmit(chosenPlaceId: string, message: string | null): Promise<AnswerResponse>;
   onUpdate(invite: InviteResponse): void;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
 export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProps) {
@@ -36,6 +44,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const doneAnim = readDoneAnim();
 
   // Истёкшее приглашение и просьбу не анимировать открываем сразу: в первом
   // случае распечатывать нечего, во втором человек попросил не двигать интерфейс.
@@ -72,7 +81,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   if (answered) {
     return (
       <main className="page">
-        <header className="done">
+        <header className="done" data-anim={doneAnim}>
           {/* Ответная надпись «Looks good. Can't wait to see you» живёт здесь, а
               не в момент выбора: пока место только выбрано и заметка ещё пишется,
               ответить хосту нечем — ответ появляется, когда он отправлен. Та же
@@ -145,9 +154,6 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
             />
           </div>
         </div>
-        {!expired && invite.expires_at && (
-          <p className="caption hero__expiry">Ответить можно до {formatDate(invite.expires_at)}</p>
-        )}
       </header>
 
       <section

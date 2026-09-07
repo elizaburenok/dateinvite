@@ -457,6 +457,170 @@ describe('живой случай: адрес важнее одноимённо�
   });
 });
 
+describe('живой случай: новое место, которого нет в OSM (§7)', () => {
+  const KARPOVKA: NominatimPlace = {
+    place_id: 900,
+    lat: '59.9701868',
+    lon: '30.3071137',
+    display_name: '31, набережная реки Карповки, Округ Чкаловское, Санкт-Петербург, Россия',
+    category: 'building',
+    type: 'apartments',
+    address: {
+      house_number: '31',
+      road: 'набережная реки Карповки',
+      suburb: 'Округ Чкаловское',
+      city: 'Санкт-Петербург',
+    },
+  };
+
+  // Пост-анонс целиком: заголовок строкой, название ссылкой со строчной латиницы,
+  // адрес с «наб. реки» и слоган в кавычках. На нём бот раньше отвечал «не нашли».
+  const POST = [
+    'Открытие!',
+    '',
+    'Загибаем пальцы сколько всего интересного появляется на Петроградке!',
+    'Наш новый герой — gaby bistro, наб. реки Карповки, 31, к.1 🐞',
+    '',
+    'Место с дерзким характером и слоганом «ugly but good» с акцентом на еду.',
+  ].join('\n');
+
+  it('название из поста + координаты по адресу, хотя OSM про место не знает', async () => {
+    const { client } = clientReturning((url) => {
+      const q = decodeURIComponent(new URL(url).searchParams.get('q') ?? '');
+      // Заведение открылось на днях — по имени в OSM его нет.
+      return q.startsWith('набережная реки Карповки') ? [KARPOVKA] : [];
+    });
+
+    const result = await resolvePlace(
+      { text: POST, nameHints: ['gaby bistro'], city: 'Санкт-Петербург' },
+      { nominatim: client },
+    );
+
+    expect(result.status).toBe('needs_confirmation');
+    if (result.status !== 'needs_confirmation') return;
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]).toMatchObject({
+      name: 'gaby bistro',
+      lat: 59.9701868,
+      lng: 30.3071137,
+    });
+    expect(result.candidates[0]?.address).toContain('Карповки');
+  });
+
+  it('слоган в кавычках не перебивает название из ссылки', async () => {
+    // Раньше «ugly but good» шёл наравне с размеченным названием и утаскивал
+    // поиск на себя. Теперь ищем адрес и имя места — слоган остаётся в стороне.
+    const { client, fetchImpl } = clientReturning(() => []);
+    await resolvePlace(
+      { text: POST, nameHints: ['gaby bistro'], city: 'Санкт-Петербург' },
+      { nominatim: client },
+    );
+
+    const queries = fetchImpl.mock.calls.map((call) =>
+      decodeURIComponent(new URL(String(call[0])).searchParams.get('q') ?? ''),
+    );
+    expect(queries.some((q) => q.startsWith('набережная реки Карповки'))).toBe(true);
+    expect(queries.some((q) => q.startsWith('gaby bistro'))).toBe(true);
+    expect(queries.some((q) => q.startsWith('ugly but good'))).toBe(false);
+  });
+});
+
+describe('LLM-разбор поста без адреса (§7)', () => {
+  const ZABYLI: NominatimPlace = {
+    place_id: 800,
+    lat: '55.7469',
+    lon: '37.6112',
+    name: 'Забыли Сахар',
+    display_name: 'Забыли Сахар, One Trinity Place, Москва, Россия',
+    category: 'amenity',
+    type: 'cafe',
+    address: { amenity: 'Забыли Сахар', road: 'Садовническая набережная', city: 'Москва' },
+  };
+
+  it('делит слитное «бренд + бизнес-центр» и находит место по чистому имени', async () => {
+    // OSM знает «Забыли Сахар», но не знает склейку из ссылки целиком.
+    const { client } = clientReturning((url) => {
+      const q = decodeURIComponent(new URL(url).searchParams.get('q') ?? '');
+      return q.startsWith('Забыли Сахар') && !q.includes('One Trinity') ? [ZABYLI] : [];
+    });
+    const analyzer = {
+      analyze: vi.fn(async () => ({
+        names: [{ text: 'Забыли Сахар', weight: 100 }],
+        city: 'Москва',
+      })),
+    };
+
+    const result = await resolvePlace(
+      {
+        text: 'Продолжаем рейд по завтракам! Заглянули в Забыли Сахар One Trinity Place. Средний чек 1600₽',
+        nameHints: ['Забыли Сахар One Trinity Place'],
+      },
+      { nominatim: client, analyzer },
+    );
+
+    expect(analyzer.analyze).toHaveBeenCalledOnce();
+    expect(result.status).toBe('needs_confirmation');
+    if (result.status !== 'needs_confirmation') return;
+    expect(result.candidates[0]?.name).toBe('Забыли Сахар');
+  });
+
+  it('город из разбора подставляется в поиск, когда хост его не указал', async () => {
+    const seen: string[] = [];
+    const { client } = clientReturning((url) => {
+      const params = new URL(url).searchParams;
+      seen.push(decodeURIComponent(params.get('q') ?? ''));
+      return [ZABYLI];
+    });
+    const analyzer = {
+      analyze: vi.fn(async () => ({ names: [{ text: 'Забыли Сахар', weight: 100 }], city: 'Москва' })),
+    };
+
+    await resolvePlace(
+      { text: 'Заглянули в Забыли Сахар One Trinity Place' },
+      { nominatim: client, analyzer },
+    );
+
+    // Город из разбора приклеился к запросу — иначе одноимённые места разъедутся.
+    expect(seen.some((q) => q.includes('Москва'))).toBe(true);
+  });
+
+  it('не зовёт LLM, когда в посте есть адрес — адрес надёжнее и дешевле', async () => {
+    const { client } = clientReturning((url) =>
+      decodeURIComponent(new URL(url).searchParams.get('q') ?? '').startsWith('Рубинштейна')
+        ? [{ ...MART, name: 'Рубинштейна место' }]
+        : [],
+    );
+    const analyzer = { analyze: vi.fn(async () => ({ names: [], city: null })) };
+
+    const result = await resolvePlace(
+      { text: 'Отличные завтраки на Рубинштейна, 15', city: 'Санкт-Петербург' },
+      { nominatim: client, analyzer },
+    );
+
+    expect(analyzer.analyze).not.toHaveBeenCalled();
+    expect(result.status).toBe('needs_confirmation');
+  });
+
+  it('падение LLM не роняет резолвер — остаётся ссылка и эвристика', async () => {
+    const { client } = clientReturning(() => []);
+    const analyzer = {
+      analyze: vi.fn(async () => {
+        throw new Error('нет сети');
+      }),
+    };
+    const onAnalyzerError = vi.fn();
+
+    const result = await resolvePlace(
+      { text: 'нарядные завтраки в Баски & Монегаски', nameHints: ['Баски & Монегаски'] },
+      { nominatim: client, analyzer, onAnalyzerError },
+    );
+
+    expect(onAnalyzerError).toHaveBeenCalledOnce();
+    // Ничего не нашлось на карте, но упасть резолвер не имеет права.
+    expect(result.status).toBe('failed');
+  });
+});
+
 describe('английский на выходе резолвера', () => {
   /** Переводчик-заглушка: настоящий вызов Claude в тестах не нужен. */
   const translate = (async (requests: { source: string }[]) =>

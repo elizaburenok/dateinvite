@@ -230,6 +230,26 @@ describe('название из текста ссылки', () => {
     ).toEqual([]);
   });
 
+  it('берёт латинское название со строчной: «gaby bistro»', () => {
+    const caption = 'Наш новый герой — gaby bistro, наб. реки Карповки, 31';
+    const title = 'gaby bistro';
+    expect(
+      extractLinkTitles(
+        message({
+          caption,
+          caption_entities: [
+            {
+              type: 'text_link',
+              offset: caption.indexOf(title),
+              length: title.length,
+              url: 'https://t.me/gaby',
+            },
+          ],
+        }),
+      ),
+    ).toEqual([title]);
+  });
+
   it('игнорирует обычные ссылки — там подписи нет', () => {
     expect(
       extractLinkTitles(

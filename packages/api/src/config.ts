@@ -45,6 +45,12 @@ export const config = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
   translationModel: optional('TRANSLATION_MODEL', 'claude-opus-5'),
 
+  /**
+   * Модель для LLM-разбора поста в ветке «только текст» без адреса: делит слитное
+   * «Бренд + бизнес-центр» на искомое имя и достаёт город. Без ключа не зовётся.
+   */
+  extractionModel: optional('EXTRACTION_MODEL', 'claude-opus-5'),
+
   /** Бот включается только когда есть токен — тесты и локальная разработка живут без него. */
   get botEnabled(): boolean {
     return this.botToken.length > 0;

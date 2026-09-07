@@ -19,6 +19,12 @@ export interface NameExtractor {
   extract(text: string): NameHint[];
 }
 
+/**
+ * Вес названия, размеченного человеком (кавычки, ссылка) или вычлененного LLM.
+ * Такой сигнал приравнивается к явному указанию: по нему ищем, а не гадаем.
+ */
+export const QUOTED_WEIGHT = 100;
+
 const CATEGORY_MARKERS = [
   'кофейня',
   'кофейни',
@@ -79,6 +85,18 @@ function isPlausible(value: string): boolean {
   return /[\p{L}]/u.test(normalized);
 }
 
+/**
+ * В кавычки берут не только названия: «ugly but good» — это слоган заведения,
+ * а не то, что найдётся на карте. Отличаем по форме: три и больше слов, и все
+ * со строчной. Название так не пишут, а вес кавычек глушит остальные подсказки —
+ * поиск уходил по слогану и не находил ничего.
+ */
+function looksLikeSlogan(value: string): boolean {
+  const words = value.split(/\s+/);
+  if (words.length < 3) return false;
+  return words.every((word) => /^\p{Ll}[\p{L}'’-]*$/u.test(word));
+}
+
 /** Кавычки — самый честный сигнал: человек сам обозначил границы названия. */
 function fromQuotes(text: string): NameHint[] {
   const hints: NameHint[] = [];
@@ -86,7 +104,11 @@ function fromQuotes(text: string): NameHint[] {
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       const value = match[1];
-      if (value && isPlausible(value)) hints.push({ text: normalize(value), weight: 100 });
+      if (!value || !isPlausible(value)) continue;
+      const normalized = normalize(value);
+      // Слоган остаётся кандидатом — вдруг это всё-таки имя, — но не «размеченным
+      // названием»: подавлять им остальные подсказки нельзя.
+      hints.push({ text: normalized, weight: looksLikeSlogan(normalized) ? 40 : QUOTED_WEIGHT });
     }
   }
   return hints;

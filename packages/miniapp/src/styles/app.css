@@ -397,6 +397,12 @@
   box-shadow: var(--sh-lift);
 }
 
+/* Кнопка отцентрована через translateX(-50%); базовый .btn:active меняет transform
+   целиком, поэтому центрирующий сдвиг нужно сохранить — иначе кнопка прыгает вправо. */
+.fab:active:not(:disabled) {
+  transform: translateX(-50%) scale(0.98);
+}
+
 .compose {
   position: fixed;
   inset: auto 0 0 0;

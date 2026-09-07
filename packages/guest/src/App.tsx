@@ -40,15 +40,13 @@ export function App() {
     };
   }, [token, demo]);
 
+  // Ничего не показываем, пока приглашение грузится: экран «Открываем
+  // конверт…» с сургучной печатью — от прежней версии страницы, до кучки и
+  // колоды. На новом входе он читался чужой, наспех вставленной картинкой на
+  // первом кадре. Фон держит .page--center, монтируется страница мгновенно
+  // после ответа сервера — заменять печать нечем.
   if (state.kind === 'loading') {
-    return (
-      <main className="page page--center">
-        <div className="notice notice--quiet">
-          <WaxSeal size={52} />
-          <p className="notice__text">Открываем конверт…</p>
-        </div>
-      </main>
-    );
+    return <main className="page page--center" />;
   }
 
   if (state.kind === 'not_found') {
