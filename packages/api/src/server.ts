@@ -5,6 +5,7 @@ import { buildApp } from './app.js';
 import { config } from './config.js';
 import { openDb } from './db/index.js';
 import { NominatimClient } from './resolver/nominatim.js';
+import { createClaudePostAnalyzer, type PostAnalyzer } from './resolver/postAnalyzer.js';
 import { PhotoStore } from './resolver/photos.js';
 import { configureBotCommands, createBot } from './bot/index.js';
 import { createTelegramNotifier } from './bot/notifier.js';
@@ -81,6 +82,11 @@ async function main(): Promise<void> {
     onError: (error) => console.error('перевод места не удался, беру транслит', error),
   });
 
+  // Без ключа LLM-разбор не поднимаем — ветка «только текст» останется на эвристике.
+  const analyzer: PostAnalyzer | undefined = config.anthropicApiKey
+    ? createClaudePostAnalyzer({ apiKey: config.anthropicApiKey, model: config.extractionModel })
+    : undefined;
+
   let notifier: Notifier = noopNotifier;
   let bot: ReturnType<typeof createBot> | null = null;
 
@@ -88,7 +94,7 @@ async function main(): Promise<void> {
   // но без подключения к Telegram — так Mini App отлаживается локально.
   const botRuns = config.botEnabled && process.env.DEV_SKIP_BOT !== '1';
   if (botRuns) {
-    bot = createBot({ db, token: config.botToken, nominatim, photoStore, miniAppUrl, locale });
+    bot = createBot({ db, token: config.botToken, nominatim, photoStore, miniAppUrl, locale, analyzer });
     notifier = createTelegramNotifier(bot, config.publicBaseUrl);
   }
 

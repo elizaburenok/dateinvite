@@ -2,7 +2,8 @@ import type { EnrichmentStatus, PlaceSource } from '@invite/shared';
 import type { GeoPoint, NominatimClient } from './nominatim.js';
 import { passthroughLocale, type Locale } from '../locale/index.js';
 import { extractAddress } from './address.js';
-import { heuristicExtractor, type NameExtractor } from './textCandidates.js';
+import { heuristicExtractor, QUOTED_WEIGHT, type NameExtractor, type NameHint } from './textCandidates.js';
+import type { PostAnalyzer } from './postAnalyzer.js';
 import {
   isYandexMapsUrl,
   resolveYandexLink,
@@ -59,11 +60,16 @@ export interface ResolverDeps {
   expandOptions?: ExpandOptions;
   /** Перевод на английский. По умолчанию выключен — место сохраняется как есть. */
   locale?: Locale;
+  /**
+   * LLM-разбор поста. Зовётся только в ветке «только текст» и только когда в посте
+   * нет адреса (см. §7 ниже). Без него остаются ссылка и эвристика.
+   */
+  analyzer?: PostAnalyzer;
+  /** Куда жаловаться, если LLM-разбор упал. Место всё равно резолвится дальше. */
+  onAnalyzerError?: (error: unknown) => void;
 }
 
 const MAX_CANDIDATES = 3;
-/** Вес подсказки, взятой из кавычек, — см. textCandidates. */
-const QUOTED_WEIGHT = 100;
 
 function yandexUrlFor(lat: number, lng: number, name?: string): string {
   const params = new URLSearchParams({ ll: `${lng},${lat}`, z: '17' });
@@ -255,37 +261,62 @@ export async function resolvePlace(
   // 4. Только текст: даём 1–3 кандидата и ждём подтверждения (§7, §12).
   // Размеченное человеком название идёт первым и с тем же весом, что и кавычки.
   const linkHints = (input.nameHints ?? []).map((text) => ({ text, weight: QUOTED_WEIGHT }));
-  const hints = [...linkHints, ...extractor.extract(input.text ?? '')];
-  if (hints.length === 0) {
-    return { status: 'failed', reason: 'В тексте не нашлось названия места' };
-  }
-
-  // Если человек сам обозначил название — кавычками или ссылкой, — гадать по
-  // словам с заглавной запрещено, даже когда размеченное название не нашлось.
-  // Иначе «завтраки в Баски & Монегаски» дают салон красоты по слову «Красота»,
-  // а «бар "Профсоюз" на Покровке» — театр и школу.
-  const hasMarkedName = hints.some((hint) => hint.weight >= QUOTED_WEIGHT);
-  const searchHints = hasMarkedName
-    ? hints.filter((hint) => hint.weight >= QUOTED_WEIGHT)
-    : hints;
 
   /**
    * Адрес из текста идёт первым, а не как запасной вариант.
    * Поиск по одному названию промахивается городом и однофамильцами:
    * «Бергамот» находит чайную лавку на другом конце города, хотя человек
    * тут же написал «Малая Зеленина, 4». Адрес однозначен — название нет.
+   *
+   * Считаем его раньше названий, потому что от него зависит, звать ли LLM.
    */
   const address = extractAddress(input.text, {
     // Исключаем только размеченные человеком названия. Эвристические подсказки
     // сюда класть нельзя: «Малая Зеленина» — это и заглавная пара для эвристики,
     // и настоящая улица, и адрес отбрасывал сам себя.
-    exclude: hints.filter((hint) => hint.weight >= QUOTED_WEIGHT).map((hint) => hint.text),
+    exclude: linkHints.map((hint) => hint.text),
   });
+
+  // LLM зовём только когда адреса в посте нет: адрес надёжнее и дешевле любой
+  // догадки, и пока он есть, тратить запрос к модели незачем. Без адреса
+  // единственная зацепка — название, а склеенное «Бренд + бизнес-центр» из ссылки
+  // OSM не находит; модель делит его на искомое имя и достаёт город из текста.
+  const analyzerHints: NameHint[] = [];
+  let analyzerCity: string | null = null;
+  if (!address && deps.analyzer) {
+    try {
+      const analysis = await deps.analyzer.analyze(input.text ?? '');
+      analyzerHints.push(...analysis.names);
+      analyzerCity = analysis.city;
+    } catch (error) {
+      // Молчаливая деградация недопустима (§3), но и падать нельзя: без модели
+      // остаются ссылка и эвристика.
+      deps.onAnalyzerError?.(error);
+    }
+  }
+
+  const hints = [...linkHints, ...analyzerHints, ...extractor.extract(input.text ?? '')];
+  if (hints.length === 0) {
+    return { status: 'failed', reason: 'В тексте не нашлось названия места' };
+  }
+
+  // Если название обозначено явно — кавычками, ссылкой или разбором модели, — гадать
+  // по словам с заглавной запрещено, даже когда явное название не нашлось. Иначе
+  // «завтраки в Баски & Монегаски» дают салон красоты по слову «Красота»,
+  // а «бар "Профсоюз" на Покровке» — театр и школу.
+  const hasMarkedName = hints.some((hint) => hint.weight >= QUOTED_WEIGHT);
+  const searchHints = hasMarkedName
+    ? hints.filter((hint) => hint.weight >= QUOTED_WEIGHT)
+    : hints;
+
+  // Город из настроек хоста надёжнее, но если его нет — берём тот, что модель нашла
+  // в тексте: поиск по названию без города разъезжается по всей стране.
+  const searchCity = input.city ?? analyzerCity;
 
   const addressCandidates: Pending[] = [];
   if (address) {
     const points = await deps.nominatim
-      .geocode(address.query, input.city, MAX_CANDIDATES)
+      .geocode(address.query, searchCity, MAX_CANDIDATES)
       .catch(() => []);
     const name = hints[0]!.text;
     for (const point of points) {
@@ -313,7 +344,7 @@ export async function resolvePlace(
   for (const hint of searchHints.slice(0, MAX_CANDIDATES)) {
     if (candidates.length >= MAX_CANDIDATES) break;
     const found = await deps.nominatim
-      .search(hint.text, { city: input.city, limit: MAX_CANDIDATES })
+      .search(hint.text, { city: searchCity, limit: MAX_CANDIDATES })
       .catch(() => []);
     for (const point of found) {
       const key = `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`;

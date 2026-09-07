@@ -11,6 +11,21 @@ describe('извлечение названий из текста поста (§
     expect(hints[0]).toMatchObject({ text: 'Кооператив Чёрный', weight: 100 });
   });
 
+  it('слоган в кавычках не выдаёт себя за название', () => {
+    // «ugly but good» — девиз заведения. С весом кавычек он глушил все остальные
+    // подсказки, и бот шёл искать на карте слоган.
+    const hints = heuristicExtractor.extract(
+      'Место с дерзким характером и слоганом «ugly but good» с акцентом на еду',
+    );
+    const slogan = hints.find((h) => h.text === 'ugly but good');
+    expect(slogan?.weight).toBeLessThan(100);
+  });
+
+  it('название из двух строчных слов кавычки не понижают', () => {
+    const hints = heuristicExtractor.extract('новое место — «gaby bistro» на Карповке');
+    expect(hints[0]).toMatchObject({ text: 'gaby bistro', weight: 100 });
+  });
+
   it('находит название после маркера категории', () => {
     expect(names('обожаю бар Профсоюз на Покровке')).toContain('Профсоюз');
   });

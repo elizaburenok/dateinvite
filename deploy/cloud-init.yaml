@@ -6,19 +6,24 @@
 # Перед вставкой заменить четыре значения ниже.
 # Хостинг обычно показывает это поле как «Cloud-init», «User data»
 # или «Скрипт первичной настройки».
+#
+# Это ШАБЛОН в публичном репозитории: настоящие токены сюда не вписывать.
+# Заполненную копию держать у себя (поле хостинга, менеджер паролей) —
+# в git она попасть не должна. Токен бота даёт полный доступ к нему,
+# токен DuckDNS позволяет переписать домен на чужой адрес.
 
 write_files:
   - path: /root/invite-setup.env
     permissions: '2324'
     content: |
       # Домен, по которому будет работать приложение.
-      DOMAIN=dateinvite.duckdns.org
+      DOMAIN=<поддомен>.duckdns.org
       # Токен бота от @BotFather.
-      BOT_TOKEN=8202034052:AAELwm7-xIKMCYc3uMX_HyIgrrBIHbkECNc
+      BOT_TOKEN=<токен от @BotFather>
       # Почта для OpenStreetMap — они требуют контакт.
-      CONTACT_EMAIL=burenok.eliza@gmail.com
+      CONTACT_EMAIL=<ваша почта>
       # Токен с duckdns.org: сервер сам пропишет туда свой адрес.
-      DUCKDNS_TOKEN=5accb728-84ad-4111-9433-b25bdaa5e1d6
+      DUCKDNS_TOKEN=<токен с duckdns.org>
 
 runcmd:
   - apt-get update

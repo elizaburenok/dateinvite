@@ -9,6 +9,13 @@
 const STREET_WORDS =
   'ул\\.|улица|улице|ул|пер\\.|переулок|просп\\.|проспект|пр-т|пр\\.|наб\\.|набережная|бульвар|б-р|шоссе|ш\\.|площадь|пл\\.|линия|аллея|проезд';
 
+/**
+ * «наб. реки Карповки», «наб. канала Грибоедова» — половина петербургских адресов
+ * пишется так. Между типом улицы и названием стоит строчное слово, и без него
+ * шаблон «улица Название дом» рвался ровно на самом частом случае.
+ */
+const WATER_WORDS = 'реки|канала|ручья|протоки';
+
 /** Дом: 3, 3/6, 5с1, 12к2, 7А. */
 const HOUSE = '\\d+[/\\-]?\\d*\\s?(?:[а-яА-Я]\\d*)?';
 
@@ -18,9 +25,9 @@ const PATTERNS: RegExp[] = [
     `([\\p{Lu}][\\p{L}-]+(?:\\s+[\\p{Ll}\\p{L}-]+)?)\\s+(${STREET_WORDS})\\.?,?\\s*(${HOUSE})`,
     'u',
   ),
-  // «улица Рубинштейна, 15», «проспект Мира 5»
+  // «улица Рубинштейна, 15», «проспект Мира 5», «наб. реки Карповки, 31»
   new RegExp(
-    `(${STREET_WORDS})\\s+([\\p{Lu}][\\p{L}-]+(?:\\s+[\\p{L}-]+)?)\\.?,?\\s*(${HOUSE})`,
+    `(${STREET_WORDS})\\s+(?:(${WATER_WORDS})\\s+)?([\\p{Lu}][\\p{L}-]+(?:\\s+[\\p{L}-]+)?)\\.?,?\\s*(${HOUSE})`,
     'u',
   ),
 ];
@@ -48,9 +55,13 @@ function normalizeStreetWord(word: string): string {
  * Улица без слова «улица»: «Малая Зеленина, 4», «Рубинштейна, 15».
  * Так пишут постоянно, и без этого шаблона адрес терялся целиком.
  *
- * Шаблон заведомо более жадный, поэтому ищем его только в первой строке —
+ * Шаблон заведомо более жадный, поэтому ищем его только в начале поста —
  * там, где в постах про места и стоит адрес. В теле длинного текста
  * «Меню, 2» или «Зимой, 5» дали бы ложное срабатывание.
+ *
+ * Одной строки мало: в постах-анонсах первая строка — заголовок («Открытие!»),
+ * а адрес приезжает следующим абзацем. Поэтому смотрим первые несколько
+ * непустых строк, а не буквально первую.
  */
 const BARE_STREET = new RegExp(
   `([\\p{Lu}][\\p{Ll}-]+(?:\\s+[\\p{Lu}][\\p{Ll}-]+){0,2}),\\s*(${HOUSE})(?![\\d.,]*\\s*(?:₽|руб|%))`,
@@ -59,6 +70,22 @@ const BARE_STREET = new RegExp(
 
 /** Слова, которые адресом быть не могут, даже если стоят перед числом. */
 const NOT_A_STREET = new Set(['меню', 'зимой', 'летом', 'весной', 'осенью', 'цена', 'счёт', 'чек']);
+
+/** Сколько непустых строк с начала поста считаем «шапкой» с адресом. */
+const LEAD_LINES = 3;
+
+/**
+ * Строки идут по одной, а не склеенной простынёй: иначе «Малая Зеленина, 4»
+ * с переносом строки за номером дома прихватывает первую букву следующей строки
+ * («4\nв»), а склейка через запятую сама сочиняет адрес из двух соседних строк.
+ */
+function leadLines(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, LEAD_LINES);
+}
 
 export function extractAddress(
   text: string | null | undefined,
@@ -82,24 +109,25 @@ export function extractAddress(
 
   const second = PATTERNS[1]!.exec(text);
   if (second) {
-    const [raw, word, name, house] = second;
+    const [raw, word, water, name, house] = second;
     const houseNumber = house!.split(/[/\-]/)[0]!.trim();
-    return {
-      raw: raw.trim(),
-      query: `${name} ${normalizeStreetWord(word!)}, ${houseNumber}`,
-    };
+    // «набережная реки Карповки» переставлять нельзя — порядок слов тут часть
+    // названия, и «Карповки набережная» геокодер понимает уже хуже.
+    const query = water
+      ? `${normalizeStreetWord(word!)} ${water} ${name}, ${houseNumber}`
+      : `${name} ${normalizeStreetWord(word!)}, ${houseNumber}`;
+    return { raw: raw.trim(), query };
   }
 
-  const lead = text.split('\n')[0] ?? '';
-  const bare = BARE_STREET.exec(lead);
-  if (bare) {
+  for (const line of leadLines(text)) {
+    const bare = BARE_STREET.exec(line);
+    if (!bare) continue;
     const [raw, name, house] = bare;
     const candidate = name!.trim();
     // Название места, стоящее перед номером, — не адрес: «Бергамот, 4».
-    if (!exclude.has(candidate.toLowerCase()) && !NOT_A_STREET.has(candidate.toLowerCase())) {
-      const houseNumber = house!.split(/[/\-]/)[0]!.trim();
-      return { raw: raw.trim(), query: `${candidate}, ${houseNumber}` };
-    }
+    if (exclude.has(candidate.toLowerCase()) || NOT_A_STREET.has(candidate.toLowerCase())) continue;
+    const houseNumber = house!.split(/[/\-]/)[0]!.trim();
+    return { raw: raw.trim(), query: `${candidate}, ${houseNumber}` };
   }
 
   return null;

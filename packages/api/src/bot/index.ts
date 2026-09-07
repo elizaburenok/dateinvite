@@ -13,6 +13,7 @@ import {
 import { upsertUser, type UserRow } from '../domain/users.js';
 import { resolvePlace, type ResolverInput } from '../resolver/index.js';
 import type { NominatimClient } from '../resolver/nominatim.js';
+import type { PostAnalyzer } from '../resolver/postAnalyzer.js';
 import type { PhotoStore } from '../resolver/photos.js';
 import type { Locale } from '../locale/index.js';
 import { candidateLine, escapeHtml, placeCard } from './format.js';
@@ -25,6 +26,8 @@ export interface BotDeps {
   miniAppUrl: string;
   /** Перевод места на английский при сохранении. Без него место ляжет как есть. */
   locale?: Locale;
+  /** LLM-разбор поста для ветки «только текст» без адреса. Без него — эвристика. */
+  analyzer?: PostAnalyzer;
 }
 
 /** Telegram отдаёт размеры по возрастанию — берём самый крупный. */
@@ -71,8 +74,9 @@ export function extractLinkTitles(message: Message): string[] {
     .filter((title) => title.length >= 3 && title.length <= 60)
     // Ссылкой оборачивают не только названия: «Зимой рассказывали про
     // открытие ресторана» — это отсылка к другому посту, а не место.
-    // Название почти всегда начинается с заглавной или с латиницы.
-    .filter((title) => /^[«"']?[\p{Lu}A-Z]/u.test(title));
+    // Отсекаем по строчной кириллице: с неё начинается фраза, но не название.
+    // Латиница со строчной — сплошь и рядом название: «gaby bistro», «bolt».
+    .filter((title) => /^[«"']?(?:[\p{Lu}]|[A-Za-z])/u.test(title));
 }
 
 export function toResolverInput(message: Message, city: string | null): ResolverInput {
@@ -254,7 +258,12 @@ export function createBot(deps: BotDeps): Bot {
 
     let result;
     try {
-      result = await resolvePlace(input, { nominatim: deps.nominatim, locale: deps.locale });
+      result = await resolvePlace(input, {
+        nominatim: deps.nominatim,
+        locale: deps.locale,
+        analyzer: deps.analyzer,
+        onAnalyzerError: (error) => console.error('[bot] LLM-разбор поста не удался', error),
+      });
     } catch (error) {
       await ctx.api.editMessageText(
         ctx.chat.id,

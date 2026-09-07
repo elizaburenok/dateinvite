@@ -125,14 +125,20 @@ fi
 bold "== 3/7. Забираю код =="
 id -u "$APP_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin "$APP_USER"
 
+# Каталог принадлежит пользователю invite (chown ниже), а git работает из-под
+# root — и отказывается трогать «чужой» репозиторий, из-за чего повторный запуск
+# скрипта падал на первом же fetch. Исключение задаём флагом, а не в глобальном
+# конфиге: тот копил бы по строке на каждый запуск.
+app_git() { git -c safe.directory="$APP_DIR" -C "$APP_DIR" "$@"; }
+
 if [[ -d "$APP_DIR/.git" ]]; then
-  git -C "$APP_DIR" fetch --quiet origin
-  git -C "$APP_DIR" reset --hard --quiet origin/main
+  app_git fetch --quiet origin
+  app_git reset --hard --quiet origin/main
 else
   rm -rf "$APP_DIR"
   git clone --quiet "$REPO" "$APP_DIR"
 fi
-echo "Код: $(git -C "$APP_DIR" log --oneline -1)"
+echo "Код: $(app_git log --oneline -1)"
 
 bold "== 4/7. Настройки =="
 # Секрет вебхука генерируем один раз и сохраняем: смена без причины
