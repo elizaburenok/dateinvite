@@ -13,6 +13,16 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
+  /*
+   * Шрифт — системный, а не общий Inter из --font-ui. Этот блок повторяет
+   * нативное поле «Add note / Send» из iOS-share-шита, а система рисует его
+   * шрифтом San Francisco: у него округлые торцы букв. У Inter торцы срезаны
+   * под углом («S», «e»), и на «Send» это читалось рублено и угловато — не так,
+   * как в макете. -apple-system/BlinkMacSystemFont дают SF на iOS/macOS, дальше
+   * системный гротеск платформы. Поле, подпись и «Send» наследуют его отсюда
+   * (у .note__field стоит font: inherit, у .note__send своего family нет).
+   */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   /* 328px из макета. На телефоне — во всю колонку: там ширину задаёт не макет,
      а поля страницы. */
   width: min(100%, 20.5rem);
