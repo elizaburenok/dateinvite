@@ -11,18 +11,6 @@ import { Pile, usePileReveal } from './components/pile/Pile.js';
 import { usePrefersReducedMotion } from './components/envelope/usePrefersReducedMotion.js';
 import type { Entry } from './entry.js';
 
-// Приезд надписи на экране «Ответ отправлен» — несколько вариантов (кадры в
-// invite.css). Какой играет, берём из ?anim=; дефолт — 'rise'. Это временный
-// переключатель для сравнения вариантов: как выберем один, останется дефолт.
-const DONE_ANIMS = ['rise', 'settle', 'float', 'unveil', 'grow'] as const;
-type DoneAnim = (typeof DONE_ANIMS)[number];
-
-function readDoneAnim(): DoneAnim {
-  if (typeof window === 'undefined') return 'rise';
-  const anim = new URLSearchParams(window.location.search).get('anim');
-  return DONE_ANIMS.includes(anim as DoneAnim) ? (anim as DoneAnim) : 'rise';
-}
-
 interface InvitePageProps {
   invite: InviteResponse;
   /** Чем открывается приглашение: кучкой мини-превью или конвертом. */
@@ -44,7 +32,6 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const doneAnim = readDoneAnim();
 
   // Истёкшее приглашение и просьбу не анимировать открываем сразу: в первом
   // случае распечатывать нечего, во втором человек попросил не двигать интерфейс.
@@ -81,7 +68,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   if (answered) {
     return (
       <main className="page">
-        <header className="done" data-anim={doneAnim}>
+        <header className="done">
           {/* Ответная надпись «Looks good. Can't wait to see you» живёт здесь, а
               не в момент выбора: пока место только выбрано и заметка ещё пишется,
               ответить хосту нечем — ответ появляется, когда он отправлен. Та же
@@ -125,11 +112,11 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
       <header className="hero">
         <div className="hero__row">
           {/* Крестик закрывает выбор и возвращает ко всем карточкам. Видна кнопка
-              только при выборе (hero__back--on); место она занимает всегда, даже
-              невидимая, — иначе на экране всех карточек заголовок съезжал бы вбок
-              ровно в тот кадр, в котором растёт карточка, и два движения читались
-              бы рывком. На экране выбранного места (data-picking) заголовка нет,
-              и CSS уводит кнопку из центра к правому краю карточки. */}
+              только при выборе (hero__back--on), и места вне этого экрана не
+              занимает: CSS уводит её из потока, иначе резерв под невидимую кнопку
+              сдвигал бы заголовок с центра экрана вправо (разбор в invite.css).
+              Встретиться им негде — на экране выбранного места (data-picking)
+              заголовка нет, а кнопка там уходит к правому краю карточки. */}
           <button
             type="button"
             className={`hero__back${picking ? ' hero__back--on' : ''}`}

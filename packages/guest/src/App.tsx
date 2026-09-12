@@ -25,6 +25,20 @@ export function App() {
   const [state, setState] = useState<LoadState>(
     demo ? { kind: 'ready', invite: DEMO_INVITE } : { kind: 'loading' },
   );
+  // Сброс сценария — инструмент для примерки, а не часть гостевого пути: в
+  // демо-режиме ответ живёт только в состоянии страницы, и вернуть его к началу
+  // можно, не трогая бэкенд. У настоящего приглашения ответ лежит на сервере —
+  // там кнопке нечего сбрасывать, и гостю она не нужна, поэтому её нет.
+  //
+  // resetKey перемонтирует InvitePage целиком: заодно с ответом обнуляются и
+  // выбор с заметкой, и внутренние хуки входа (конверт/кучка), так что анимация
+  // проигрывается с первого кадра — ровно «с самого начала».
+  const [resetKey, setResetKey] = useState(0);
+  function resetScenario() {
+    setState({ kind: 'ready', invite: DEMO_INVITE });
+    setResetKey((n) => n + 1);
+    window.scrollTo({ top: 0 });
+  }
   useEffect(() => {
     if (demo) return;
     if (!token) {
@@ -63,12 +77,20 @@ export function App() {
   }
 
   return (
-    <InvitePage
-      invite={state.invite}
-      entry={entry}
-      onSubmit={demo ? answerLocally : (placeId, message) => sendAnswer(token!, placeId, message)}
-      onUpdate={updateInvite(setState)}
-    />
+    <>
+      <InvitePage
+        key={resetKey}
+        invite={state.invite}
+        entry={entry}
+        onSubmit={demo ? answerLocally : (placeId, message) => sendAnswer(token!, placeId, message)}
+        onUpdate={updateInvite(setState)}
+      />
+      {demo && (
+        <button type="button" className="dev-reset" onClick={resetScenario}>
+          Начать сначала
+        </button>
+      )}
+    </>
   );
 }
 
