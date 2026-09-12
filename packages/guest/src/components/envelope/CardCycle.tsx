@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GuestPlace } from '@invite/shared';
 import { PlaceCard } from '../PlaceCard.js';
 import { jitter } from '../pile/jitter.js';
@@ -97,13 +97,24 @@ function pickLift(p: number): number {
 const PICK_SUB_MS = 1000 / 240;
 
 /**
+ * На сколько пикселей курсор должен проехать, чтобы наведение считалось
+ * намерением, а не позой (разбор при `armed`).
+ *
+ * Немного: задача порога — отсечь дрожь руки на мыши и шум тачпада, а не мерить
+ * «достаточное» движение. Любой осознанный ход курсора к карточке перекрывает
+ * шесть пикселей в первом же кадре.
+ */
+const ARM_DIST = 6;
+
+/**
  * Стопка мест: компактная колода, которая сама перебирает карточки.
  *
  * Колода занимает высоту одной карточки плюс кромки соседей и целиком помещается
  * на экран — скролла здесь нет. Верхняя карточка лежит поверх всех и видна
  * целиком, остальные выглядывают из-под неё кромками снизу и с каждым шагом
- * вглубь становятся у́же. Ховера здесь нет намеренно — колода не ждёт курсора,
- * а идёт всегда, пока конверт открыт и место не выбрано.
+ * вглубь становятся у́же. Идёт колода сама, пока конверт открыт и место не
+ * выбрано; курсора она не ждёт, но наведению на переднюю карточку уступает —
+ * разбор при `armed` и `paused`.
  *
  * Ход шаговый, а не сплошной: колода стоит HOLD_MS на каждой карточке — её
  * успевают прочитать, — и за MOVE_MS меняет верхнюю. На паузе карточек «в пути»
@@ -147,6 +158,75 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
     canHover.current = typeof matchMedia === 'function' && matchMedia('(hover: hover)').matches;
   }, []);
 
+  /**
+   * Взвод паузы: наведение засчитывается, только если курсор приехал на карточку
+   * сам, а не оказался на ней потому, что карточка появилась под ним.
+   *
+   * Без этого первая же встреча с колодой выглядела поломкой. Глиф «Tap» лежит
+   * ровно на верхней карточке, и курсор после нажатия остаётся там же; как только
+   * мишень уходит из разметки, карточка оказывается под неподвижным курсором —
+   * Chrome в этот момент сам пересчитывает хит-тест и присылает mouseenter, без
+   * единого движения мыши. Колода вставала, не сделав ни шага, и человек видел не
+   * паузу, а мёртвый экран: паузу узнают по тому, что остановилось, а здесь ничего
+   * и не двигалось.
+   *
+   * Починка — в том, чем пауза является по смыслу: это жест «хочу рассмотреть вот
+   * эту», а жест есть действие, а не поза. Лежащий курсор действием не считается,
+   * приехавший — считается.
+   *
+   * Считать движение с начала страницы нельзя: к самому глифу курсор как раз
+   * подводят, и это движение взвело бы паузу ещё до нажатия. Поэтому взвод
+   * сбрасывается всякий раз, когда колода трогается (эффект ниже) и когда
+   * возвращаются на вкладку, — то есть ровно в тех точках, где карточка способна
+   * подъехать под неподвижный курсор. Дальше нужно новое движение.
+   */
+  const [armed, setArmed] = useState(false);
+  const armedRef = useRef(false);
+  // Точка отсчёта. Берётся с первого же события после сброса, а не с места
+  // нажатия: хит-тест под неподвижным курсором умеет присылать и pointermove,
+  // и такое «движение» обязано стать началом отсчёта, а не самим движением.
+  const armFrom = useRef<{ x: number; y: number } | null>(null);
+
+  const disarm = useCallback(() => {
+    armFrom.current = null;
+    armedRef.current = false;
+    setArmed(false);
+  }, []);
+
+  useEffect(() => {
+    const onMove = (event: PointerEvent) => {
+      if (armedRef.current) return;
+      const from = armFrom.current;
+      if (!from) {
+        armFrom.current = { x: event.clientX, y: event.clientY };
+        return;
+      }
+      const dx = event.clientX - from.x;
+      const dy = event.clientY - from.y;
+      // Порог — чтобы дрожь руки на мыши и шум тачпада не считались приездом.
+      if (dx * dx + dy * dy < ARM_DIST * ARM_DIST) return;
+      armedRef.current = true;
+      setArmed(true);
+    };
+
+    window.addEventListener('pointermove', onMove, { passive: true });
+    // Возврат на вкладку — тот же случай: состояние наведения есть, движения не
+    // было. Ловим оба события, потому что порознь они дырявы: вкладку меняют без
+    // потери фокуса окна, а окно теряет фокус без сокрытия вкладки.
+    window.addEventListener('focus', disarm);
+    document.addEventListener('visibilitychange', disarm);
+
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('focus', disarm);
+      document.removeEventListener('visibilitychange', disarm);
+    };
+  }, [disarm]);
+
+  // Пауза — это наведение, подтверждённое движением. Порознь ни то ни другое
+  // колоду не останавливает.
+  const paused = hovered && armed;
+
   const deckRef = useRef<HTMLDivElement>(null);
   // Часы колоды. Замкнуты по всему кругу (count * STEP_MS), чтобы не расти
   // бесконечно: за круг колода возвращается в то же положение.
@@ -164,6 +244,9 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
   const pickVel = useRef(0);
   const pickFrom = useRef(0);
   const pickEl = useRef<HTMLElement | null>(null);
+  // Пружина встала — признаки подачи пора снимать, но не в этом кадре, а в
+  // следующем. Зачем нужен лишний кадр, разобрано там, где флаг читают.
+  const clearAt = useRef(false);
   // Первый кадр в подаче не участвует: карточка может быть выбрана уже к
   // загрузке, и разворачивать её тогда неоткуда и незачем.
   const first = useRef(true);
@@ -173,6 +256,18 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
   // (правила [data-focus] в cycle.css), так что перебирать всё равно нечего.
   const focused = selected !== null && places.some((place) => place.id === selected);
   const running = dealt && !reducedMotion && count > 1 && !focused;
+
+  /*
+   * Колода тронулась — взвод сбрасывается.
+   *
+   * Это и есть та точка, где карточка подъезжает под неподвижный курсор: раскрытие
+   * кучки (курсор остался на «Tap») и возврат из крупного плана (курсор остался
+   * там, где закрывали). В обоих случаях человек показать колоду в движении ещё не
+   * успел, и останавливать её нечестно — сперва пусть увидит, что она ходит.
+   */
+  useEffect(() => {
+    if (running) disarm();
+  }, [running, disarm]);
 
   useEffect(() => {
     const deck = deckRef.current;
@@ -293,7 +388,12 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
 
     paint();
     paintPick();
-    if (pick.current === 0 && !focused) clearPick();
+    // Эффект перезавёлся с уже отработавшей пружиной — снимать признаки можно
+    // сразу: позу в этом случае никто не менял, разводить нечего.
+    if (pick.current === 0 && !focused) {
+      clearAt.current = false;
+      clearPick();
+    }
 
     // Шаг колоды больше не доводится до конца. Доводили его затем, чтобы колода
     // не вставала колом посреди смены, — но вставать ей теперь есть где: в
@@ -314,12 +414,34 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
 
       let alive = false;
 
+      // Признаки подачи снимаем кадром позже, чем пружина встала, и это не
+      // перестраховка.
+      //
+      // Защёлка приводит пружину в ноль из положения, до нуля не дошедшего (в
+      // покое она подходит к цели асимптотически, разбор при springStep). Поза
+      // на этом последнем шаге меняется — на тысячные доли процента, глазу
+      // ничего, — но меняется. Сними признак в том же кадре, и браузер увидит
+      // сразу два события: у карточки поехал трансформ и одновременно вернулся
+      // transition, который на время подачи был снят. Он честно заводит переход
+      // на все --dur-deal: двигать в нём нечего, а слой композиции он карточке
+      // всё равно поднимает — и backdrop-filter стеклянной кромки на эти 640ms
+      // размывает весь кадр вместо кольца (разбор в cycle.css). Читалось это
+      // блюром, наплывавшим на карточку через секунду после возврата в колоду.
+      //
+      // Лишний кадр разводит события: сперва пружина дорисовывает конечную позу,
+      // пока переход ещё снят, и только потом снимается признак — менять к тому
+      // моменту нечего, и переходу не на чем завестись.
+      if (clearAt.current) {
+        clearAt.current = false;
+        clearPick();
+      }
+
       if (pick.current !== target || pickVel.current !== 0) {
         const next = springStep(pick.current, pickVel.current, target, dt);
         pick.current = next.p;
         pickVel.current = next.v;
         paintPick();
-        if (pick.current === 0 && target === 0) clearPick();
+        if (pick.current === 0 && target === 0) clearAt.current = true;
         alive = true;
       }
 
@@ -332,11 +454,11 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
         // курсор застал карточку в пути, шаг доводится до ближайшего покоя
         // (границы шага, откуда начинается пауза следующей карточки) и уже там
         // встаёт. В покое (фаза внутри HOLD) колода замирает сразу.
-        if (hovered && phase < HOLD_MS) {
+        if (paused && phase < HOLD_MS) {
           // стоим — часы не трогаем
         } else {
           const stepEnd = (Math.floor(clock.current / STEP_MS) + 1) * STEP_MS;
-          const advance = hovered ? Math.min(dt, stepEnd - clock.current) : dt;
+          const advance = paused ? Math.min(dt, stepEnd - clock.current) : dt;
           if (advance > 0) {
             clock.current = (clock.current + advance) % round;
             paint();
@@ -350,7 +472,7 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
 
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [running, focused, hovered, reducedMotion, count]);
+  }, [running, focused, paused, reducedMotion, count]);
 
   return (
     <div
@@ -379,10 +501,12 @@ export function CardCycle({ places, selected, readOnly, state, onSelect }: CardC
             key={place.id}
             className="cycle__item"
             data-chosen={selected === place.id || undefined}
-            // Наведение на карточку останавливает перебор. События ловит только
-            // передняя: у остальных pointer-events сняты (cycle.css), и mouseenter
-            // на них не приходит вовсе — курсор проваливается к ней. Пока стоит
-            // наведение, колода не идёт, так что передняя под курсором не сменится.
+            // Наведение на карточку останавливает перебор — если курсор до неё
+            // доехал, а не лежал на ней с самого начала (разбор при `armed`).
+            // События ловит только передняя: у остальных pointer-events сняты
+            // (cycle.css), и mouseenter на них не приходит вовсе — курсор
+            // проваливается к ней. Пока стоит пауза, колода не идёт, так что
+            // передняя под курсором не сменится.
             onMouseEnter={canHover.current ? () => setHovered(true) : undefined}
             onMouseLeave={() => setHovered(false)}
             // Начальное значение — чтобы до первого кадра колода уже лежала стопкой,
