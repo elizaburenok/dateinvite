@@ -3,6 +3,11 @@ dist/
 *.tsbuildinfo
 .DS_Store
 .env
+
+# Локальные конфиги тулинга Claude Code (launch.json превью и т.п.). Корневой
+# .claude/launch.json уже в гите и там и остаётся — git не выкидывает трекнутые
+# файлы; правило гасит только stray-папки .claude/ по пакетам.
+.claude/
 data/*.db
 data/*.db-shm
 data/*.db-wal
