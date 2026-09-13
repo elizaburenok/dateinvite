@@ -1,0 +1,252 @@
+/*
+ * Колесо мест (CardWheel.tsx) — 3D-цилиндр вместо стопки-колоды.
+ *
+ * Достают его теми же двумя входами, что и прежнюю колоду: конверт с печатью
+ * (envelope.css) и кучка заблюренных мини-превью (pile.css). Колесо про них не
+ * знает — ему приходит состояние раскрытия, и по нему оно понимает лишь одно:
+ * розданы карточки или ещё нет (data-dealt).
+ *
+ * Геометрию цилиндра — поворот, вынос на радиус, рост центра, затемнение
+ * глубины — считает и пишет покадрово JS (paint в CardWheel). CSS держит сцену,
+ * перспективу, скроллер мобильного ввода, въезд при раздаче и список-фолбэк для
+ * reduced-motion.
+ */
+
+.wheel {
+  position: relative;
+  width: var(--env-w);
+  margin-inline: auto;
+  /*
+   * Высота сцены. Барабану нужен вертикальный простор: центральная карточка
+   * стоит в середине, соседи уходят вверх и вниз по цилиндру.
+   *
+   * Высот две, и между ними ведёт --hero (его пишет CardWheel из позиции
+   * барабана). В покое (1) сцена скромная — над ней стоит заголовок. По мере
+   * сворачивания шапки (→ 0) сцена добирает освободившуюся высоту и карточки
+   * занимают экран целиком, а не обрезаются по нижней кромке.
+   */
+  --wheel-h-rest: min(72dvh, calc((var(--env-w) - 20px) * 314 / 480 * 2.35));
+  --wheel-h-full: 92dvh;
+  height: calc(
+    var(--hero, 1) * var(--wheel-h-rest) + (1 - var(--hero, 1)) * var(--wheel-h-full)
+  );
+  /* Перспектива живёт на сцене, точка схода — на оси барабана в её центре.
+     --persp пишет компонент (значение варианта «Колесо»). */
+  perspective: var(--persp, 2200px);
+  perspective-origin: 50% 50%;
+  overflow: hidden;
+  outline: none;
+  touch-action: pan-y;
+  /* Въезд при раздаче: до неё барабан не показан. Появляется мягким наплывом —
+     раздачу из конверта/кучки ведут их собственные слои, барабану довольно
+     проявиться на их фоне. */
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease);
+}
+
+.wheel[data-dealt] {
+  opacity: 1;
+}
+
+/*
+ * Выбранная карточка: барабан замер на ней (pos = её индекс, JS), соседей
+ * убираем — место читают, а не листают, и заметка встаёт прямо под карточкой.
+ * Высоту сцены схлопываем до выросшей карточки (её видимая высота — полная
+ * ширина колоды в пропорции кадра), чтобы под ней не зияла пустая полоса
+ * барабана.
+ */
+.wheel[data-focus] {
+  height: calc((var(--env-w) - 20px) * 314 / 480);
+  overflow: visible;
+  transition:
+    opacity var(--dur-base) var(--ease),
+    height var(--dur-base) var(--ease);
+}
+
+.wheel[data-focus] .wheel__item:not([data-chosen]) {
+  opacity: 0 !important;
+  visibility: hidden;
+}
+
+/* Курсор-подсказка: сцена — это ручка барабана (только на указателе). */
+@media (hover: hover) and (pointer: fine) {
+  .wheel[data-dealt]:not([data-focus]) {
+    cursor: ns-resize;
+  }
+}
+
+/* --- Барабан -------------------------------------------------------------- */
+
+.wheel__drum {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /*
+   * Базовая ширина — под рост центра. Центральная карточка крупнее в (1 + GROW)
+   * раз (GROW = 0.17 в CardWheel), и в полный размер (--env-w − 20px, как у
+   * колоды) должна вставать именно она, а не соседи. Поэтому база делится на
+   * 1.17: выросшая передняя карточка приходит ровно в ширину колоды и не
+   * вылезает за поля, соседи в глубине чуть у́же — им так и положено.
+   */
+  width: calc((var(--env-w) - 20px) / 1.17);
+  aspect-ratio: var(--card-ratio);
+  translate: -50% -50%;
+  transform-style: preserve-3d;
+  /* translateZ(-R) пишет JS: передняя грань встаёт ровно в плоскость экрана. */
+}
+
+.wheel__item {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform;
+  /* Трансформ (rotateX·translateZ·scale), zIndex, visibility, opacity — всё
+     пишет JS покадрово; переходов здесь намеренно нет. */
+}
+
+.wheel__card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * Стеклянная кромка карточки (.card::after в invite.css) на барабане лишается
+ * фильтра — и это две разные болезни, вылеченные одним местом.
+ *
+ * Первая: backdrop-filter внутри 3D-контекста (preserve-3d + translateZ) снимает
+ * подложку неверно и заливает размытием весь кадр, а не рамку по краю. Гашения
+ * силы (--glass-fade: 0) для этого мало: множитель убирает blur, насыщенность и
+ * яркость, но смещение подложки url(#glass-lens) остаётся в списке и продолжает
+ * работать — им кромка и темнела рамкой вокруг кадра. Поэтому фильтр снимается
+ * целиком, а не гасится числом.
+ *
+ * Вторая: кольцу нужна та же форма угла, что и карточке. Раньше оно намеренно
+ * оставалось круглым (на squircle ломалась вычитающая маска), и на радиусе 26px
+ * разницы на глаз не было. На 48px круглое кольцо внутри непрерывного угла
+ * читается вторым, более тесным контуром — «карточка внутри карточки». Без
+ * фильтра маску ломать уже нечему, и форму можно задать честно.
+ *
+ * Светлая линия по краю и косой блик (inset box-shadow и градиент в ::after) при
+ * этом остаются: они не от фильтра, и кромка выглядит как прежде.
+ */
+.wheel .card {
+  --glass-fade: 0;
+}
+
+.wheel .card::after {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  corner-shape: var(--corner-card);
+}
+
+/* Затемнение уходящей в глубину грани. Лежит поверх карточки, повторяет её
+   форму (squircle из invite.css), opacity пишет paint() из косинуса угла. */
+.wheel__shade {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: var(--r-card);
+  corner-shape: var(--corner-card);
+  background: var(--c-card-shade);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Выбранная карточка: барабан замер на ней (JS), стекло гаснет как у колоды —
+   выбор читается тем, что карточка по центру и крупнее, а не кольцом. */
+.wheel__item[data-chosen] .wheel__shade {
+  opacity: 0 !important;
+}
+
+/* --- Мобильный ввод: нативный скроллер со снапом -------------------------- */
+
+/*
+ * Невидимая лента поверх барабана: угол считается из scrollTop. Инерция,
+ * резинка и снап при этом нативные — на iOS своей физикой их не повторить. Тап
+ * по ленте ловится вручную и уходит в выбор центральной карточки.
+ *
+ * Живёт только пока барабан крутят: до раздачи и на выбранной карточке ленты
+ * нет, иначе она съедала бы нажатия (тап по конверту/кучке, тап по выбранному).
+ */
+.wheel__scroller {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  scroll-snap-type: y mandatory;
+  display: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wheel__scroller::-webkit-scrollbar {
+  display: none;
+}
+
+/* Скроллер только на тач-вводе и только пока барабан живой. На указателе крутят
+   колесом мыши / протяжкой — там лента только мешала бы выделением. */
+@media (hover: none) and (pointer: coarse) {
+  .wheel[data-dealt]:not([data-focus]) .wheel__scroller {
+    display: block;
+  }
+}
+
+.wheel__snap {
+  scroll-snap-align: start;
+}
+
+/* Хвост — чтобы последняя снап-точка могла доехать до верха скроллера. */
+.wheel__tail {
+  height: calc(100% - 1px);
+}
+
+/* --- Reduced-motion: барабана нет, карточки лежат списком ------------------ */
+
+/*
+ * Просьбу не анимировать колесо выполняет буквально: цилиндра нет вовсе,
+ * перебирать нечего. Карточки лежат вертикальным списком в полный размер —
+ * приглашение сразу в читаемом состоянии, выбор тапом по любой.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .wheel {
+    height: auto;
+    overflow: visible;
+    perspective: none;
+    opacity: 1;
+  }
+
+  .wheel__scroller {
+    display: none !important;
+  }
+
+  .wheel__drum {
+    position: static;
+    width: calc(var(--env-w) - 20px);
+    aspect-ratio: auto;
+    translate: none;
+    transform: none !important;
+    transform-style: flat;
+    display: flex;
+    flex-direction: column;
+    gap: var(--deck-gap);
+    margin-inline: auto;
+  }
+
+  .wheel__item {
+    position: static;
+    inset: auto;
+    aspect-ratio: var(--card-ratio);
+    transform: none !important;
+    transform-style: flat;
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: auto !important;
+  }
+
+  .wheel__shade {
+    display: none;
+  }
+}

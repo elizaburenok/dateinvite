@@ -5,7 +5,7 @@ import resultUrl from './assets/result.svg';
 import titleUrl from './assets/title.svg';
 import { LensFilter } from './components/LensFilter.js';
 import { NoteComposer } from './components/NoteComposer.js';
-import { CardCycle } from './components/envelope/CardCycle.js';
+import { CardWheel } from './components/envelope/CardWheel.js';
 import { Envelope, useEnvelopeOpening } from './components/envelope/Envelope.js';
 import { Pile, usePileReveal } from './components/pile/Pile.js';
 import { usePrefersReducedMotion } from './components/envelope/usePrefersReducedMotion.js';
@@ -174,7 +174,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
           // начинается, и прятать его больше ни во что не нужно.
           (state === 'sealed' || state === 'unsealing') && <Pile state={state} onOpen={open} />
         )}
-        <CardCycle
+        <CardWheel
           places={invite.places}
           selected={selected}
           readOnly={readOnly}

@@ -18,6 +18,11 @@ packages/miniapp/.env.local
 # Фото для демо-прототипа — реальные снимки мест, в репозиторий не кладём
 packages/guest/public/demo/
 
+# Конструктор барабана (packages/guest/prototypes/drum): сам стенд в гите, а вот
+# реальные снимки мест и собранный «на вынос» файл со встроенными снимками — нет.
+packages/guest/prototypes/drum/photos/
+packages/guest/prototypes/drum/drum-standalone.html
+
 # Выгрузки из Figma: исходники обоев и надписей, из которых сделаны ассеты в
 # packages/guest/src/assets. Нужное оттуда уже перенесено и лежит в гите; сами
 # выгрузки тяжёлые (обои — шесть мегабайт) и импортировать их из пакета всё
