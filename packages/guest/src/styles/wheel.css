@@ -167,25 +167,6 @@
   --glass-fade: 0;
 }
 
-/*
- * Тень барабанной карточки — через drop-shadow, а не box-shadow.
- *
- * У карточки непрерывный угол (--corner-card, squircle). box-shadow движок
- * рисует кругловатым радиусом и squircle не повторяет: угол карточки полнее и
- * вылезает из-под тени по четырём углам. drop-shadow строит тень по реальному
- * альфа-контуру карточки и повторяет угол точно. --sh-card-drop — тот же
- * --sh-card в форме фильтра (tokens.css).
- *
- * Гасим и box-shadow: :not(.card--chosen) оставляет выбранной карточке её
- * собственную многослойную тень с холодным ореолом (--sh-chosen), а заодно этот
- * же селектор перебивает hover-подъём (.card--pickable:hover, --sh-lift) — на
- * барабане он рисовался бы кругловатым и поверх drop-shadow.
- */
-.wheel .card:not(.card--chosen) {
-  box-shadow: none;
-  filter: var(--sh-card-drop);
-}
-
 .wheel .card::after {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
