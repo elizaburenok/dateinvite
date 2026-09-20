@@ -1,0 +1,1680 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f1e8">
+<title>Барабан — стенд вариантов</title>
+<style>
+/*
+ * Стенд механики барабана. Проект не трогает: токены и карточка скопированы из
+ * packages/shared/styles/tokens.css и packages/guest/src/styles/invite.css,
+ * чтобы судить движение на той же бумаге, а не на абстрактных прямоугольниках.
+ *
+ * Здесь нет React и нет сборки: одно скалярное состояние pos (позиция барабана
+ * в карточках, дробная), из него покадрово считается угол каждой карточки и
+ * пишется в стиль. Это ровно та схема, что уже живёт в CardCycle.tsx.
+ */
+
+:root {
+  /* --- токены проекта (копия) --- */
+  --c-paper: #f6f1e8;
+  --c-surface: #fffdf8;
+  --c-surface-sunk: #efe8dc;
+  --c-ink: #211c16;
+  --c-ink-soft: #6f6558;
+  --c-ink-faint: #a1968a;
+  --c-hairline: #e2d9ca;
+  --c-seal: #c4452a;
+  --c-sage: #5f6f52;
+  --c-frame-ink: #fff5c0;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-card: 'Inter Tight', var(--font-ui);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  /* В проекте 26px. Здесь крупнее: непрерывный угол (--corner-card) на том же
+     радиусе прижимается к вершине и читается мельче круглого, поэтому под
+     squircle радиус подняли, чтобы скругление вернуло силу. Это выбор стенда —
+     при переносе механики в packages/guest поедет вместе с формой угла. */
+  --r-card: 48px;
+  --card-ratio: 480 / 314;
+  --sh-card: 0 1px 2px rgba(63, 46, 26, 0.06), 0 8px 24px rgba(63, 46, 26, 0.07);
+  /* В проекте: 0 2px 6px /0.09, 0 16px 40px /0.12. Здесь глубже — передняя
+     карточка барабана должна заметно висеть над бумагой. Выбор стенда. */
+  --sh-lift: 0 8px 20px rgba(63, 46, 26, 0.18), 0 40px 80px rgba(63, 46, 26, 0.28);
+  --sh-chosen: 0 5.5px 11px 5.5px rgba(58, 96, 90, 0.2), 0 1px 2px rgba(63, 46, 26, 0.06),
+    0 8px 24px rgba(63, 46, 26, 0.07), 0 16px 40px rgba(63, 46, 26, 0.1);
+  --c-card-shade: rgba(74, 96, 104, 0.62);
+  /* Обводка кадра. В проекте она нулевой ширины — край карточке даёт стекло, —
+     и здесь тоже: токен нужен, чтобы кромку можно было включить одним числом. */
+  --card-edge-w: 0px;
+  --c-card-edge: rgba(63, 46, 26, 0.24);
+
+  /* Форма угла. `squircle` — суперэллипс 4-й степени, та самая непрерывная
+     кривая, которой скруглены углы в iOS: у дуги нет стыка с прямой стороной,
+     кривизна расходится вдоль кромки. Ставится рядом с --r-card и без него
+     ничего не делает: радиус задаёт размер угла, форма — его характер.
+     Свойство новое (Chrome 139+); там, где его нет, угол просто останется
+     обычной дугой — стенд от этого не ломается. */
+  --corner-card: squircle;
+
+  /* ВРЕМЕННЫЙ ТОКЕН СТЕНДА — в packages/shared/styles/tokens.css его нет.
+     Тень под карточкой барабана: --sh-card задумана для карточки, лежащей на
+     странице, а здесь карточки висят в воздухе и на кремовой бумаге почти не
+     отделялись. Легче, чем --sh-lift, — чтобы передняя карточка осталась
+     заметно выше остальных. В токены не переносил: ждёт решения, см. отчёт. */
+  --sh-card-soft: 0 6px 16px rgba(63, 46, 26, 0.16), 0 30px 60px rgba(63, 46, 26, 0.22);
+  /* В проекте 0.9%. Здесь тоньше: стеклянная кромка — это и есть обводка
+     карточки, и на крупном скруглении широкий ободок читался грубо. Ниже 0.35%
+     стекло вырождается в белую волосяную линию (inset-блик в .card__glass) и
+     перестаёт быть материалом. Выбор стенда — при переносе поедет с формой. */
+  --glass-w: 0.5%;
+  --glass-blur: 7.5px;
+  --glass-sat: 1.4;
+  --glass-bright: 0.95;
+  --glass-angle: 55deg;
+
+  /* --- параметры барабана: их пишет JS, здесь только значения по умолчанию --- */
+  /* Карточка мерится и по ширине экрана, и по его высоте: барабан кладёт
+     соседей над и под ней, и на низком окне карточка во всю ширину не оставила
+     бы им места. 1.528 — пропорция карточки (480/314). */
+  --card-w: min(420px, 86vw, calc(50dvh * 1.528));
+  --persp: 1200px;
+  --drum-r: 0px;
+
+  /* Заголовок над барабаном.
+     --hero — прогресс сворачивания шапки: 1 в покое (барабан стоит под текстом,
+     как в макете гостя), 0 когда его свернули и карточки заняли всю высоту.
+     Пишет его paint() из позиции барабана; здесь 0 по умолчанию, чтобы у
+     вариантов без шапки (колода) её не было. --hero-push — на сколько барабан
+     опущен вниз в покое, чтобы над ним поместился заголовок; с сворачиванием
+     шапки барабан на столько же поднимается к центру. */
+  --hero: 0;
+  --hero-push: 13dvh;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-ui);
+  color: var(--c-ink);
+  background: var(--c-paper);
+  overscroll-behavior: none;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 1fr minmax(300px, 340px);
+  min-height: 100dvh;
+}
+
+/* --- Сцена ---------------------------------------------------------------- */
+
+.stage {
+  position: relative;
+  overflow: hidden;
+  /* Перспектива живёт на сцене, а барабан стоит в её центре — значит и точка
+     схода приходится ровно на ось барабана. */
+  perspective: var(--persp);
+  perspective-origin: 50% 50%;
+  outline: none;
+  touch-action: manipulation;
+}
+
+/* Курсор подсказывает, что сцена — это ручка барабана */
+.stage[data-mode='scrub'] { cursor: ns-resize; }
+
+.drum {
+  position: absolute;
+  left: 50%;
+  /* В покое (--hero:1) барабан опущен на --hero-push — над ним стоит заголовок.
+     По мере сворачивания шапки (--hero → 0) он поднимается ровно на столько же,
+     возвращаясь в центр сцены, и карточки занимают всю высоту. */
+  top: calc(50% + var(--hero) * var(--hero-push));
+  width: var(--card-w);
+  aspect-ratio: var(--card-ratio);
+  translate: -50% -50%;
+  transform-style: preserve-3d;
+}
+
+/* --- Заголовок над барабаном ---------------------------------------------- *
+ * Стоит поверх сцены, но событий не ловит (pointer-events: none) — свайп и
+ * прокрутка проходят сквозь него к барабану и скроллеру. Весь вид ведёт один
+ * --hero: прозрачность, масштаб и подъём. В покое (1) — крупный, на своём месте;
+ * свёрнут (0) — уехал вверх, сжался и погас, освободив верх экрана карточкам.
+ *
+ * Текст здесь набран шрифтом: у гостя заголовок — рисованная надпись (title.svg
+ * с ручным кернингом), но стенд самодостаточен и внешних ассетов проекта не
+ * тянет. Для проверки поведения (сворачивание на прокрутке) шрифта достаточно —
+ * при переносе в packages/guest на его место встанет та же надпись-картинка. */
+.hero {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  top: calc(env(safe-area-inset-top) + 5dvh);
+  padding: 0 28px;
+  text-align: center;
+  pointer-events: none;
+  color: var(--c-ink);
+  font-family: var(--font-card);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  /* Крупность заголовка тоже на --hero: в покое во всю величину, к концу
+     сворачивания — вдвое мельче, за компанию с уходом вверх и гашением. */
+  font-size: calc((0.5 + 0.5 * var(--hero)) * clamp(20px, 6.4vw, 30px));
+  opacity: var(--hero);
+  /* Уводим вверх и сжимаем от верхней кромки, чтобы шапка «втягивалась» под
+     верхний край, а не растворялась на месте. */
+  transform-origin: top center;
+  transform: translateY(calc((var(--hero) - 1) * 3dvh));
+  /* Шапки нет вовсе, когда свёрнута до конца: убирает её из хит-теста тач-жестов
+     у самого верха и снимает подпиксельный след почти прозрачного текста. */
+  visibility: visible;
+}
+
+.hero[data-off] {
+  visibility: hidden;
+}
+
+.hero p {
+  margin: 0;
+}
+
+.slot {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  /* Трансформ пишется покадрово из JS — переходов здесь нет намеренно. */
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* --- Карточка (копия из invite.css, урезанная до того, что видно) ---------- */
+
+.card {
+  container-type: inline-size;
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r-card);
+  corner-shape: var(--corner-card);
+  background: var(--c-surface);
+  box-shadow: var(--sh-card-soft);
+  /*
+   * Здесь стояло overflow: hidden — им кадр обрезался по скруглению. С
+   * непрерывным углом эту обрезку пришлось снять: под ней стеклянная кромка
+   * (.card__glass) перестаёт быть кольцом — маска content-box минус
+   * padding-box на суперэллипсе не вычитается, и backdrop-filter заливает
+   * размытием всю карточку, а не рамку по периметру.
+   *
+   * Обрезка и не нужна: каждый слой внутри повторяет форму карточки сам —
+   * border-radius: inherit плюс corner-shape ниже. Если в карточку добавят
+   * слой, который своей формы не знает, он вылезет за угол — задавать форму
+   * ему придётся руками.
+   */
+  overflow: visible;
+}
+
+/* Форма угла не наследуется, а border-radius слои берут через inherit —
+   поэтому каждому рисующему свой край слою она ставится отдельно. Пропустить
+   любой из них значит получить обычную дугу поверх непрерывной. */
+.card::before,
+.card__photo,
+.card__grad,
+.card__glass,
+.card__shade {
+  corner-shape: var(--corner-card);
+}
+
+/* Верхний блик и обводка кадра — копия `.card::before` из invite.css. Даёт
+   карточке толщину: блик тонкой полосой по верхней кромке читается как фаска.
+   Кольцом (inset box-shadow), а не border: border входит в габарит, а у
+   карточки фиксированная пропорция — фотография внутри съехала бы на его
+   толщину. Выше фото и градиента, но ниже стекла, тени глубины и текста.
+
+   Последние две тени — боковое внутреннее затемнение: гасят левую и правую
+   кромки кадра, и карточка читается не плоским листом, а гранью цилиндра.
+   Отрицательный spread (-13px) прижимает тень к боку и не пускает её на верх и
+   низ — иначе размыло бы верхний блик. Только на боковых сторонах намеренно:
+   свет барабана падает сверху, скруглять тенью верх и низ значило бы спорить с
+   ним. Это добавка стенда, в invite.css её нет — при переносе поедет сюда же. */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 var(--card-edge-w) var(--c-card-edge),
+    inset 0 6px 13px rgba(235, 226, 226, 0.25),
+    inset 16px 0 22px -13px rgba(20, 16, 10, 0.38),
+    inset -16px 0 22px -13px rgba(20, 16, 10, 0.38);
+  pointer-events: none;
+}
+
+.card__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+/* Затемняет ровно тот угол, где стоит текст. */
+.card__grad {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: linear-gradient(15deg, rgba(20, 16, 10, 0.62) 0%, rgba(20, 16, 10, 0) 52%);
+  pointer-events: none;
+}
+
+.card__body {
+  position: absolute;
+  z-index: 3;
+  left: 4.38cqw;
+  bottom: 4.79cqw;
+  max-width: 62%;
+}
+
+.card__name {
+  margin: 0;
+  font-family: var(--font-card);
+  font-size: 5cqw;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  color: var(--c-frame-ink);
+}
+
+.card__address {
+  margin: 0.6cqw 0 0;
+  font-family: var(--font-card);
+  font-size: 3.33cqw;
+  font-weight: 600;
+  line-height: calc(14 / 16);
+  color: var(--c-frame-ink);
+}
+
+/* Стеклянная кромка. Линзу (feDisplacementMap из LensFilter.tsx) здесь не
+   воспроизводим — для проверки поведения backdrop-filter в 3D хватает размытия,
+   а именно оно в проекте и растекается. */
+.card__glass {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  padding: var(--glass-w);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(var(--glass-bright));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(var(--glass-bright));
+  background: linear-gradient(var(--glass-angle), rgba(255,255,255,0.26), rgba(255,255,255,0.02) 45%, rgba(255,255,255,0.2));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5), inset 0 1px 0 rgba(255,255,255,0.75);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.app[data-glass='0'] .card__glass { display: none; }
+
+/* Глубина: карточка, отвернувшаяся от зрителя, уходит в тень. Непрозрачность
+   пишет JS из косинуса угла. */
+.card__shade {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: inherit;
+  background: var(--c-card-shade);
+  pointer-events: none;
+}
+
+.slot[data-front] .card { box-shadow: var(--sh-lift); }
+.slot[data-chosen] .card { box-shadow: var(--sh-chosen); }
+
+/* Метка угла для отладки */
+.slot__tag {
+  position: absolute;
+  z-index: 6;
+  top: 8px;
+  left: 8px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  display: none;
+}
+
+.app[data-debug='1'] .slot__tag { display: block; }
+
+/* --- Скроллер (мобильный ввод) -------------------------------------------- */
+
+/*
+ * Невидимая лента со снап-точками поверх барабана: угол считается из scrollTop.
+ * Инерция, резинка и снап при этом нативные — на iOS своей физикой их не
+ * повторить. Тап по ленте ловится вручную и уходит в выбор передней карточки.
+ */
+.scroller {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  display: none;
+}
+
+.scroller::-webkit-scrollbar { display: none; }
+.stage[data-mode='scroll'] .scroller { display: block; }
+.scroller[data-snap='1'] { scroll-snap-type: y mandatory; }
+.snap { scroll-snap-align: start; }
+
+/* --- HUD ------------------------------------------------------------------ */
+
+.hud {
+  position: absolute;
+  z-index: 6;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--c-ink-soft);
+  pointer-events: none;
+}
+
+.hud span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.8);
+  border: 1px solid var(--c-hairline);
+}
+
+.hud .tickdot {
+  width: 9px;
+  padding: 0;
+  aspect-ratio: 1;
+  align-self: center;
+  background: var(--c-hairline);
+  border: 0;
+  transition: background 90ms linear, transform 90ms linear;
+}
+
+.hud .tickdot[data-on] {
+  background: var(--c-seal);
+  transform: scale(1.5);
+  transition: none;
+}
+
+.hint {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  translate: -50% 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--c-ink-soft);
+  background: rgba(255, 253, 248, 0.8);
+  border: 1px solid var(--c-hairline);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* --- Панель --------------------------------------------------------------- */
+
+.panel {
+  border-left: 1px solid var(--c-hairline);
+  background: var(--c-surface);
+  padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  max-height: 100dvh;
+}
+
+.panel h1 {
+  margin: 0 0 2px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.panel .sub {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: var(--c-ink-faint);
+  line-height: 1.4;
+}
+
+.group { margin-bottom: 16px; }
+
+.group > h2 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.presets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+
+.presets button {
+  padding: 9px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--c-ink);
+  background: var(--c-surface-sunk);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.presets button:hover { border-color: var(--c-hairline); }
+.presets button[aria-pressed='true'] { background: #fff; border-color: var(--c-seal); color: var(--c-seal); }
+.presets button small { display: block; font-size: 10px; color: var(--c-ink-faint); }
+.presets button[aria-pressed='true'] small { color: var(--c-seal); opacity: 0.7; }
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 8px;
+  margin-bottom: 9px;
+  font-size: 12px;
+}
+
+.row label { color: var(--c-ink-soft); }
+.row output { font-family: var(--font-mono); font-size: 11px; color: var(--c-ink); }
+.row input[type='range'] { grid-column: 1 / -1; width: 100%; margin: 0; accent-color: var(--c-seal); }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 12px;
+  color: var(--c-ink-soft);
+  cursor: pointer;
+}
+
+.check input { accent-color: var(--c-seal); margin: 0; }
+
+.seg { display: flex; gap: 4px; }
+
+.seg button {
+  flex: 1;
+  padding: 7px 4px;
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--c-hairline);
+  border-radius: 8px;
+  background: var(--c-surface);
+  color: var(--c-ink-soft);
+  cursor: pointer;
+}
+
+.seg button[aria-pressed='true'] { background: var(--c-ink); border-color: var(--c-ink); color: #fff; }
+
+.note {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--c-ink-faint);
+  margin: 6px 0 0;
+}
+
+.note b { color: var(--c-ink-soft); font-weight: 600; }
+
+.sheet-toggle { display: none; }
+
+/* --- Адаптив --------------------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+
+  .stage { height: 100dvh; }
+
+  /* Панель уезжает в шторку: на телефоне судят барабан, а не ползунки. */
+  .panel {
+    position: fixed;
+    z-index: 10;
+    inset: auto 0 0 0;
+    max-height: 76dvh;
+    border-left: 0;
+    border-top: 1px solid var(--c-hairline);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 30px rgba(63, 46, 26, 0.12);
+    transition: translate 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  .app:not([data-sheet='1']) .panel { translate: 0 100%; }
+
+  .sheet-toggle {
+    position: fixed;
+    z-index: 11;
+    display: block;
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    padding: 10px 14px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--c-ink);
+    background: var(--c-surface);
+    border: 1px solid var(--c-hairline);
+    border-radius: 999px;
+    box-shadow: var(--sh-card);
+  }
+
+  .app[data-sheet='1'] .sheet-toggle { bottom: calc(78dvh + 14px); }
+
+  /* Подсказка уходит выше кнопки настроек — иначе они стоят друг на друге. */
+  .hint { bottom: calc(70px + env(safe-area-inset-bottom)); }
+}
+</style>
+</head>
+<body>
+
+<main class="app" id="app" data-glass="1" data-debug="0">
+  <section class="stage" id="stage" tabindex="0" aria-label="Барабан с местами">
+    <div class="hero" id="hero">
+      <p>Shall we meet up?<br>Where do you want to go?</p>
+    </div>
+    <div class="drum" id="drum"></div>
+    <div class="scroller" id="scroller"><div id="track"></div></div>
+    <div class="hud" id="hud">
+      <span id="hud-mode">—</span>
+      <span id="hud-pos">pos 0.00</span>
+      <span id="hud-fps">— fps</span>
+      <span id="hud-hap">—</span>
+      <span class="tickdot" id="tickdot"></span>
+    </div>
+    <div class="hint" id="hint"></div>
+  </section>
+
+  <aside class="panel" id="panel">
+    <h1>Барабан — стенд вариантов</h1>
+    <p class="sub">Карточки и токены — из проекта. Меняется только механика: ничего из <code>packages/</code> не тронуто.</p>
+
+    <div class="group">
+      <h2>Варианты</h2>
+      <div class="presets" id="presets"></div>
+      <p class="note" id="geom-note"></p>
+    </div>
+
+    <div class="group">
+      <h2>Геометрия</h2>
+      <div class="row"><label for="p-step">Шаг на карточку</label><output id="o-step"></output><input type="range" id="p-step" min="8" max="120" step="1"></div>
+      <div class="row"><label for="p-radius">Радиус (× высота карточки)</label><output id="o-radius"></output><input type="range" id="p-radius" min="0.25" max="3.5" step="0.01"></div>
+      <div class="row"><label for="p-persp">Перспектива</label><output id="o-persp"></output><input type="range" id="p-persp" min="400" max="3000" step="25"></div>
+      <div class="row"><label for="p-cull">Отсечка по углу</label><output id="o-cull"></output><input type="range" id="p-cull" min="40" max="130" step="1"></div>
+      <div class="row"><label for="p-shade">Затемнение в глубину</label><output id="o-shade"></output><input type="range" id="p-shade" min="0" max="1" step="0.01"></div>
+      <div class="row"><label for="p-n">Мест в барабане</label><output id="o-n"></output><input type="range" id="p-n" min="2" max="5" step="1"></div>
+    </div>
+
+    <div class="group" id="group-wheel">
+      <h2>Колесо: центр</h2>
+      <div class="row"><label for="p-warp">Притяжение центра</label><output id="o-warp"></output><input type="range" id="p-warp" min="0" max="1" step="0.01"></div>
+      <div class="row"><label for="p-grow">Рост центральной</label><output id="o-grow"></output><input type="range" id="p-grow" min="0" max="0.4" step="0.01"></div>
+      <p class="note">В центре карточка замедляется (варп позиции) и растёт. Работает в варианте «Колесо».</p>
+    </div>
+
+    <div class="group" id="group-stack">
+      <h2>Колода: барабан</h2>
+      <div class="row"><label for="p-depth">Шаг в глубину</label><output id="o-depth"></output><input type="range" id="p-depth" min="0" max="200" step="2"></div>
+      <div class="row"><label for="p-peek">Подъём за шаг</label><output id="o-peek"></output><input type="range" id="p-peek" min="0" max="90" step="1"></div>
+      <div class="row"><label for="p-tilt">Наклон грани за шаг</label><output id="o-tilt"></output><input type="range" id="p-tilt" min="-14" max="14" step="0.5"></div>
+      <p class="note">Карточки стоят одна за другой в глубину; уменьшает их сама перспектива (ползунок «Перспектива» выше). Уходящая карточка ныряет за спины остальным.</p>
+    </div>
+
+    <div class="group">
+      <h2>Ввод</h2>
+      <div class="seg" id="modes">
+        <button type="button" data-mode="auto">Авто</button>
+        <button type="button" data-mode="scrub">Скраб</button>
+        <button type="button" data-mode="scroll">Скроллер</button>
+      </div>
+      <p class="note">«Скроллер» работает и на десктопе — колесом или трекпадом: так мобильное ощущение можно оценить, не беря телефон.</p>
+      <div class="row" style="margin-top:10px"><label for="p-px">Ход на карточку</label><output id="o-px"></output><input type="range" id="p-px" min="40" max="420" step="5"></div>
+      <label class="check"><input type="checkbox" id="p-wheel"> Колесо мыши крутит барабан</label>
+      <label class="check"><input type="checkbox" id="p-dead"> Мёртвая зона 6 px</label>
+      <label class="check"><input type="checkbox" id="p-freeze"> Нажатие замораживает барабан</label>
+      <label class="check"><input type="checkbox" id="p-invert"> Обратное направление</label>
+    </div>
+
+    <div class="group">
+      <h2>Снап</h2>
+      <label class="check"><input type="checkbox" id="p-snap"> Доводить до детента</label>
+      <div class="row"><label for="p-freq">Жёсткость пружины</label><output id="o-freq"></output><input type="range" id="p-freq" min="5" max="24" step="0.5"></div>
+      <div class="row"><label for="p-idle">Покой перед доводкой</label><output id="o-idle"></output><input type="range" id="p-idle" min="0" max="500" step="10"></div>
+    </div>
+
+    <div class="group">
+      <h2>Отдача на детенте</h2>
+      <label class="check"><input type="checkbox" id="p-vibro"> Вибро (Android)</label>
+      <label class="check"><input type="checkbox" id="p-click"> Щелчок (Web Audio)</label>
+      <label class="check"><input type="checkbox" id="p-recoil"> Микро-отдача картинки</label>
+      <p class="note" id="hap-note"></p>
+    </div>
+
+    <div class="group">
+      <h2>Проверки</h2>
+      <label class="check"><input type="checkbox" id="p-glass"> Стеклянная кромка (backdrop-filter в 3D)</label>
+      <label class="check"><input type="checkbox" id="p-debug"> Показывать углы</label>
+      <p class="note"><b>Стекло</b> — это риск №1: в <code>preserve-3d</code> у каждой карточки свой слой композиции, и <code>backdrop-filter</code> может мазать по всему кадру вместо кольца. Включи и покрути.</p>
+    </div>
+  </aside>
+</main>
+
+<button type="button" class="sheet-toggle" id="sheet-toggle" aria-expanded="false">Настройки</button>
+
+<script>
+'use strict';
+
+/* ========================================================================== *
+ * Данные
+ * ========================================================================== */
+
+// Фотографии лежат рядом (photos/). Это те же демо-снимки мест, что у гостя;
+// в репозиторий они не кладутся (см. README) — держим их локально.
+const PHOTOS = ['photos/1.jpg', 'photos/2.jpg', 'photos/3.jpg', 'photos/4.jpg'];
+
+const PLACES = [
+  { name: 'Cooperative Chorny', address: '12 Bolshaya Nikitskaya', photo: 0 },
+  { name: 'Dostoevsky Library', address: '23 Chistoprudny Boulevard', photo: 1 },
+  { name: 'Depo', address: '20 bldg 3 Lesnaya Street', photo: 2 },
+  { name: 'Bauman Garden', address: '15 Staraya Basmannaya Street', photo: 3 },
+  { name: 'Krasny Oktyabr', address: '6 Bersenevskaya Embankment', photo: 0 },
+];
+
+/* ========================================================================== *
+ * Варианты барабана
+ *
+ * Отличаются они одним: сколько градусов приходится на карточку и как далеко
+ * ось от её плоскости. Радиус соприкосновения R = (h/2)/tan(шаг/2) — на нём
+ * соседние карточки сходятся кромка в кромку; меньше — врезаются друг в друга
+ * (и барабан читается колодой), больше — между ними просвет (и барабан читается
+ * колесом обозрения).
+ * ========================================================================== */
+
+const PRESETS = {
+  picker: {
+    title: 'Пикер',
+    hint: 'шаг 42°, радиус 1.35×h',
+    p: { layout: 'wheel', step: 42, radius: 1.35, persp: 1200, cull: 96, shade: 0.62, warp: 0, grow: 0 },
+  },
+  prism: {
+    title: 'Призма',
+    hint: 'шаг 72° = 360°/5, грани',
+    p: { layout: 'wheel', step: 72, radius: 0.69, persp: 900, cull: 92, shade: 0.8, warp: 0, grow: 0 },
+  },
+  deck: {
+    title: 'Колода',
+    hint: 'барабан в глубину: карточка выходит вперёд, уходит назад, встаёт следующая',
+    p: { layout: 'stack', shade: 0.5, peek: 34, depth: 78, tilt: 4, persp: 900 },
+  },
+  wide: {
+    title: 'Колесо',
+    hint: 'просвет между гранями; в центре карточка замедляется и растёт',
+    p: { layout: 'wheel', step: 30, radius: 2.45, persp: 2200, cull: 76, shade: 0.42, warp: 0.81, grow: 0.17 },
+  },
+};
+
+/* ========================================================================== *
+ * Параметры
+ * ========================================================================== */
+
+const P = {
+  n: 5,
+
+  // Что рисуем: 'wheel' — цилиндр в 3D, 'stack' — стопка с наложением (колода).
+  layout: 'wheel',
+
+  // --- Геометрия колеса ---
+  // Стартовые числа — выбранный вариант «Колесо» (пресет `wide`).
+  step: 30,
+  radius: 2.45,
+  persp: 2200,
+  cull: 76,
+  shade: 0.42,
+  // Притяжение к центру: варп позиции, из-за которого барабан у детента идёт
+  // медленнее, чем между карточками. 0 — ход ровный, 1 — центр «магнитит».
+  warp: 0.81,
+  // Насколько центральная карточка крупнее (доля роста в самом центре).
+  grow: 0.17,
+
+  // --- Колода (барабан в глубину) ---
+  depth: 78,      // на сколько пикселей карточка уходит вглубь за шаг
+  peek: 34,       // и на сколько при этом приподнимается, чтобы выглядывать
+  tilt: 4,        // наклон грани за шаг: колода ложится на бок барабана
+
+  mode: 'auto',
+  px: 150,          // пикселей хода на одну карточку
+  wheel: true,
+  dead: true,
+  freeze: true,
+  invert: false,
+
+  snap: true,
+  freq: 12,
+  idle: 120,
+
+  vibro: true,
+  click: true,
+  recoil: true,
+
+  // Стеклянная кромка — она и есть край карточки в проекте: фотография занимает
+  // карточку целиком и сама себя не очерчивает. Без неё барабан читается
+  // плоским, поэтому здесь она включена, как в гостевой сборке.
+  glass: true,
+  debug: false,
+};
+
+/*
+ * За сколько карточек прокрутки шапка сворачивается полностью. Меньше карточки:
+ * заголовок гаснет ещё на первом же движении барабана, до того как первая
+ * карточка успевает уйти, — «убирай, когда карточки дошли до верха» читается
+ * именно так. Считается только на колесе (конечном, pos 0..n-1): у покоя там
+ * ровно один верх — pos 0, и от него меряется сворачивание.
+ */
+const HERO_SPAN = 0.6;
+
+const DEAD_PX = 6;     // мёртвая зона: дрожь руки — не движение
+const CLICK_SLOP = 8;  // дальше этого протяжка перестаёт быть кликом
+const TICK_GAP = 35;   // не чаще, иначе щелчки слипаются в жужжание
+const DAMP = 0.85;     // затухание пружины снапа: без перелёта
+const SUB_MS = 1000 / 240;
+
+/* ========================================================================== *
+ * Состояние
+ * ========================================================================== */
+
+let pos = 0;        // позиция барабана в карточках, дробная
+let vel = 0;        // скорость пружины доводки
+let chosen = -1;
+let snapping = false;
+let idleTimer = 0;
+let raf = 0;
+let lastDetent = 0;
+let lastTick = 0;
+let cards = [];
+let mode = 'scrub';
+
+const app = document.getElementById('app');
+const stage = document.getElementById('stage');
+const drum = document.getElementById('drum');
+const scroller = document.getElementById('scroller');
+const track = document.getElementById('track');
+const hint = document.getElementById('hint');
+const tickdot = document.getElementById('tickdot');
+const hero = document.getElementById('hero');
+
+/* ========================================================================== *
+ * Сборка барабана
+ * ========================================================================== */
+
+function build() {
+  drum.innerHTML = '';
+  cards = [];
+
+  for (let i = 0; i < P.n; i++) {
+    const place = PLACES[i];
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    slot.dataset.i = String(i);
+    slot.innerHTML =
+      '<article class="card">' +
+        '<img class="card__photo" alt="" src="' + PHOTOS[place.photo] + '">' +
+        '<div class="card__grad"></div>' +
+        '<div class="card__body">' +
+          '<h2 class="card__name">' + place.name + '</h2>' +
+          '<p class="card__address">' + place.address + '</p>' +
+        '</div>' +
+        '<div class="card__glass"></div>' +
+        '<div class="card__shade"></div>' +
+        '<div class="slot__tag"></div>' +
+      '</article>';
+    drum.appendChild(slot);
+    cards.push({
+      el: slot,
+      shade: slot.querySelector('.card__shade'),
+      tag: slot.querySelector('.slot__tag'),
+    });
+  }
+
+  buildTrack();
+  // Конечному колесу pos держим в пределах; кольцу (колоде) буфер уже задал pos
+  // из середины ленты — трогать нельзя.
+  if (!infinite() && pos > P.n - 1) pos = P.n - 1;
+  paint();
+}
+
+/*
+ * Лента со снап-точками под мобильный ввод: одна точка на карточку.
+ *
+ * У конечного колеса лента ровно на n карточек плюс хвост. У кольцевой колоды
+ * бесконечной прокрутки настоящей длины не бывает — лента конечна. Поэтому её
+ * делают длинной (много повторов колоды), стартуют из середины и, подобравшись
+ * к любому краю, незаметно возвращают scrollTop на середину, сдвигая ровно на
+ * целое число колод: pos mod n при этом не меняется, и барабан не вздрагивает.
+ */
+const STACK_REPS = 40;   // сколько колод в ленте: хватает на долгую прокрутку
+let stackBlockPx = 0;    // высота одной колоды в пикселях (n * px)
+
+function buildTrack() {
+  track.innerHTML = '';
+  const loop = P.layout === 'stack';
+  const count = loop ? P.n * STACK_REPS : P.n;
+
+  for (let i = 0; i < count; i++) {
+    const d = document.createElement('div');
+    d.className = 'snap';
+    d.style.height = P.px + 'px';
+    track.appendChild(d);
+  }
+
+  stackBlockPx = P.n * P.px;
+
+  if (loop) {
+    // Стартуем из середины — крутить можно в обе стороны, до краёв далеко.
+    // Текущую карточку сохраняем: сдвигаем на целые колоды, pos mod n не трогаем,
+    // поэтому пересборка ленты (смена варианта, ресайз) барабан не дёргает.
+    const cur = ((pos % P.n) + P.n) % P.n;
+    pos = Math.floor(STACK_REPS / 2) * P.n + cur;
+    lastDetent = Math.round(pos);
+    scroller.scrollTop = pos * P.px;
+  } else {
+    // Пришли с кольца — pos там огромный (середина длинной ленты). Возвращаем его
+    // в пределы конечного колеса, сохранив ту же карточку, иначе колесо срежется.
+    if (pos < 0 || pos > P.n - 1) pos = Math.min(P.n - 1, ((pos % P.n) + P.n) % P.n);
+    /*
+     * Хвост — чтобы последняя снап-точка могла доехать до верха скроллера.
+     * Считаем его в пикселях, а не процентами: у ленты высота по содержимому,
+     * и процент от неё разрешается в auto — хвост выходил нулевым, а лента
+     * оказывалась короче окна, то есть не прокручивалась вовсе.
+     *
+     * Мерим по сцене, а не по самому скроллеру: в режиме скраба он display: none
+     * и отдал бы нулевую высоту.
+     */
+    const tail = document.createElement('div');
+    tail.style.height = Math.max(0, stage.clientHeight - P.px) + 'px';
+    track.appendChild(tail);
+  }
+
+  scroller.dataset.snap = P.snap ? '1' : '0';
+}
+
+/* ========================================================================== *
+ * Отрисовка
+ *
+ * Угол карточки: θ = (pos − i) · шаг. Знак такой, что следующая карточка
+ * приходит снизу, как в списке: увеличивается pos — барабан едет вверх.
+ * ========================================================================== */
+
+/*
+ * Притяжение центра: варп позиции. Барабан крутят ровно (скролл линеен), а
+ * рисуем его по искажённой позиции, у которой скорость мала у детента и велика
+ * между карточками. Оттого центральная карточка будто вязнет, а соседняя
+ * проскакивает — то самое «замедляется в центре».
+ *
+ * Целые сохраняем нетронутыми: детент, снап и нативный scroll-snap все считают в
+ * целых, и сдвинь мы их — щелчок разъехался бы с посадкой. Между целыми тянем
+ * дробную часть по smootherstep (6t⁵−15t⁴+10t³): у него наклон ноль на концах
+ * (у детента медленно) и полтора в середине (между карточками быстро). Силу
+ * подмешиваем долей warp, чтобы 0 давал ровный ход, а 1 — полный «магнит».
+ */
+function warpPos(p) {
+  if (!P.warp) return p;
+  const base = Math.floor(p);
+  const f = p - base;
+  const s = f * f * f * (f * (f * 6 - 15) + 10);
+  return base + (f + (s - f) * P.warp);
+}
+
+function paint() {
+  const front = P.layout === 'stack' ? paintStack() : paintWheel();
+  paintHero();
+  hudPos.textContent = 'pos ' + pos.toFixed(2) + ' · front ' + (front + 1);
+  fps();
+  detent();
+}
+
+/*
+ * Шапка над барабаном. Ведёт её одно число --hero: 1 в покое (барабан стоит
+ * под заголовком), 0 когда его свернули. Считаем из позиции барабана — от того
+ * же скролла, что крутит колесо: отдельного жеста для шапки нет, она сворачивается
+ * ровно тем движением, каким листают карточки.
+ *
+ * Только на колесе: у конечного колеса единственный покой — pos 0, и «верх» у
+ * шапки один. У колоды-кольца pos огромный (середина ленты) и верха-покоя нет —
+ * шапку там не показываем вовсе.
+ */
+function paintHero() {
+  let h = 0;
+  if (P.layout === 'wheel') {
+    const t = Math.min(1, Math.max(0, pos / HERO_SPAN)); // 0 у самого верха, 1 за порогом
+    const s = t * t * (3 - 2 * t);                       // smoothstep: мягкий старт и приход
+    h = 1 - s;
+  }
+  app.style.setProperty('--hero', h.toFixed(4));
+  // Свёрнутую до конца шапку убираем из разметки: у верхнего края её текст не
+  // должен перехватывать тач-жесты, а почти прозрачная надпись — оставлять след.
+  if (h <= 0.001) hero.setAttribute('data-off', '');
+  else hero.removeAttribute('data-off');
+}
+
+/* -------------------------------------------------------------------------- *
+ * Колесо — цилиндр в 3D
+ * ------------------------------------------------------------------------- */
+
+function paintWheel() {
+  const h = drum.offsetHeight || 1;
+  const R = P.radius * h;
+  const cull = P.cull;
+  const wp = warpPos(pos);
+
+  /*
+   * Барабан отодвинут назад ровно на свой радиус — и это не тонкость, а условие.
+   *
+   * Карточка стоит на поверхности цилиндра, то есть на translateZ(+R): она ближе
+   * к зрителю, чем плоскость экрана, и перспектива её увеличивает — на 31% при
+   * радиусе 1.35×h и перспективе 1200px. Ширину карточке задаёт CSS от ширины
+   * экрана, и эта прибавка честно вылезала за края телефона: на 375px карточка
+   * рисовалась 422-мя.
+   *
+   * Сдвиг всего барабана на −R возвращает переднюю грань ровно в плоскость
+   * экрана: она рисуется в свой натуральный размер, а соседи уходят вглубь, как
+   * им и положено. Радиус после этого меняет только глубину барабана, но не
+   * кегль передней карточки — иначе каждый ползунок геометрии заодно менял бы и
+   * размер того, что читают.
+   */
+  drum.style.transform = 'translateZ(' + (-R).toFixed(2) + 'px)';
+  let front = 0;
+  let best = Infinity;
+
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i];
+    const deg = (wp - i) * P.step;
+    const abs = Math.abs(deg);
+
+    if (abs > cull) {
+      c.el.style.visibility = 'hidden';
+      c.el.removeAttribute('data-front');
+      continue;
+    }
+    c.el.style.visibility = 'visible';
+
+    /*
+     * Рост центральной карточки. near — близость к центру: единица в самом
+     * центре, ноль в шаге от него, по косинусу, чтобы прибавка нарастала плавно,
+     * а не изломом. scale идёт последним в списке трансформов (то есть первым в
+     * локальной системе): карточка растёт в своей плоскости, и только потом её
+     * выносит R и поворачивает rotateX — прибавка ложится на грань цилиндра, а
+     * не на экран под углом.
+     */
+    const near = Math.max(0, Math.cos((deg / P.step) * (Math.PI / 2)));
+    const scale = 1 + P.grow * near;
+    c.el.style.transform =
+      'rotateX(' + deg.toFixed(3) + 'deg) translateZ(' + R.toFixed(2) + 'px) scale(' + scale.toFixed(4) + ')';
+
+    // Порядок перекрытия: передняя грань выше дальних. В чистом 3D его держит
+    // сам z, но соседний stack-режим пишет свои zIndex — задаём явно, чтобы не
+    // тащить его чужие значения после переключения.
+    c.el.style.zIndex = String(Math.round(300 - abs));
+
+    // Затемнение в глубину — из косинуса: карточка отворачивается от света.
+    const cos = Math.cos((deg * Math.PI) / 180);
+    c.shade.style.opacity = Math.max(0, Math.min(0.92, P.shade * (1 - cos))).toFixed(3);
+
+    // У самой отсечки карточку гасим, иначе она пропадала бы щелчком.
+    const edge = Math.min(1, (cull - abs) / 12);
+    c.el.style.opacity = edge.toFixed(3);
+
+    if (P.debug) c.tag.textContent = deg.toFixed(0) + '°';
+
+    if (abs < best) { best = abs; front = i; }
+  }
+
+  for (let i = 0; i < cards.length; i++) {
+    if (i === front && best < P.step / 2 + 0.001) cards[i].el.setAttribute('data-front', '');
+    else cards[i].el.removeAttribute('data-front');
+  }
+
+  return front;
+}
+
+/* -------------------------------------------------------------------------- *
+ * Колода — барабан в глубину, замкнутый в кольцо
+ *
+ * Карточки стоят не лесенкой на плоскости, а одна за другой в глубину: каждая
+ * следующая на depth пикселей дальше от глаза, на peek выше (чтобы выглядывать
+ * из-за передней) и на tilt градусов положе — как грани, уложенные по боку
+ * барабана. Размер при этом никто не считает: карточку уменьшает сама
+ * перспектива сцены, и оттого колода читается объёмной, а не набором копий
+ * разного кегля.
+ *
+ * Круг замкнут, и ход по нему ровно тот, что нужен: передняя карточка выходит
+ * вперёд, при прокрутке уходит назад — проваливается в глубину, минуя соседей
+ * (порядок перекрытия считает сам 3D, никаких zIndex), тает по дороге и приходит
+ * в самое дно колоды. Её место тем же движением занимает следующая.
+ *
+ * Всё держит одна дробная позиция pos. Глубина карточки — кольцевая: сырое
+ * (i − pos) тянем в окно [−LEAVE, n−LEAVE). Уходящая карточка проходит своё
+ * окно быстрее прочих (весь путь до дна за LEAVE шага) — потому и читается
+ * уходом, а не переездом. Шов кольца — там, где она уже погашена, и приходит
+ * она ровно в ту точку, где стоит погашенная глубокая: и положение, и
+ * прозрачность на стыке совпадают, так что стыка не видно вовсе.
+ *
+ *   rel = 0        — передняя, у самой плоскости экрана, в натуральную величину;
+ *   0 < rel ≤ maxD — в колоде, выглядывает из-за передней (тем дальше, чем больше);
+ *   rel > maxD     — у дна, гаснет к невидимости;
+ *   rel < 0        — уходит назад: проваливается в глубину и тает.
+ * ------------------------------------------------------------------------- */
+
+function paintStack() {
+  // Передняя грань — ровно в плоскости экрана: перспектива её не увеличивает.
+  drum.style.transform = 'translateZ(0)';
+  const n = P.n;
+  const maxD = Math.min(n - 1, 3);             // сколько карточек видно из-за передней
+  const LEAVE = 0.6;                           // доля шага, за которую уходящая тает
+  const deepest = n - LEAVE;                   // дно колоды — туда она и приходит
+  const rawFront = Math.round(pos);
+  const frontIdx = ((rawFront % n) + n) % n;   // какая карточка сейчас передняя (по кругу)
+
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i];
+    // Кольцевая глубина: ближайшее положение карточки в окне [−LEAVE, n−LEAVE).
+    const rel = (((i - pos + LEAVE) % n) + n) % n - LEAVE;
+    let d, op;
+
+    if (rel < 0) {
+      /*
+       * Уходит назад. Путь — от передней грани до самого дна колоды, и проходит
+       * она его за LEAVE шага, то есть заметно быстрее, чем соседи делают свой
+       * один шаг. Быстрее — потому что это уход, а не переезд: карточка ныряет
+       * за спины остальным. К концу пути она погашена, а стоит ровно там, где
+       * стоит погашенная глубокая карточка, — в этой точке кольцо и смыкается.
+       */
+      const t = -rel / LEAVE;                  // 0..1
+      d = t * deepest;
+      op = Math.max(0, 1 - t * 1.3);
+    } else {
+      d = rel;
+      op = rel > maxD ? Math.max(0, 1 - (rel - maxD)) : 1;
+    }
+
+    if (op <= 0.002) {
+      c.el.style.visibility = 'hidden';
+    } else {
+      c.el.style.visibility = 'visible';
+      c.el.style.transform =
+        'translateY(' + (-d * P.peek).toFixed(2) + 'px)' +
+        ' translateZ(' + (-d * P.depth).toFixed(2) + 'px)' +
+        ' rotateX(' + (d * P.tilt).toFixed(2) + 'deg)';
+      /*
+       * Порядок перекрытия дублируем zIndex-ом, хотя карточки и так разнесены по
+       * настоящей глубине. Причина: полупрозрачной карточке (а уходящая всё время
+       * полупрозрачна) браузер заводит свою группу композиции, и порядок в
+       * preserve-3d на ней местами перестаёт считаться по z. Индекс считаем из той
+       * же глубины, так что он не спорит с 3D, а страхует его.
+       */
+      c.el.style.zIndex = String(Math.round(1000 - d * 10));
+      c.el.style.opacity = op.toFixed(3);
+      c.shade.style.opacity = Math.min(0.8, d * P.shade * 0.42).toFixed(3);
+    }
+    if (P.debug) c.tag.textContent = 'd ' + d.toFixed(2);
+  }
+
+  for (let i = 0; i < cards.length; i++) {
+    cards[i].el.toggleAttribute('data-front', i === frontIdx);
+  }
+
+  return frontIdx;
+}
+
+/*
+ * Частота отрисовки меряется по самим перерисовкам, а не по отдельному rAF:
+ * в скрабе цикла кадров нет вовсе — барабан рисуется прямо на событиях мыши,
+ * и именно эту частоту и надо видеть, когда включаешь стекло.
+ */
+let fpsLast = 0;
+let fpsAcc = 0;
+let fpsN = 0;
+
+function fps() {
+  const now = performance.now();
+  const dt = now - fpsLast;
+  fpsLast = now;
+  if (dt <= 0 || dt > 250) return; // пауза между жестами — не просадка
+  fpsAcc += 1000 / dt;
+  fpsN++;
+  if (fpsN >= 15) {
+    hudFps.textContent = Math.round(fpsAcc / fpsN) + ' fps';
+    fpsAcc = 0;
+    fpsN = 0;
+  }
+}
+
+/* ========================================================================== *
+ * Детент и отдача
+ * ========================================================================== */
+
+function detent() {
+  const d = Math.round(pos);
+  if (d === lastDetent) return;
+  lastDetent = d;
+  tick();
+}
+
+let audio = null;
+
+function click() {
+  try {
+    if (!audio) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audio = new AC();
+    }
+    if (audio.state === 'suspended') audio.resume();
+
+    // Короткий щелчок: всплеск шума, срезанный по низу и погашенный за 6 мс.
+    const sr = audio.sampleRate;
+    const len = Math.floor(sr * 0.006);
+    const buf = audio.createBuffer(1, len, sr);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const k = 1 - i / len;
+      d[i] = (Math.random() * 2 - 1) * k * k;
+    }
+    const src = audio.createBufferSource();
+    src.buffer = buf;
+    const hp = audio.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 1800;
+    const g = audio.createGain();
+    g.gain.value = 0.22;
+    src.connect(hp).connect(g).connect(audio.destination);
+    src.start();
+  } catch (e) { /* звук — не то, ради чего стоит падать */ }
+}
+
+function tick() {
+  const now = performance.now();
+  if (now - lastTick < TICK_GAP) return;
+  lastTick = now;
+
+  if (P.vibro && navigator.vibrate) navigator.vibrate(8);
+  if (P.click) click();
+
+  tickdot.setAttribute('data-on', '');
+  setTimeout(() => tickdot.removeAttribute('data-on'), 60);
+
+  if (P.recoil) {
+    drum.animate(
+      [{ translate: '-50% -50%' }, { translate: '-50% calc(-50% + 1.5px)' }, { translate: '-50% -50%' }],
+      { duration: 90, easing: 'ease-out' }
+    );
+  }
+}
+
+/* ========================================================================== *
+ * Движение: ввод, резинка, доводка до детента
+ * ========================================================================== */
+
+const LIMIT = () => P.n - 1;
+
+// Колода замкнута в кольцо — ход по ней бесконечен и концов у неё нет. Колесо
+// пока конечно, у него края с резинкой. Различие держит один этот флаг.
+const infinite = () => P.layout === 'stack';
+
+/**
+ * Сдвиг. У кольца (колода) — просто прибавка: круг замыкается сам, упираться
+ * не во что. У конечного колеса — с резинкой: за краями ход вязнет, а не
+ * обрывается, и отпущенный барабан пружина возвращает в пределы.
+ */
+function move(delta) {
+  if (infinite()) {
+    pos += delta;
+  } else {
+    const next = pos + delta;
+    const lo = 0;
+    const hi = LIMIT();
+    if (next < lo) pos = pos < lo ? pos + delta * 0.35 : lo + (next - lo) * 0.35;
+    else if (next > hi) pos = pos > hi ? pos + delta * 0.35 : hi + (next - hi) * 0.35;
+    else pos = next;
+  }
+
+  vel = 0;
+  snapping = false;
+  snapTarget = null;
+  paint();
+  scheduleSnap();
+}
+
+function scheduleSnap() {
+  clearTimeout(idleTimer);
+  // Без снапа кольцу доводить нечего — оно всегда «в пределах». Конечному колесу
+  // доводка нужна ещё и затем, чтобы вернуть барабан из-за края.
+  if (!P.snap && (infinite() || (pos >= 0 && pos <= LIMIT()))) return;
+  idleTimer = setTimeout(startSnap, P.idle);
+}
+
+function startSnap() {
+  snapTarget = null;
+  snapping = true;
+  if (!raf) raf = requestAnimationFrame(frame);
+}
+
+function springTo(target) {
+  snapTarget = target;
+  snapping = true;
+  if (!raf) raf = requestAnimationFrame(frame);
+}
+
+let snapTarget = null;
+let lastFrame = 0;
+
+function frame(now) {
+  raf = 0;
+  // Потолок на dt — из проекта: вкладка в фоне кадров не выдаёт, и без него
+  // пружина после возвращения прыгнула бы сразу в конец хода.
+  const dt = Math.min(now - (lastFrame || now), 64);
+  lastFrame = now;
+
+  if (snapping) {
+    let target;
+    if (snapTarget !== null) target = snapTarget;
+    else if (infinite()) target = Math.round(pos);           // ближайший детент, без краёв
+    else target = Math.max(0, Math.min(LIMIT(), P.snap ? Math.round(pos) : pos));
+
+    const k = P.freq * P.freq;
+    const c = 2 * DAMP * P.freq;
+    let rest = dt;
+    while (rest > 0) {
+      const s = Math.min(rest, SUB_MS) / 1000;
+      rest -= SUB_MS;
+      vel += (-k * (pos - target) - c * vel) * s;
+      pos += vel * s;
+    }
+
+    // Защёлка: пружина подходит к цели асимптотически и сама в неё не придёт.
+    if (Math.abs(pos - target) < 0.001 && Math.abs(vel) < 0.01) {
+      pos = target;
+      vel = 0;
+      snapping = false;
+      snapTarget = null;
+      if (mode === 'scroll') syncScroller();
+    }
+    paint();
+  }
+
+  if (snapping) raf = requestAnimationFrame(frame);
+  else lastFrame = 0;
+}
+
+/* ========================================================================== *
+ * Скраб: барабан 1:1 за курсором
+ * ========================================================================== */
+
+let engaged = false;   // мёртвая зона пройдена
+let deadAcc = 0;
+let down = false;
+let moved = 0;
+let lastY = 0;
+
+stage.addEventListener('pointerenter', () => {
+  engaged = !P.dead;
+  deadAcc = 0;
+});
+
+stage.addEventListener('pointerleave', () => {
+  engaged = false;
+  deadAcc = 0;
+  scheduleSnap();
+});
+
+stage.addEventListener('pointerdown', (e) => {
+  if (mode !== 'scrub') return;
+  down = true;
+  moved = 0;
+  lastY = e.clientY;
+  stage.setPointerCapture(e.pointerId);
+  stage.focus();
+});
+
+stage.addEventListener('pointermove', (e) => {
+  if (mode !== 'scrub') return;
+
+  const dy = e.clientY - (lastY || e.clientY);
+  lastY = e.clientY;
+  if (!dy) return;
+
+  if (down) {
+    moved += Math.abs(dy);
+    // Нажатая кнопка держит барабан: пока не ушли дальше порога, это ещё клик.
+    if (P.freeze && moved < CLICK_SLOP) return;
+    move(dir(dy));
+    return;
+  }
+
+  if (!engaged) {
+    deadAcc += Math.abs(dy);
+    if (deadAcc < DEAD_PX) return;
+    engaged = true;
+  }
+
+  move(dir(dy));
+});
+
+stage.addEventListener('pointerup', (e) => {
+  if (mode !== 'scrub') { down = false; return; }
+  const wasClick = moved < CLICK_SLOP;
+  down = false;
+  try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
+  if (wasClick) pick();
+  else scheduleSnap();
+});
+
+/** Движение пальца вниз тянет барабан вниз: содержимое следует за рукой. */
+function dir(dy) {
+  return (P.invert ? dy : -dy) / P.px;
+}
+
+stage.addEventListener('wheel', (e) => {
+  if (mode !== 'scrub' || !P.wheel) return;
+  e.preventDefault();
+  const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? stage.clientHeight : 1;
+  move((e.deltaY * unit) / P.px);
+}, { passive: false });
+
+stage.addEventListener('keydown', (e) => {
+  const at = Math.round(pos);
+  // На кольце стрелки не упираются в края — идём в любую сторону бесконечно.
+  const lo = infinite() ? -Infinity : 0;
+  const hi = infinite() ? Infinity : LIMIT();
+  if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); springTo(Math.min(hi, at + 1)); }
+  else if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); springTo(Math.max(lo, at - 1)); }
+  else if (e.key === 'Home') { e.preventDefault(); springTo(infinite() ? at - (((at % P.n) + P.n) % P.n) : 0); }
+  else if (e.key === 'End') { e.preventDefault(); springTo(infinite() ? at : LIMIT()); }
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); }
+});
+
+function pick() {
+  // Абсолютная позиция детента — для доводки, а индекс карточки — по кругу.
+  const raw = infinite() ? Math.round(pos) : Math.max(0, Math.min(LIMIT(), Math.round(pos)));
+  const idx = ((raw % P.n) + P.n) % P.n;
+  chosen = chosen === idx ? -1 : idx;
+  for (let i = 0; i < cards.length; i++) {
+    if (i === chosen) cards[i].el.setAttribute('data-chosen', '');
+    else cards[i].el.removeAttribute('data-chosen');
+  }
+  if (P.snap) springTo(raw);
+}
+
+/* ========================================================================== *
+ * Скроллер: мобильный ввод
+ * ========================================================================== */
+
+let scrolling = 0;
+
+scroller.addEventListener('scroll', () => {
+  if (mode !== 'scroll') return;
+
+  // Кольцо: подобрались к краю длинной ленты — возвращаем scrollTop на середину,
+  // сдвигая ровно на целое число колод. pos mod n при этом сохраняется, картинка
+  // не меняется, шов не виден. (На iOS такой сдвиг гасит инерцию — цена бесшовной
+  // бесконечности на нативном скролле; для стенда приемлемо.)
+  if (P.layout === 'stack') {
+    const st = scroller.scrollTop;
+    if (st < stackBlockPx || st > (STACK_REPS - 1) * stackBlockPx) {
+      // Сдвиг строго кратен целой колоде (а значит и целому числу снап-точек):
+      // и позиция внутри колоды, и фаза снапа сохраняются точь-в-точь, поэтому
+      // прыжок на середину ленты невидим.
+      const mid = Math.floor(STACK_REPS / 2) * stackBlockPx;
+      const shift = Math.round((mid - st) / stackBlockPx) * stackBlockPx;
+      const recentered = st + shift;
+      scroller.scrollTop = recentered;
+      // Детент считаем по абсолютной позиции — после прыжка на целые колоды
+      // подавляем ложный щелчок, приравняв счётчик новой позиции.
+      lastDetent = Math.round(recentered / P.px);
+      pos = recentered / P.px;
+      paint();
+      return;
+    }
+  }
+
+  pos = scroller.scrollTop / P.px;
+  snapping = false;
+  vel = 0;
+  paint();
+  clearTimeout(scrolling);
+  scrolling = setTimeout(() => { /* сел — ничего не доводим, снап нативный */ }, 90);
+}, { passive: true });
+
+/* Тап по ленте = выбор передней карточки: лента лежит поверх барабана и иначе
+   съела бы нажатие. Протяжка тапом не считается. */
+let tapY = 0;
+let tapT = 0;
+
+scroller.addEventListener('pointerdown', (e) => { tapY = e.clientY; tapT = performance.now(); });
+scroller.addEventListener('pointerup', (e) => {
+  if (Math.abs(e.clientY - tapY) < CLICK_SLOP && performance.now() - tapT < 400) pick();
+});
+
+function syncScroller() {
+  if (mode !== 'scroll') return;
+  const want = Math.round(pos * P.px);
+  if (Math.abs(scroller.scrollTop - want) > 1) scroller.scrollTop = want;
+}
+
+/* ========================================================================== *
+ * Режимы
+ * ========================================================================== */
+
+function resolveMode() {
+  if (P.mode !== 'auto') return P.mode;
+  return matchMedia('(hover: hover) and (pointer: fine)').matches ? 'scrub' : 'scroll';
+}
+
+function applyMode() {
+  mode = resolveMode();
+  stage.dataset.mode = mode;
+  hudMode.textContent = mode === 'scrub' ? 'скраб 1:1' : 'скроллер';
+  hint.textContent = mode === 'scrub'
+    ? 'Веди курсор по сцене — барабан идёт за ним. Клик по карточке — выбор.'
+    : 'Крути барабан свайпом (или колесом). Тап — выбор.';
+  if (mode === 'scroll') requestAnimationFrame(syncScroller);
+}
+
+/* ========================================================================== *
+ * Панель
+ * ========================================================================== */
+
+const hudMode = document.getElementById('hud-mode');
+const hudPos = document.getElementById('hud-pos');
+const hudFps = document.getElementById('hud-fps');
+const hudHap = document.getElementById('hud-hap');
+
+function applyVars() {
+  document.documentElement.style.setProperty('--persp', P.persp + 'px');
+  app.dataset.glass = P.glass ? '1' : '0';
+  app.dataset.debug = P.debug ? '1' : '0';
+  app.dataset.layout = P.layout;
+  scroller.dataset.snap = P.snap ? '1' : '0';
+  // Гасим группу настроек, к текущему варианту не относящуюся, — чтобы было
+  // видно, какие ползунки сейчас в деле.
+  document.getElementById('group-wheel').style.opacity = P.layout === 'wheel' ? '1' : '0.4';
+  document.getElementById('group-stack').style.opacity = P.layout === 'stack' ? '1' : '0.4';
+}
+
+function geomNote() {
+  const el = document.getElementById('geom-note');
+  if (P.layout === 'stack') {
+    el.innerHTML =
+      '<b>Колода — барабан в глубину, замкнутый в кольцо.</b> Карточки стоят одна ' +
+      'за другой: шаг ' + P.depth + 'px вглубь, ' + P.peek + 'px вверх, ' + P.tilt +
+      '° наклона. Прокрутка бесконечна: передняя уходит назад, ныряя за остальных, ' +
+      'и её место занимает следующая.';
+    return;
+  }
+  const touch = 0.5 / Math.tan((P.step * Math.PI) / 360);
+  const diff = P.radius / touch;
+  let what;
+  if (diff < 0.92) what = 'карточки идут внахлёст, барабан читается колодой';
+  else if (diff > 1.12) what = 'между карточками просвет, барабан читается колесом';
+  else what = 'карточки сходятся кромка в кромку';
+  document.getElementById('geom-note').innerHTML =
+    '<b>Радиус соприкосновения при этом шаге: ' + touch.toFixed(2) + '×h.</b> Сейчас ' +
+    P.radius.toFixed(2) + '×h — ' + what + '.';
+}
+
+const RANGES = [
+  ['step', 'p-step', 'o-step', (v) => v + '°', 1],
+  ['radius', 'p-radius', 'o-radius', (v) => v.toFixed(2) + '×h', 0.01],
+  ['persp', 'p-persp', 'o-persp', (v) => v + 'px', 1],
+  ['cull', 'p-cull', 'o-cull', (v) => '±' + v + '°', 1],
+  ['shade', 'p-shade', 'o-shade', (v) => v.toFixed(2), 0.01],
+  ['n', 'p-n', 'o-n', (v) => String(v), 1],
+  ['warp', 'p-warp', 'o-warp', (v) => v.toFixed(2), 0.01],
+  ['grow', 'p-grow', 'o-grow', (v) => '+' + Math.round(v * 100) + '%', 0.01],
+  ['depth', 'p-depth', 'o-depth', (v) => v + 'px', 1],
+  ['peek', 'p-peek', 'o-peek', (v) => v + 'px', 1],
+  ['tilt', 'p-tilt', 'o-tilt', (v) => v.toFixed(1) + '°', 0.1],
+  ['px', 'p-px', 'o-px', (v) => v + 'px', 1],
+  ['freq', 'p-freq', 'o-freq', (v) => v.toFixed(1), 0.1],
+  ['idle', 'p-idle', 'o-idle', (v) => v + 'ms', 1],
+];
+
+const CHECKS = [
+  ['wheel', 'p-wheel'], ['dead', 'p-dead'], ['freeze', 'p-freeze'], ['invert', 'p-invert'],
+  ['snap', 'p-snap'], ['vibro', 'p-vibro'], ['click', 'p-click'], ['recoil', 'p-recoil'],
+  ['glass', 'p-glass'], ['debug', 'p-debug'],
+];
+
+function syncPanel() {
+  for (const [key, input, out, fmt] of RANGES) {
+    document.getElementById(input).value = P[key];
+    document.getElementById(out).textContent = fmt(P[key]);
+  }
+  for (const [key, input] of CHECKS) document.getElementById(input).checked = P[key];
+  for (const b of document.querySelectorAll('#modes button')) {
+    b.setAttribute('aria-pressed', String(b.dataset.mode === P.mode));
+  }
+  geomNote();
+}
+
+for (const [key, input, out, fmt] of RANGES) {
+  document.getElementById(input).addEventListener('input', (e) => {
+    P[key] = parseFloat(e.target.value);
+    document.getElementById(out).textContent = fmt(P[key]);
+    markPreset();
+    geomNote();
+    if (key === 'n') build();
+    else if (key === 'px') { buildTrack(); syncScroller(); }
+    paint();
+  });
+}
+
+for (const [key, input] of CHECKS) {
+  document.getElementById(input).addEventListener('change', (e) => {
+    P[key] = e.target.checked;
+    applyVars();
+    paint();
+  });
+}
+
+for (const b of document.querySelectorAll('#modes button')) {
+  b.addEventListener('click', () => {
+    P.mode = b.dataset.mode;
+    syncPanel();
+    applyMode();
+  });
+}
+
+const presetsEl = document.getElementById('presets');
+for (const key of Object.keys(PRESETS)) {
+  const preset = PRESETS[key];
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.dataset.key = key;
+  b.innerHTML = preset.title + '<small>' + preset.hint + '</small>';
+  b.addEventListener('click', () => {
+    Object.assign(P, preset.p);
+    applyVars();
+    syncPanel();
+    markPreset(key);
+    // Лента у кольца и у конечного колеса устроена по-разному — пересобираем.
+    buildTrack();
+    syncScroller();
+    paint();
+  });
+  presetsEl.appendChild(b);
+}
+
+function markPreset(active) {
+  for (const b of presetsEl.children) {
+    const p = PRESETS[b.dataset.key].p;
+    const same = active ? b.dataset.key === active
+      : Object.keys(p).every((k) =>
+          typeof p[k] === 'number' ? Math.abs(P[k] - p[k]) < 0.005 : P[k] === p[k]);
+    b.setAttribute('aria-pressed', String(same));
+  }
+}
+
+document.getElementById('sheet-toggle').addEventListener('click', (e) => {
+  const open = app.dataset.sheet === '1';
+  app.dataset.sheet = open ? '0' : '1';
+  e.target.setAttribute('aria-expanded', String(!open));
+  e.target.textContent = open ? 'Настройки' : 'Скрыть';
+});
+
+/* ========================================================================== *
+ * Старт
+ * ========================================================================== */
+
+function hapticsNote() {
+  const vibrate = typeof navigator.vibrate === 'function';
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  hudHap.textContent = vibrate ? 'vibrate ✓' : 'vibrate ✗';
+  document.getElementById('hap-note').innerHTML = vibrate
+    ? (coarse
+        ? '<b>navigator.vibrate доступен</b> — настоящая отдача работает на этом устройстве.'
+        : '<b>navigator.vibrate объявлен, но мотора нет:</b> на десктопе Chrome метод есть и молчит. Судить отдачу можно только с телефона.')
+    : ios
+      ? '<b>iOS: настоящей отдачи не будет.</b> Vibration API Safari не поддерживает, а хак с <code>&lt;input switch&gt;</code> Apple закрыла в iOS 26.5 — из скрипта тикнуть нельзя. Остаётся щелчок и микро-отдача картинки.'
+      : '<b>navigator.vibrate недоступен</b> — на десктопе это нормально; судить отдачу нужно на телефоне.';
+}
+
+new ResizeObserver(() => paint()).observe(drum);
+// Хвост ленты мерится от высоты окна — значит её надо пересобирать вместе с ним.
+window.addEventListener('resize', () => { buildTrack(); paint(); syncScroller(); });
+
+applyVars();
+build();
+syncPanel();
+markPreset('wide');
+applyMode();
+hapticsNote();
+paint();
+</script>
+</body>
+</html>

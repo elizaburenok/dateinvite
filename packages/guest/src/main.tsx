@@ -7,8 +7,13 @@ import './styles/fonts.css';
 import './styles/invite.css';
 import './styles/note.css';
 import './styles/envelope.css';
+// cycle.css остаётся ради своих :root-токенов (--cycle-peek, --cycle-focus,
+// --deck-gap и др.), на которые ссылаются pile/invite/envelope. Его
+// раскладочные .cycle-правила теперь мертвы: колоду сменило колесо (wheel.css),
+// и элемента .cycle в разметке больше нет.
 import './styles/cycle.css';
-// Последним из раскладочных: часть его правил гасит геометрию конверта у колоды
+import './styles/wheel.css';
+// Последним из раскладочных: часть его правил гасит геометрию конверта у колеса
 // тем же весом селектора, и разводит их порядок подключения (см. шапку файла).
 import './styles/pile.css';
 import { App } from './App.js';

@@ -75,7 +75,21 @@ body::before {
    */
   --edge-fix: max(0px, calc(4.2vh - 2.7vw));
 
+  /*
+   * Верхняя кромка гаснет в плоский тон обоев. Над страницей на телефоне стоит
+   * шапка (полоса статус-бара, заголовок ин-апп-браузера) — её хост заливает тем
+   * же --c-wallpaper, что и body. Но собственная засветка на верху картинки чуть
+   * холоднее этого тона (#deece2 против #e8f4d8), и на стыке шапки с вьюпортом
+   * проступала ниточка-шов: казалось, что фон обрезан. Верхние ~30px картинки
+   * подменяем сплошным --c-wallpaper — тем же, что и шапка, — и шов исчезает.
+   *
+   * Гасим только в портрет: max(0px, …) уводит полосу в ноль, когда экран шире
+   * (десктоп, ландшафт) — там шапки нет, и верх рисует одна картинка, как рисовали.
+   */
+  --top-fix: max(0px, calc(5vh - 3vw));
+
   background:
+    linear-gradient(180deg, var(--c-wallpaper), transparent var(--top-fix)),
     linear-gradient(90deg, var(--c-wallpaper-glow), transparent var(--edge-fix)),
     linear-gradient(270deg, var(--c-wallpaper-glow), transparent var(--edge-fix)),
     url('../assets/wallpaper.webp');
