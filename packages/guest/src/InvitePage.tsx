@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AnswerResponse, InviteResponse } from '@invite/shared';
 import { AnswerError } from './api.js';
 import resultUrl from './assets/result.svg';
@@ -10,6 +10,13 @@ import { Envelope, useEnvelopeOpening } from './components/envelope/Envelope.js'
 import { Pile, usePileReveal } from './components/pile/Pile.js';
 import { usePrefersReducedMotion } from './components/envelope/usePrefersReducedMotion.js';
 import type { Entry } from './entry.js';
+
+/**
+ * Сколько держится сворачивание выбранной карточки. Близнец --dur-close в
+ * wheel.css (@keyframes wheel-card-close): по нему живёт флаг data-closing, под
+ * которым играет обратная пружина. Меняешь там — поправь и здесь.
+ */
+const CLOSE_MS = 820;
 
 interface InvitePageProps {
   invite: InviteResponse;
@@ -32,6 +39,11 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Идёт сворачивание выбранной карточки: выбор уже снят (сцена расходится назад
+  // в барабан), но такт обратной пружины ещё играет. Флаг живёт CLOSE_MS и вешает
+  // data-closing на .reveal — под ним карточка «сужается» (wheel.css).
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Истёкшее приглашение и просьбу не анимировать открываем сразу: в первом
   // случае распечатывать нечего, во втором человек попросил не двигать интерфейс.
@@ -44,11 +56,29 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const pile = usePileReveal(entry !== 'pile' || skip);
   const { state, open } = entry === 'envelope' ? envelope : pile;
 
+  // Снятие выбора через сворачивание: выбор убираем сразу (сцена и поле заметки
+  // расходятся назад), а на такт закрытия поднимаем флаг closing — под ним
+  // карточка доигрывает обратную пружину (wheel.css). Прежний таймер сбрасываем:
+  // быстрое закрыл-открыл-закрыл не должно оборвать флаг досрочно.
+  function close() {
+    setSelected(null);
+    setClosing(true);
+    clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setClosing(false), CLOSE_MS);
+  }
+
   // Повторный клик по уже выбранному месту снимает выбор — тогда нижняя панель
   // прячется, и можно передумать, не выбирая другую карточку.
   function toggle(id: string) {
-    setSelected((prev) => (prev === id ? null : id));
+    if (selected === id) {
+      close();
+      return;
+    }
+    setSelected(id);
   }
+
+  // Таймер флага закрытия не должен пережить размонтирование.
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   async function submit() {
     if (!selected || sending) return;
@@ -122,7 +152,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
             className={`hero__back${picking ? ' hero__back--on' : ''}`}
             tabIndex={picking ? undefined : -1}
             aria-hidden={picking ? undefined : true}
-            onClick={() => setSelected(null)}
+            onClick={close}
           >
             <CloseIcon />
             <span className="visually-hidden">Вернуться ко всем местам</span>
@@ -147,6 +177,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
         className="reveal"
         data-state={state}
         data-variant={entry}
+        data-closing={closing || undefined}
         /*
          * Размер колоды нужен самой сцене, а не только колоде: по нему кучка
          * считает свою высоту в уменьшенном виде и ставит мишень с глифом ровно

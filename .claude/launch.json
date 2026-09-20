@@ -35,6 +35,15 @@
       "port": 5201
     },
     {
+      "name": "note",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "-e",
+        "const h=require('http'),f=require('fs'),p=require('path'),root='packages/guest',T={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.woff2':'font/woff2'};h.createServer((q,s)=>{let u=decodeURIComponent(q.url.split('?')[0]);if(u==='/'){s.writeHead(302,{Location:'/prototypes/note/'});return s.end()}if(u.endsWith('/'))u+='index.html';const fp=p.join(root,p.normalize(u).replace(/^(\\.\\.[\\/])+/,''));f.readFile(fp,(e,d)=>{if(e){s.writeHead(404,{'Content-Type':'text/plain'});return s.end('404')}s.writeHead(200,{'Content-Type':T[p.extname(fp)]||'application/octet-stream'});s.end(d)})}).listen(5202,()=>console.log('note stand on http://localhost:5202'))"
+      ],
+      "port": 5202
+    },
+    {
       "name": "miniapp",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "packages/miniapp", "run", "dev"],

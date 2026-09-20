@@ -52,28 +52,67 @@ const HERO_SPAN = 0.9;
 const DEAL_MS = 1100;
 
 /**
- * Раздача проявляет соседей по мере того, как они расходятся из стопки, а не
- * выкидывает их сразу наложенными на переднюю карту (оттого и казалось, что
- * карточки растут друг из друга). Центральная — верх стопки — видна всегда;
- * сосед подхватывается тем позже, чем он дальше от центра, и к моменту, когда
- * проявился, уже отошёл, а не лезет поверх передней.
+ * Стопка: на сколько пикселей вглубь отстоит каждая следующая карточка, пока
+ * барабан не раскрылся.
  *
- * DEAL_STAGGER — на сколько раздачи откладывается старт проявления каждой
- * карты вглубь; DEAL_RAMP — за какую долю раздачи карта доходит до полной
- * непрозрачности. Подобраны так, чтобы все успели проявиться заметно раньше
- * конца хода — дальше идёт только доводка позы, без запоздалых вспышек.
+ * Без этого смещения карточки при spread = 0 строго компланарны — один и тот же
+ * rotateX(0) translateZ(R), — и внутри preserve-3d движку нечем их разделить:
+ * z-index там не работает, сортировка идёт по геометрии. Плоскости конфликтуют, а
+ * расходясь, проходят сквозь друг друга — оттого и казалось, что карточки растут
+ * одна из другой. Прежде это глушили прозрачностью (соседи выезжали призраками),
+ * но пересечение от этого не исчезало, только становилось полупрозрачным.
+ *
+ * Число не на глаз, а из прогона геометрии. Считаем, где плоскость соседа
+ * пересекает плоскость передней карточки, и смотрим, попадает ли эта линия в
+ * тело соседа. Критичен ближайший сосед (дальние расходятся быстрее), и самый
+ * тесный момент у него — около spread ≈ 0.6. Запас там по STACK_Z:
+ *
+ *   26px → −3px (всё ещё режутся)   34px → +7px
+ *   30px → +3px (впритык)           38px → +11px
+ *
+ * Берём 38: одиннадцати пикселей хватает, чтобы порог пережил и субпиксельную
+ * разницу движков, и небольшую правку RADIUS / STEP / GROW. Платим перспективным
+ * сжатием стопки — 1.7% на первом соседе, 4.9% на третьем; в стопке это и
+ * читается как стопка, а к середине хода смещение уже наполовину разошлось.
+ *
+ * Если поедут RADIUS / STEP / GROW — прогнать заново, а не подкручивать на глаз.
  */
-const DEAL_STAGGER = 0.14;
-const DEAL_RAMP = 0.6;
+const STACK_Z = 38;
 
 /** Пикселей нативного скролла на одну карточку (мобильный ввод). */
 const PX = 150;
-/** Мёртвая зона десктопного скраба: дрожь курсора — не жест (px). */
-const DEAD_PX = 6;
 /** Дальше этого нажатие уже не клик, а протяжка (px). */
 const CLICK_SLOP = 8;
 /** Пауза бездействия перед доводкой до детента (мс). */
 const IDLE_MS = 120;
+
+/**
+ * Резинка на краях барабана: докуда он вообще уходит за крайнюю карточку.
+ *
+ * Полшага — меньше, чем нужно передней карточке, чтобы дойти до отсечки
+ * (CULL / STEP ≈ 2.5 карточки). И в этом весь смысл числа: край обязан
+ * чувствоваться, но экран при этом не имеет права опустеть.
+ *
+ * Прежде хода за краем не ограничивало ничто — там лишь гасился шаг (delta
+ * * 0.35). На мыши разницы не видно, а вот инерция трекпада приносит одним
+ * жестом несколько тысяч пикселей: 0.35·ΔY/PX складывалось в 7–14 карточек за
+ * последней, все грани уходили за отсечку, и барабан пропадал с экрана целиком.
+ * Вместе со свёрнутой шапкой (--hero → 0) это читалось так, будто страница
+ * растянулась и налилась пустотой, — хотя документ ровно с экран и не
+ * прокручивается вовсе.
+ */
+const MAX_OVER = 0.5;
+
+/**
+ * Докуда копится сырой (недеформированный) ход за краем.
+ *
+ * Резинка — функция от полного хода за краем, и без этого потолка длинная
+ * инерция намотала бы десяток карточек «долга»: чтобы тронуться обратно, ровно
+ * столько же пришлось бы отматывать пальцем впустую. Двух карточек хватает,
+ * чтобы резинка дошла до своего предела (0.5·2/(2+0.5) = 0.4 из 0.5), а разворот
+ * жеста подхватывался сразу.
+ */
+const RAW_OVER = 2;
 
 /** Пружина доводки: частота (жёсткость) и затухание. Затухание чуть ниже
  *  критического — барабан садится на детент с едва заметной отдачей. */
@@ -86,6 +125,19 @@ const TICK_GAP = 40;
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
+}
+
+/**
+ * Резинка: сколько из хода за краем (over ≥ 0) барабан отдаёт движением.
+ *
+ * В нуле наклон единичный — первые пиксели за краем идут один в один, и стык с
+ * обычным ходом не чувствуется; дальше отдача тает, а на бесконечности упирается
+ * в max. Насыщение здесь и есть лекарство: гасить шаг постоянным множителем
+ * мало — сколько ни гаси, длинный жест всё равно уносит барабан сколь угодно
+ * далеко.
+ */
+function band(over: number, max: number): number {
+  return (max * over) / (over + max);
 }
 
 /*
@@ -105,9 +157,9 @@ function warpPos(p: number): number {
 /**
  * Кривая раздачи — smootherstep: наклон ноль на обоих концах.
  *
- * Соседи на раздаче не выскакивают наложенными на переднюю, а проявляются по
- * мере расхождения (DEAL_STAGGER / DEAL_RAMP), и передняя карта на экране есть
- * с самого начала — мёртвого такта, из-за которого прежде выбирали ease-out,
+ * Соседи на раздаче не выскакивают наложенными на переднюю: они стоят за ней в
+ * стопке (STACK_Z) и выезжают из-за неё, а передняя карта на экране есть с
+ * самого начала — мёртвого такта, из-за которого прежде выбирали ease-out,
  * больше нет. Значит кривой можно вернуть мягкость на обоих концах: барабан
  * трогается без рывка (карты выходят из стопки плавно, а не прыгают) и садится
  * без удара. Ровно то «разъезжались плавно», что и просили.
@@ -122,9 +174,9 @@ function easeDeal(k: number): number {
  * Карточки стоят на поверхности барабана, повёрнутого вокруг горизонтальной оси:
  * центральная — лицом к зрителю и чуть крупнее, соседи уходят вверх и вниз в
  * глубину, темнея по косинусу угла. Крутят барабан руками — свайпом (мобильный
- * нативный скроллер со снапом) или колесом мыши / протяжкой (десктоп), — он
- * доводится до ближайшего детента с вибро-отдачей, тап по центральной карточке
- * выбирает место.
+ * нативный скроллер со снапом) или прокруткой двумя пальцами / колесом мыши
+ * (десктоп), — он доводится до ближайшего детента с вибро-отдачей, тап по
+ * центральной карточке выбирает место.
  *
  * Всё положение — одно число `pos` (дробный индекс карточки в центре). Из него
  * paint() каждый кадр пишет карточкам трансформы, минуя состояние React.
@@ -140,6 +192,16 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
   const itemsRef = useRef<Array<HTMLDivElement | null>>([]);
 
   const pos = useRef(0);
+  /**
+   * Сырой ход барабана — тот, что накрутили руками, без резинки. В пределах
+   * [0, limit] он совпадает с pos; за краем расходится с ним (см. move) и копит
+   * ровно то, что надо отмотать назад, чтобы вернуться к последней карточке.
+   *
+   * Живёт отдельной ссылкой, а не считается из pos: резинка необратима на
+   * потолке (у разных сырых ходов один и тот же pos), и восстановить по
+   * показанной позиции, сколько её натянули, уже нельзя.
+   */
+  const rawPos = useRef(0);
   const vel = useRef(0);
   /**
    * Раскрытие барабана: 0 — карточки стоят стопкой (все на угле 0, одна поверх
@@ -159,8 +221,10 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
   const audio = useRef<AudioContext | null>(null);
 
   const focused = selected !== null && places.some((place) => place.id === selected);
-  // Ввод активен, только когда карточки розданы и место ещё не выбрано.
-  const live = dealt && !reducedMotion && count > 1 && !focused;
+  // Ввод активен, только когда раздача доиграла и место ещё не выбрано. Именно
+  // open, а не dealt: на dealt барабан можно было схватить недораздатым, и pos
+  // поехал бы одновременно со spread, утащив за собой --hero и посадку барабана.
+  const live = state === 'open' && !reducedMotion && count > 1 && !focused;
   const limit = Math.max(0, count - 1);
 
   /* --- Отдача на детенте --------------------------------------------------- */
@@ -240,11 +304,6 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       page.style.setProperty('--hero', hero.toFixed(4));
     }
 
-    // Раскрытие отдаём и в CSS: высота сцены растёт тем же числом, что и угол,
-    // поэтому стопка и барабан приходят в свои размеры одним движением.
-    const k = spread.current;
-    sceneRef.current?.style.setProperty('--spread', k.toFixed(4));
-
     // Барабан отодвинут назад на свой радиус: передняя грань встаёт ровно в
     // плоскость экрана и рисуется в натуральный размер, а перспектива её не
     // раздувает за края. Радиус после этого меняет только глубину барабана.
@@ -277,7 +336,13 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       // системе): карточка растёт в своей плоскости, и лишь потом её выносит R.
       const near = Math.max(0, Math.cos((deg / STEP) * (Math.PI / 2)));
       const scale = 1 + GROW * near;
-      el.style.transform = `rotateX(${deg.toFixed(3)}deg) translateZ(${R.toFixed(
+      // Разведение по глубине: на раздаче карточки лежат стопкой (каждая
+      // следующая чуть дальше от зрителя), к полному раскрытию смещение сходит в
+      // ноль и барабан становится честным цилиндром. Считаем от dist, а не от
+      // индекса: на нуле остаётся та карточка, что сейчас впереди, — она и
+      // рисуется в натуральную величину.
+      const z = R - STACK_Z * (1 - spread.current) * dist;
+      el.style.transform = `rotateX(${deg.toFixed(3)}deg) translateZ(${z.toFixed(
         2,
       )}px) scale(${scale.toFixed(4)})`;
       el.style.zIndex = String(Math.round(300 - dist * 10));
@@ -288,20 +353,10 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       if (shade) shade.style.opacity = clamp(SHADE * (1 - cos), 0, 0.92).toFixed(3);
 
       // У самой отсечки гасим прозрачностью, иначе карточка пропала бы щелчком.
+      // Больше прозрачность ни за что не отвечает: соседей на раздаче прячет не
+      // она, а передняя карточка, за которой они стоят (см. STACK_Z).
       const edge = Math.min(1, (CULL - abs) / 12);
-      // Проявление соседей на раздаче: пока барабан раскрывается (spread<1),
-      // центральная видна всегда, соседи подхватываются по мере расхождения
-      // (см. DEAL_STAGGER / DEAL_RAMP). На покое (spread≈1) множитель — единица.
-      let deal = 1;
-      if (spread.current < 0.999 && dist >= 0.5) {
-        const start = (dist - 0.5) * DEAL_STAGGER;
-        const t = clamp((spread.current - start) / DEAL_RAMP, 0, 1);
-        // t·t — мягкое проявление: пока сосед расходится и его накренённый край
-        // ещё лезет на переднюю карту, он призрачен и читается тенью движения, а
-        // не второй картинкой поверх; плотнеет он уже придя почти на своё место.
-        deal = t * t;
-      }
-      el.style.opacity = (edge * deal).toFixed(3);
+      el.style.opacity = edge.toFixed(3);
 
       if (abs < best) {
         best = abs;
@@ -338,9 +393,14 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
           vel.current += (-k * (pos.current - target) - c * vel.current) * s;
           pos.current += vel.current * s;
         }
+        // Пружина ведёт барабан к цели внутри пределов — значит натяжения
+        // резинки больше нет, и сырой ход обязан идти с позицией вровень.
+        // Иначе тик колеса посреди доводки продолжил бы копить с края.
+        rawPos.current = pos.current;
         // Защёлка: пружина подходит к цели асимптотически и сама не придёт.
         if (Math.abs(pos.current - target) < 0.001 && Math.abs(vel.current) < 0.01) {
           pos.current = target;
+          rawPos.current = target;
           vel.current = 0;
           snapping.current = false;
           snapTarget.current = null;
@@ -379,14 +439,14 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
 
   const move = useCallback(
     (delta: number) => {
-      const next = pos.current + delta;
-      const lo = 0;
-      const hi = limit;
-      if (next < lo)
-        pos.current = pos.current < lo ? pos.current + delta * 0.35 : lo + (next - lo) * 0.35;
-      else if (next > hi)
-        pos.current = pos.current > hi ? pos.current + delta * 0.35 : hi + (next - hi) * 0.35;
-      else pos.current = next;
+      // Копим ход как есть — и обрезаем накопление у самого края (RAW_OVER),
+      // чтобы разворот жеста подхватывался сразу, а не отматывал набранное.
+      rawPos.current = clamp(rawPos.current + delta, -RAW_OVER, limit + RAW_OVER);
+      const r = rawPos.current;
+      // Показываем ход через резинку: внутри пределов один в один, за краем —
+      // с насыщением, и дальше MAX_OVER барабан не уходит ни при каком жесте.
+      pos.current =
+        r < 0 ? -band(-r, MAX_OVER) : r > limit ? limit + band(r - limit, MAX_OVER) : r;
       vel.current = 0;
       snapping.current = false;
       snapTarget.current = null;
@@ -404,6 +464,41 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     if (place) onSelect(place.id);
   }, [limit, onSelect, places]);
 
+  /** Индекс грани под точкой нажатия — по DOM-цели события. Барабан настоящий:
+   *  грани лежат отдельными узлами, и движок попадает по ним честно, с учётом
+   *  их ракурса и перекрытий. Гадать по геометрии не нужно. */
+  const hitIndex = useCallback((target: EventTarget | null): number => {
+    if (!(target instanceof Element)) return -1;
+    const item = target.closest<HTMLElement>('.wheel__item');
+    if (!item) return -1;
+    return itemsRef.current.indexOf(item as HTMLDivElement);
+  }, []);
+
+  /**
+   * Клик по грани барабана.
+   *
+   * Выбирает только переднюю карточку — ту, что стоит в центре и крупнее прочих.
+   * Клик по любой другой грани не выбирает место, а доворачивает барабан к ней:
+   * карточка приезжает в центр, и следующий клик её уже выбирает. Так снимается
+   * прежняя неожиданность — раньше нажатие по нижней карточке молча выбирало
+   * центральную, потому что выбор всегда шёл по позиции барабана, а не по тому,
+   * куда попали. Теперь нажатие всегда отвечает той карточке, по которой попали:
+   * либо выбором (она в центре), либо доворотом (она приезжает туда).
+   */
+  const pickAt = useCallback(
+    (index: number) => {
+      if (index < 0) return; // мимо карточек — по фону сцены
+      const front = clamp(Math.round(pos.current), 0, limit);
+      if (index !== front) {
+        springTo(index);
+        return;
+      }
+      const place = places[index];
+      if (place) onSelect(place.id);
+    },
+    [limit, onSelect, places, springTo],
+  );
+
   /* --- Первая раскладка и реакция на раздачу ------------------------------- */
 
   useEffect(() => {
@@ -415,10 +510,14 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
   /*
    * Стопка → цилиндр одним числом `spread` (0 — все карточки на угле 0, одна над
    * другой; 1 — полный барабан). Оно ведёт и угол карточек (в paint), и высоту
-   * сцены. Идёт тем же тактом, что рост кучки (--dur-grow в pile.css == DEAL_MS):
-   * карточки встают в барабан ровно тем движением, которым кучка дорастает до
-   * полного размера, — иначе на экране шли бы двое разных по длительности часов
-   * одного события.
+   * сцены барабан больше не ведёт: его посадка держится на --hero, а высоту
+   * сцены раздача не трогает вовсе (разбор в .wheel__drum, wheel.css).
+   *
+   * Такт умышленно длиннее роста кучки (DEAL_MS 1100 против --dur-grow 900):
+   * кучка к своему концу уже стоит чёткой картой, а барабан продолжает доводить
+   * позу соседей. Состояние open при этом приходит на 1520ms, то есть раньше
+   * конца движения, — в ветке колеса это ничего не включает, но закладываться на
+   * совпадение этих часов нельзя.
    */
   useEffect(() => {
     cancelAnimationFrame(spreadRaf.current);
@@ -460,13 +559,28 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     });
     if (idx >= 0 && !reducedMotion) {
       pos.current = idx;
+      rawPos.current = idx;
       paint();
       syncScroller();
     }
   }, [selected, places, reducedMotion, paint, syncScroller]);
 
-  /* --- Десктопный ввод: колесо мыши и протяжка ----------------------------- */
+  /* --- Десктопный ввод: прокрутка и протяжка -------------------------------- */
 
+  /*
+   * Барабан крутят только заявленным жестом: прокруткой двумя пальцами по
+   * тачпаду, колесом мыши или протяжкой с зажатой кнопкой. Просто провести
+   * курсором над сценой — не жест.
+   *
+   * Прежде движение курсора само по себе крутило барабан (был «скраб» с мёртвой
+   * зоной в несколько пикселей). На стенде это читалось живо, но в руках выходит
+   * иначе: курсор над этой частью экрана бывает и мимоходом — по пути к карточке,
+   * при попытке прицелиться, — и барабан уезжал из-под прицела ровно в тот
+   * момент, когда в него целятся. Управление без нажатия и без жеста нечем и
+   * отменить: единственный способ ничего не сдвинуть — убрать курсор со сцены.
+   * Поэтому ховер теперь не двигает ничего, а все три оставшихся входа —
+   * намеренные.
+   */
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !live) return;
@@ -474,8 +588,10 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     let down = false;
     let moved = 0;
     let lastY = 0;
-    let engaged = false;
-    let deadAcc = 0;
+    // Грань, на которой сомкнулось нажатие. Берём её на pointerdown, а не на
+    // pointerup: сцена забирает указатель себе (setPointerCapture), и дальше все
+    // события приходят уже от неё — на подъёме по цели карточку не опознать.
+    let hit = -1;
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -487,30 +603,20 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       down = true;
       moved = 0;
       lastY = e.clientY;
-      engaged = false;
-      deadAcc = 0;
+      hit = hitIndex(e.target);
       scene.setPointerCapture(e.pointerId);
     };
     const onMove = (e: PointerEvent) => {
-      if (e.pointerType === 'touch') return;
-      const dy = e.clientY - (lastY || e.clientY);
+      if (!down || e.pointerType === 'touch') return;
+      const dy = e.clientY - lastY;
       lastY = e.clientY;
       if (!dy) return;
-      if (down) {
-        moved += Math.abs(dy);
-        if (moved < CLICK_SLOP) return;
-        move(-dy / PX);
-        return;
-      }
-      if (!engaged) {
-        deadAcc += Math.abs(dy);
-        if (deadAcc < DEAD_PX) return;
-        engaged = true;
-      }
+      moved += Math.abs(dy);
+      if (moved < CLICK_SLOP) return;
       move(-dy / PX);
     };
     const onUp = (e: PointerEvent) => {
-      if (e.pointerType === 'touch') return;
+      if (e.pointerType === 'touch' || !down) return;
       const wasClick = moved < CLICK_SLOP;
       down = false;
       try {
@@ -518,28 +624,21 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       } catch {
         /* капчур мог не встать — не страшно */
       }
-      if (wasClick) pick();
+      if (wasClick) pickAt(hit);
       else scheduleSnap();
-    };
-    const onLeave = () => {
-      engaged = false;
-      deadAcc = 0;
-      scheduleSnap();
     };
 
     scene.addEventListener('wheel', onWheel, { passive: false });
     scene.addEventListener('pointerdown', onDown);
     scene.addEventListener('pointermove', onMove);
     scene.addEventListener('pointerup', onUp);
-    scene.addEventListener('pointerleave', onLeave);
     return () => {
       scene.removeEventListener('wheel', onWheel);
       scene.removeEventListener('pointerdown', onDown);
       scene.removeEventListener('pointermove', onMove);
       scene.removeEventListener('pointerup', onUp);
-      scene.removeEventListener('pointerleave', onLeave);
     };
-  }, [live, move, pick, scheduleSnap]);
+  }, [live, move, hitIndex, pickAt, scheduleSnap]);
 
   /* --- Мобильный ввод: нативный скроллер со снапом -------------------------- */
 
@@ -551,7 +650,12 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     let tapT = 0;
 
     const onScroll = () => {
+      // Позицию здесь ведёт нативный скроллер, и за край он не пускает сам:
+      // своя резинка есть у него. Своей нам тут не нужно — но сырой ход держим
+      // вровень, чтобы колесо мыши на гибридном устройстве продолжило с того же
+      // места, куда барабан довёл палец.
       pos.current = scroller.scrollTop / PX;
+      rawPos.current = pos.current;
       snapping.current = false;
       vel.current = 0;
       paint();
@@ -561,7 +665,18 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       tapT = performance.now();
     };
     const onUp = (e: PointerEvent) => {
-      if (Math.abs(e.clientY - tapY) < CLICK_SLOP && performance.now() - tapT < 400) pick();
+      if (Math.abs(e.clientY - tapY) >= CLICK_SLOP || performance.now() - tapT >= 400) return;
+      /*
+       * Тап отвечает той карточке, в которую попал палец, — как и клик на
+       * десктопе. Цель события тут не спросить: лента ввода лежит поверх всего
+       * барабана и собой же и оказывается целью любого тапа. Поэтому берём весь
+       * столбик узлов под точкой (elementsFromPoint отдаёт и то, что лежит под
+       * лентой) и ищем в нём ближайшую грань.
+       */
+      const item = document
+        .elementsFromPoint(e.clientX, e.clientY)
+        .find((el) => el.classList.contains('wheel__item'));
+      pickAt(item ? itemsRef.current.indexOf(item as HTMLDivElement) : -1);
     };
 
     scroller.addEventListener('scroll', onScroll, { passive: true });
@@ -573,7 +688,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       scroller.removeEventListener('pointerdown', onDown);
       scroller.removeEventListener('pointerup', onUp);
     };
-  }, [live, paint, pick]);
+  }, [live, paint, pickAt]);
 
   /* --- Клавиатура ---------------------------------------------------------- */
 
@@ -628,7 +743,8 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
           {places.map((place) => (
             <div className="wheel__snap" key={place.id} style={{ height: `${PX}px` }} />
           ))}
-          <div className="wheel__tail" />
+          {/* Хвост в «экран минус шаг»: ход ленты — ровно limit·PX (см. wheel.css). */}
+          <div className="wheel__tail" style={{ height: `calc(100% - ${PX}px)` }} />
         </div>
       </div>
 
