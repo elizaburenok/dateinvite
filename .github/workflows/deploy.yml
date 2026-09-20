@@ -1,0 +1,63 @@
+# Автодеплой: на каждый пуш в main заходим по SSH на сервер и обновляемся.
+# Сборка идёт на самом сервере (deploy/update.sh) — как и при ручном запуске,
+# чтобы окружение сборки и рантайма совпадало.
+#
+# Что нужно один раз завести в Settings → Secrets and variables → Actions:
+#   DEPLOY_HOST         — адрес сервера (dateinvite.duckdns.org или IP)
+#   DEPLOY_USER         — пользователь с правом sudo без пароля на update.sh
+#   DEPLOY_SSH_KEY      — приватный ключ этого пользователя (весь PEM-блок)
+#   DEPLOY_KNOWN_HOSTS  — (необязательно) вывод `ssh-keyscan <host>` для строгой
+#                         проверки хоста; без него ключ хоста берётся на доверии
+#                         при первом подключении
+# Необязательная переменная (Variables, не Secrets):
+#   DEPLOY_PORT         — порт SSH, если не 22
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Параллельные деплои одной ветки не нужны: пусть новый пуш отменяет
+# ещё не начавшийся прошлый, а идущий — дожидается.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Подготовить SSH-ключ и known_hosts
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # На доверии при первом подключении: подписываем текущий ключ хоста.
+            # Надёжнее задать DEPLOY_KNOWN_HOSTS секретом.
+            ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Обновить приложение на сервере
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" \
+            -o BatchMode=yes -o ConnectTimeout=20 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            'sudo bash /srv/invite/deploy/update.sh'
