@@ -34,6 +34,14 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const reducedMotion = usePrefersReducedMotion();
 
   const [selected, setSelected] = useState<string | null>(invite.answer?.chosen_place_id ?? null);
+  // Заметка хоста про выбранное место — её показываем выжимкой под карточкой в
+  // момент выбора (см. блок .host-say ниже). Держим в состоянии, а не читаем из
+  // selected прямо в разметке: при закрытии выбор снимается сразу, а блок ещё
+  // сворачивается тем же тактом, что и поле-заметка, — без запоминания текст
+  // пропал бы в первый же кадр свёртки, и сворачивалась бы пустая полоса.
+  const [hostSay, setHostSay] = useState<string | null>(
+    () => invite.places.find((place) => place.id === selected)?.note ?? null,
+  );
   // Заметка необязательна: пустую отправка превращает в null. Готовые фразы,
   // которыми она набирается в один тап, живут в самом поле (NoteComposer).
   const [message, setMessage] = useState('');
@@ -76,6 +84,15 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
     }
     setSelected(id);
   }
+
+  // Обновляем выжимку под выбор: на новом выборе берём заметку его места (или
+  // null, если её нет — тогда блок остаётся свёрнутым). На снятии выбора текст
+  // намеренно не трогаем — он доживает такт свёртки, см. useState(hostSay) выше.
+  useEffect(() => {
+    if (selected === null) return;
+    const place = invite.places.find((item) => item.id === selected);
+    setHostSay(place?.note ?? null);
+  }, [selected, invite.places]);
 
   // Таймер флага закрытия не должен пережить размонтирование.
   useEffect(() => () => clearTimeout(closeTimer.current), []);
@@ -212,6 +229,21 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
           state={state}
           onSelect={toggle}
         />
+
+        {/* Выжимка про место — заметка хоста о том, куда он зовёт. Появляется в
+            момент выбора, между выросшей карточкой и полем-заметкой: сперва
+            читаешь, зачем это место, потом отвечаешь. Реплика хоста, а не справка,
+            поэтому машинописный моноширинный шрифт (.host-say в note.css). Блок
+            есть в разметке всегда и свёрнут в ноль вне выбора — тем же тактом,
+            что и поле ниже, чтобы под барабаном не зияла пустая полоса. */}
+        {!readOnly && (
+          <p
+            className={`host-say${picking && hostSay ? ' host-say--open' : ''}`}
+            aria-hidden={picking && hostSay ? undefined : true}
+          >
+            {hostSay}
+          </p>
+        )}
 
         {/* Поле-заметка стоит внутри сцены, сразу под колодой, — так в макете:
             ответ пишут не в отдельной панели у края экрана, а под той самой

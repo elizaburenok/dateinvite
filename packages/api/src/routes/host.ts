@@ -174,6 +174,7 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
       ownerId: user.id,
       placeIds: parsed.data.place_ids,
       hostNote: parsed.data.host_note,
+      placeNotes: parsed.data.place_notes,
       ttlDays: deps.envelopeTtlDays,
     });
     return reply.code(201).send({

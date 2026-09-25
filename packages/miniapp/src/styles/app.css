@@ -462,6 +462,47 @@
   width: 100%;
 }
 
+/* Заметки к местам в панели сборки. Список скроллится внутри шторки: мест до
+   пяти, у каждого поле в две строки — без ограничения высоты шторка переросла бы
+   экран и увела бы кнопку сборки под нижнюю кромку. */
+.compose__notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.compose__notes-title {
+  font-weight: var(--w-medium);
+}
+
+.compose__places {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  max-height: 42vh;
+  overflow-y: auto;
+  /* Место под кромку фокуса поля, чтобы её не срезал overflow. */
+  padding: 2px;
+  margin: 0;
+  list-style: none;
+}
+
+.compose__place {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compose__place-name {
+  font-size: var(--t-meta);
+  font-weight: var(--w-medium);
+  color: var(--c-ink-soft);
+}
+
+.compose__place-note {
+  min-height: 3.5rem;
+}
+
 /* --- Конверты -------------------------------------------------------------- */
 
 .envelope {

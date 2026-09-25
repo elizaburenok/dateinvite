@@ -135,6 +135,13 @@ export const createEnvelopeSchema = z
       .min(ENVELOPE_MIN_PLACES, `Нужно минимум ${ENVELOPE_MIN_PLACES} места`)
       .max(ENVELOPE_MAX_PLACES, `Не больше ${ENVELOPE_MAX_PLACES} мест`),
     host_note: z.string().max(500).nullable().default(null),
+    /**
+     * Заметки к местам именно этого конверта — снимок, а не правка библиотеки.
+     * Ключ — id места, значение — текст (null = «в этом конверте без заметки»).
+     * Ключа для места может не быть вовсе: тогда конверт наследует текущую
+     * заметку места (обратная совместимость с клиентами, что их не шлют).
+     */
+    place_notes: z.record(z.string(), z.string().max(500).nullable()).optional(),
   })
   .strict();
 export type CreateEnvelopeRequest = z.infer<typeof createEnvelopeSchema>;

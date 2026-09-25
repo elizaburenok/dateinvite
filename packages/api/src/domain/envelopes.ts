@@ -50,6 +50,13 @@ export interface CreateEnvelopeInput {
   placeIds: string[];
   hostNote: string | null;
   ttlDays: number;
+  /**
+   * Заметки к местам этого конверта по id места. Ключ есть → берём его значение
+   * (пустое/пробелы → null, «без заметки»); ключа нет → место наследует свою
+   * текущую заметку из библиотеки. undefined всей карты — заметки не присылали,
+   * наследуют все (обратная совместимость).
+   */
+  placeNotes?: Record<string, string | null>;
 }
 
 export function createEnvelope(db: Db, input: CreateEnvelopeInput): EnvelopeRow {
@@ -110,13 +117,26 @@ export function createEnvelope(db: Db, input: CreateEnvelopeInput): EnvelopeRow 
              @opened_at, @answered_at, @expires_at)`,
   );
   const insertLink = db.prepare(
-    'INSERT INTO envelope_places (envelope_id, place_id, position) VALUES (?, ?, ?)',
+    'INSERT INTO envelope_places (envelope_id, place_id, position, note) VALUES (?, ?, ?, ?)',
   );
+
+  // Заметку места конверт снимает копией — из присланной карты, а нет ключа —
+  // из текущей заметки самого места. Пустую строку сводим к null: «без заметки».
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  const noteFor = (placeId: string): string | null => {
+    const sent = input.placeNotes;
+    const raw =
+      sent && Object.prototype.hasOwnProperty.call(sent, placeId)
+        ? sent[placeId]
+        : (rowById.get(placeId)?.note ?? null);
+    const trimmed = raw?.trim();
+    return trimmed ? trimmed : null;
+  };
 
   db.transaction(() => {
     insertEnvelope.run(envelope);
     // Порядок берём из запроса хоста, а не из порядка строк в БД.
-    unique.forEach((placeId, index) => insertLink.run(envelope.id, placeId, index));
+    unique.forEach((placeId, index) => insertLink.run(envelope.id, placeId, index, noteFor(placeId)));
   })();
 
   return envelope;
@@ -137,7 +157,12 @@ export function getEnvelopeById(db: Db, id: string): EnvelopeRow | undefined {
 export function envelopePlaceRows(db: Db, envelopeId: string): PlaceRow[] {
   return db
     .prepare<[string], PlaceRow>(
-      `SELECT p.* FROM envelope_places ep
+      // `ep.note AS note` идёт после `p.*` намеренно: в better-sqlite3 при
+      // одноимённых колонках побеждает последняя, поэтому note в строке — это
+      // снимок заметки для этого конверта, а не живое поле места. Так весь
+      // низлежащий код (toInviteResponse, сводка «Мои конверты») читает заметку
+      // конверта, не меняя сигнатур.
+      `SELECT p.*, ep.note AS note FROM envelope_places ep
        JOIN places p ON p.id = ep.place_id
        WHERE ep.envelope_id = ?
        ORDER BY ep.position`,

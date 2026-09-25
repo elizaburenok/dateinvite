@@ -60,10 +60,14 @@ export const api = {
 
   deletePlace: (id: string) => request<void>(`/api/places/${id}`, { method: 'DELETE' }),
 
-  createEnvelope: (placeIds: string[], hostNote: string | null) =>
+  createEnvelope: (
+    placeIds: string[],
+    hostNote: string | null,
+    placeNotes?: Record<string, string | null>,
+  ) =>
     request<CreateEnvelopeResponse>('/api/envelopes', {
       method: 'POST',
-      body: JSON.stringify({ place_ids: placeIds, host_note: hostNote }),
+      body: JSON.stringify({ place_ids: placeIds, host_note: hostNote, place_notes: placeNotes }),
     }),
 
   envelopes: () => request<{ envelopes: EnvelopeSummary[] }>('/api/envelopes'),

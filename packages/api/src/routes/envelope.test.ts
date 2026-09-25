@@ -208,6 +208,63 @@ describe('контракт GET /invite/{token} (§8)', () => {
   });
 });
 
+describe('заметка к месту — снимок конверта, а не живое поле места', () => {
+  async function createWithNotes(placeIds: string[], placeNotes: Record<string, string | null>) {
+    return ctx.app.inject({
+      method: 'POST',
+      url: '/api/envelopes',
+      headers: authHeader(HOST_TG),
+      payload: { place_ids: placeIds, host_note: null, place_notes: placeNotes },
+    });
+  }
+
+  async function guestPlaces(token: string) {
+    const res = await ctx.app.inject({ method: 'GET', url: `/api/invite/${token}` });
+    return res.json().places as Array<{ id: string; note: string | null }>;
+  }
+
+  it('присланная заметка попадает гостю вместо заметки места', async () => {
+    const ids = seedPlaces(ctx.db, HOST_TG, 3);
+    const { token } = (await createWithNotes(ids, { [ids[0]!]: 'тут вид на закат' })).json();
+    const places = await guestPlaces(token);
+    expect(places.find((p) => p.id === ids[0])?.note).toBe('тут вид на закат');
+  });
+
+  it('пустая заметка означает «в этом конверте без заметки» (null)', async () => {
+    const ids = seedPlaces(ctx.db, HOST_TG, 3);
+    // У мест из seedPlaces своя заметка есть; здесь её явно снимаем в этом конверте.
+    const { token } = (await createWithNotes(ids, { [ids[0]!]: '', [ids[1]!]: '   ' })).json();
+    const places = await guestPlaces(token);
+    expect(places.find((p) => p.id === ids[0])?.note).toBeNull();
+    expect(places.find((p) => p.id === ids[1])?.note).toBeNull();
+  });
+
+  it('без ключа место наследует свою текущую заметку', async () => {
+    const ids = seedPlaces(ctx.db, HOST_TG, 3);
+    const { token } = (await createWithNotes(ids, { [ids[0]!]: 'переопределили' })).json();
+    const places = await guestPlaces(token);
+    // ids[1] не прислан — наследует заметку места из seedPlaces.
+    expect(places.find((p) => p.id === ids[1])?.note).toBe('почему сюда 2');
+  });
+
+  it('правка заметки места после сборки не меняет снимок конверта', async () => {
+    const ids = seedPlaces(ctx.db, HOST_TG, 3);
+    const { token } = (await createEnvelope(ids)).json();
+    const before = await guestPlaces(token);
+    expect(before.find((p) => p.id === ids[0])?.note).toBe('почему сюда 1');
+
+    await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/places/${ids[0]}`,
+      headers: authHeader(HOST_TG),
+      payload: { note: 'заметку места переписали позже' },
+    });
+
+    const after = await guestPlaces(token);
+    expect(after.find((p) => p.id === ids[0])?.note).toBe('почему сюда 1');
+  });
+});
+
 describe('снапшот переживает уборку в библиотеке (§3, §12)', () => {
   it('удалённое место остаётся в уже отправленном конверте', async () => {
     const ids = seedPlaces(ctx.db, HOST_TG, 3);
