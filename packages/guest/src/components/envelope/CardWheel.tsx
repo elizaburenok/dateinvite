@@ -222,6 +222,27 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
   const lastTick = useRef(0);
   const audio = useRef<AudioContext | null>(null);
 
+  /*
+   * Кэш горячего пути отрисовки. Всё это раньше вычислялось внутри paint() на
+   * каждом кадре прокрутки — и на нативном скролле iOS, где события идут пачками,
+   * выливалось в рваную анимацию:
+   *   drumH   — высота барабана. offsetHeight в paint читал layout каждый кадр, а
+   *             так как перед ним writeм --hero, это форсировало синхронный рефлоу
+   *             на каждый тик скролла. Держим в ссылке, обновляем ResizeObserver'ом.
+   *   pageEl  — .page, на которую пишется --hero (был closest() каждый кадр).
+   *   shades  — узлы .wheel__shade по индексу (был querySelector на карточку/кадр).
+   *   lastHero/lastR — последние записанные значения: не переписываем CSS тем же
+   *             числом (иначе повторная инвалидация стилей и ресайз скроллера
+   *             посреди нативной инерции). Значения при этом ровно те же.
+   *   scrollRaf — коалесинг событий скролла в один paint за кадр.
+   */
+  const drumH = useRef(0);
+  const pageEl = useRef<HTMLElement | null>(null);
+  const shadesRef = useRef<Array<HTMLElement | null>>([]);
+  const lastHero = useRef(-1);
+  const lastR = useRef(-1);
+  const scrollRaf = useRef(0);
+
   const focused = selected !== null && places.some((place) => place.id === selected);
   // Ввод активен, только когда раздача доиграла и место ещё не выбрано. Именно
   // open, а не dealt: на dealt барабан можно было схватить недораздатым, и pos
@@ -287,7 +308,9 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
   const paint = useCallback(() => {
     const drum = drumRef.current;
     if (!drum) return;
-    const h = drum.offsetHeight || 1;
+    // Высоту не читаем из layout каждый кадр (см. drumH выше) — берём из кэша,
+    // а до первого замера падаем на offsetHeight, чтобы первый кадр был верным.
+    const h = drumH.current || drum.offsetHeight || 1;
     const R = RADIUS * h;
     const wp = warpPos(pos.current);
 
@@ -300,16 +323,27 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
      * Пишем на .page, а не на саму сцену: заголовок барабану не потомок, а брат,
      * и общий предок у них — страница.
      */
-    const page = sceneRef.current?.closest<HTMLElement>('.page');
+    if (!pageEl.current) pageEl.current = sceneRef.current?.closest<HTMLElement>('.page') ?? null;
+    const page = pageEl.current;
     if (page) {
       const hero = clamp(1 - pos.current / HERO_SPAN, 0, 1);
-      page.style.setProperty('--hero', hero.toFixed(4));
+      // Пишем --hero только при реальной смене значения. За краем шапки (hero уже
+      // 0) повтор той же записи заново инвалидировал стили и ресайзил активный
+      // скроллер посреди нативной инерции — отсюда и рывки. Значения не меняем.
+      if (hero !== lastHero.current) {
+        lastHero.current = hero;
+        page.style.setProperty('--hero', hero.toFixed(4));
+      }
     }
 
     // Барабан отодвинут назад на свой радиус: передняя грань встаёт ровно в
     // плоскость экрана и рисуется в натуральный размер, а перспектива её не
     // раздувает за края. Радиус после этого меняет только глубину барабана.
-    drum.style.transform = `translateZ(${(-R).toFixed(2)}px)`;
+    // R теперь постоянен между ресайзами — пишем трансформ лишь когда он сменился.
+    if (R !== lastR.current) {
+      lastR.current = R;
+      drum.style.transform = `translateZ(${(-R).toFixed(2)}px)`;
+    }
 
     let front = 0;
     let best = Infinity;
@@ -351,7 +385,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
 
       // Затемнение в глубину — из косинуса угла: грань отворачивается от света.
       const cos = Math.cos((deg * Math.PI) / 180);
-      const shade = el.querySelector<HTMLElement>('.wheel__shade');
+      const shade = shadesRef.current[i] ?? el.querySelector<HTMLElement>('.wheel__shade');
       if (shade) shade.style.opacity = clamp(SHADE * (1 - cos), 0, 0.92).toFixed(3);
 
       // У самой отсечки гасим прозрачностью, иначе карточка пропала бы щелчком.
@@ -507,6 +541,27 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     paint();
   }, [count, dealt, reducedMotion, paint]);
 
+  /*
+   * Замер высоты барабана — держим в ссылке (drumH), а не читаем offsetHeight в
+   * горячем paint каждый кадр: чтение layout сразу после записи --hero форсировало
+   * синхронный рефлоу на каждый тик нативного скролла. ResizeObserver обновляет
+   * высоту только при реальной смене размера барабана (вьюпорт, --card-h), сбрасывая
+   * lastR, чтобы следующий paint пересчитал вынос на радиус.
+   */
+  useEffect(() => {
+    const drum = drumRef.current;
+    if (!drum) return;
+    const measure = () => {
+      drumH.current = drum.offsetHeight || drumH.current || 1;
+      lastR.current = -1;
+    };
+    measure();
+    paint();
+    const ro = new ResizeObserver(measure);
+    ro.observe(drum);
+    return () => ro.disconnect();
+  }, [paint]);
+
   /* --- Раздача: раскрытие стопки в барабан --------------------------------- */
 
   /*
@@ -652,15 +707,24 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     let tapT = 0;
 
     const onScroll = () => {
-      // Позицию здесь ведёт нативный скроллер, и за край он не пускает сам:
-      // своя резинка есть у него. Своей нам тут не нужно — но сырой ход держим
-      // вровень, чтобы колесо мыши на гибридном устройстве продолжило с того же
-      // места, куда барабан довёл палец.
-      pos.current = scroller.scrollTop / PX;
-      rawPos.current = pos.current;
-      snapping.current = false;
-      vel.current = 0;
-      paint();
+      // Красим не синхронно на каждое событие скролла, а один раз за кадр через
+      // rAF. На iOS события scroll прилетают пачками и вне кадра компоновщика:
+      // синхронный paint на каждом дублировал работу и ложился мимо кадра — отсюда
+      // рваная прокрутка. Коалесинг схлопывает пачку в одну отрисовку, а чтение
+      // scrollTop и запись трансформов оказываются на одном кадре, и барабан идёт
+      // за пальцем плавно. Позицию по-прежнему ведёт нативный скроллер (инерция,
+      // резинка и снап — его), а сырой ход держим вровень ради гибридного ввода.
+      if (scrollRaf.current) return;
+      scrollRaf.current = requestAnimationFrame(() => {
+        scrollRaf.current = 0;
+        const s = scrollerRef.current;
+        if (!s) return;
+        pos.current = s.scrollTop / PX;
+        rawPos.current = pos.current;
+        snapping.current = false;
+        vel.current = 0;
+        paint();
+      });
     };
     const onDown = (e: PointerEvent) => {
       tapY = e.clientY;
@@ -689,6 +753,8 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       scroller.removeEventListener('scroll', onScroll);
       scroller.removeEventListener('pointerdown', onDown);
       scroller.removeEventListener('pointerup', onUp);
+      cancelAnimationFrame(scrollRaf.current);
+      scrollRaf.current = 0;
     };
   }, [live, paint, pickAt]);
 
@@ -723,6 +789,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
   useEffect(
     () => () => {
       if (raf.current) cancelAnimationFrame(raf.current);
+      if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
       clearTimeout(idleTimer.current);
     },
     [],
@@ -758,6 +825,9 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
             data-chosen={selected === place.id || undefined}
             ref={(el) => {
               itemsRef.current[index] = el;
+              // Узел затемнения кэшируем при монтировании грани, чтобы не искать
+              // его querySelector'ом на каждый кадр прокрутки (см. paint).
+              shadesRef.current[index] = el?.querySelector<HTMLElement>('.wheel__shade') ?? null;
             }}
             style={{ '--i': index } as React.CSSProperties}
           >
