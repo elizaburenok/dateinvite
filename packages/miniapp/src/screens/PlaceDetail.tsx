@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { PlaceWithCandidates } from '@invite/shared';
 import { api, ApiError } from '../api.js';
 import { PlaceThumb } from '../components/PlaceThumb.js';
+import { useSheetClose } from '../hooks/useSheetClose.js';
 import { haptic } from '../telegram.js';
 
 interface PlaceDetailProps {
@@ -21,6 +22,7 @@ export function PlaceDetail({ place, onSaved, onDeleted, onClose }: PlaceDetailP
   const [tagsText, setTagsText] = useState(place.tags.join(', '));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { closing, requestClose, onAnimationEnd } = useSheetClose(onClose);
 
   const needsConfirmation = place.enrichment_status === 'needs_confirmation';
 
@@ -50,7 +52,7 @@ export function PlaceDetail({ place, onSaved, onDeleted, onClose }: PlaceDetailP
         ...(name.trim() && name.trim() !== place.name ? { name: name.trim() } : {}),
       });
       onSaved(updated);
-      onClose();
+      requestClose();
     });
 
   const confirm = (candidateId: string) =>
@@ -64,13 +66,18 @@ export function PlaceDetail({ place, onSaved, onDeleted, onClose }: PlaceDetailP
     run(async () => {
       await api.deletePlace(place.id);
       onDeleted(place.id);
-      onClose();
+      requestClose();
     });
 
   return (
-    <div className="sheet" role="dialog" aria-label={place.name}>
+    <div
+      className={`sheet${closing ? ' sheet--closing' : ''}`}
+      role="dialog"
+      aria-label={place.name}
+      onAnimationEnd={onAnimationEnd}
+    >
       <div className="sheet__head">
-        <button type="button" className="sheet__close" onClick={onClose} aria-label="Закрыть">
+        <button type="button" className="sheet__close" onClick={requestClose} aria-label="Закрыть">
           ←
         </button>
         <span className="sheet__title">Место</span>

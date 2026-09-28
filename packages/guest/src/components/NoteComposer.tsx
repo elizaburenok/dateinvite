@@ -119,11 +119,9 @@ export function NoteComposer({
       <label className="visually-hidden" htmlFor="guest-message">
         Note to the host
       </label>
-      {/* Подпись поля — не <label>: настоящий лежит рядом, скрытым, а этот
-          текст читается заголовком заметки и повторял бы его вслух. */}
-      <span className="note__label" aria-hidden="true">
-        Add note
-      </span>
+      {/* Видимой подписи у поля больше нет: сабтайтл «Note» переехал в подпись
+          места над кнопкой (.place-note в InvitePage). Для голоса поле подписано
+          скрытым <label> выше. */}
 
       {/* Обёртка держит пример: он лежит поверх начала строки, а не в потоке,
           поэтому высоту поля (её задаёт текст) не трогает. */}

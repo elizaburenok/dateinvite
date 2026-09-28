@@ -277,13 +277,19 @@ export async function resolvePlace(
     exclude: linkHints.map((hint) => hint.text),
   });
 
-  // LLM зовём только когда адреса в посте нет: адрес надёжнее и дешевле любой
-  // догадки, и пока он есть, тратить запрос к модели незачем. Без адреса
-  // единственная зацепка — название, а склеенное «Бренд + бизнес-центр» из ссылки
-  // OSM не находит; модель делит его на искомое имя и достаёт город из текста.
+  // LLM зовём в двух случаях. Сразу — когда адреса в посте нет: единственная
+  // зацепка тогда название, а склеенное «Бренд + бизнес-центр» из ссылки OSM не
+  // находит; модель делит его на искомое имя и достаёт город из текста. И как
+  // фолбэк — когда адрес есть, но по нему и по названию карта промолчала: адрес
+  // мог быть в неразрешимой форме или без города, и разбор поста — последняя
+  // попытка перед «не нашли». Пока карта что-то находит, модель не зовём: адрес
+  // надёжнее и дешевле любой догадки.
   const analyzerHints: NameHint[] = [];
   let analyzerCity: string | null = null;
-  if (!address && deps.analyzer) {
+  let analyzerCalled = false;
+  const runAnalyzer = async (): Promise<void> => {
+    if (analyzerCalled || !deps.analyzer) return;
+    analyzerCalled = true;
     try {
       const analysis = await deps.analyzer.analyze(input.text ?? '');
       analyzerHints.push(...analysis.names);
@@ -293,73 +299,99 @@ export async function resolvePlace(
       // остаются ссылка и эвристика.
       deps.onAnalyzerError?.(error);
     }
-  }
+  };
 
-  const hints = [...linkHints, ...analyzerHints, ...extractor.extract(input.text ?? '')];
-  if (hints.length === 0) {
+  if (!address) await runAnalyzer();
+
+  const buildHints = (): NameHint[] => [
+    ...linkHints,
+    ...analyzerHints,
+    ...extractor.extract(input.text ?? ''),
+  ];
+
+  /**
+   * Собирает кандидатов по текущим подсказкам: варианты по адресу впереди (они
+   * точнее), найденные по названию — следом. Вынесено в замыкание, потому что
+   * после LLM-фолбэка тот же сбор повторяется с уточнёнными названиями и городом.
+   */
+  const collect = async (hints: NameHint[]): Promise<Pending[]> => {
+    if (hints.length === 0) return [];
+
+    // Если название обозначено явно — кавычками, ссылкой или разбором модели, —
+    // гадать по словам с заглавной запрещено, даже когда явное название не нашлось.
+    // Иначе «завтраки в Баски & Монегаски» дают салон красоты по слову «Красота»,
+    // а «бар "Профсоюз" на Покровке» — театр и школу.
+    const hasMarkedName = hints.some((hint) => hint.weight >= QUOTED_WEIGHT);
+    const searchHints = hasMarkedName
+      ? hints.filter((hint) => hint.weight >= QUOTED_WEIGHT)
+      : hints;
+
+    // Город из настроек хоста надёжнее, но если его нет — берём тот, что модель
+    // нашла в тексте: поиск по названию без города разъезжается по всей стране.
+    const searchCity = input.city ?? analyzerCity;
+
+    const addressCandidates: Pending[] = [];
+    if (address) {
+      const points = await deps.nominatim
+        .geocode(address.query, searchCity, MAX_CANDIDATES)
+        .catch(() => []);
+      const name = hints[0]!.text;
+      for (const point of points) {
+        const fromOsm = Boolean(point.address);
+        addressCandidates.push({
+          draft: {
+            name,
+            address: point.address || address.raw,
+            district: point.district,
+            category: point.category,
+            lat: point.lat,
+            lng: point.lng,
+            maps_url: yandexUrlFor(point.lat, point.lng, name),
+            source: 'telegram',
+          },
+          // Название здесь взято из поста, а не из OSM, — переводить его придётся.
+          // Адрес же разобран по частям, и английскую сборку можно взять готовой.
+          addressEn: fromOsm ? point.addressEn : null,
+        });
+      }
+    }
+
+    const named: Pending[] = [];
+    const seen = new Set<string>();
+    for (const hint of searchHints.slice(0, MAX_CANDIDATES)) {
+      if (named.length >= MAX_CANDIDATES) break;
+      const found = await deps.nominatim
+        .search(hint.text, { city: searchCity, limit: MAX_CANDIDATES })
+        .catch(() => []);
+      for (const point of found) {
+        const key = `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        named.push(fromGeoPoint(point, 'telegram', null));
+        if (named.length >= MAX_CANDIDATES) break;
+      }
+    }
+
+    return dedupeDrafts([...addressCandidates, ...named]).slice(0, MAX_CANDIDATES);
+  };
+
+  let hints = buildHints();
+  // Ни адреса, ни намёка на название — гадать не по чему.
+  if (hints.length === 0 && !address) {
     return { status: 'failed', reason: 'В тексте не нашлось названия места' };
   }
 
-  // Если название обозначено явно — кавычками, ссылкой или разбором модели, — гадать
-  // по словам с заглавной запрещено, даже когда явное название не нашлось. Иначе
-  // «завтраки в Баски & Монегаски» дают салон красоты по слову «Красота»,
-  // а «бар "Профсоюз" на Покровке» — театр и школу.
-  const hasMarkedName = hints.some((hint) => hint.weight >= QUOTED_WEIGHT);
-  const searchHints = hasMarkedName
-    ? hints.filter((hint) => hint.weight >= QUOTED_WEIGHT)
-    : hints;
+  let all = await collect(hints);
 
-  // Город из настроек хоста надёжнее, но если его нет — берём тот, что модель нашла
-  // в тексте: поиск по названию без города разъезжается по всей стране.
-  const searchCity = input.city ?? analyzerCity;
-
-  const addressCandidates: Pending[] = [];
-  if (address) {
-    const points = await deps.nominatim
-      .geocode(address.query, searchCity, MAX_CANDIDATES)
-      .catch(() => []);
-    const name = hints[0]!.text;
-    for (const point of points) {
-      const fromOsm = Boolean(point.address);
-      addressCandidates.push({
-        draft: {
-          name,
-          address: point.address || address.raw,
-          district: point.district,
-          category: point.category,
-          lat: point.lat,
-          lng: point.lng,
-          maps_url: yandexUrlFor(point.lat, point.lng, name),
-          source: 'telegram',
-        },
-        // Название здесь взято из поста, а не из OSM, — переводить его придётся.
-        // Адрес же разобран по частям, и английскую сборку можно взять готовой.
-        addressEn: fromOsm ? point.addressEn : null,
-      });
-    }
+  // Фолбэк: адрес был, но карта по нему ничего не отдала. Зовём модель и пробуем
+  // ещё раз — уже с её названиями и городом.
+  if (all.length === 0 && address && !analyzerCalled) {
+    await runAnalyzer();
+    hints = buildHints();
+    all = await collect(hints);
   }
 
-  const candidates: Pending[] = [];
-  const seen = new Set<string>();
-  for (const hint of searchHints.slice(0, MAX_CANDIDATES)) {
-    if (candidates.length >= MAX_CANDIDATES) break;
-    const found = await deps.nominatim
-      .search(hint.text, { city: searchCity, limit: MAX_CANDIDATES })
-      .catch(() => []);
-    for (const point of found) {
-      const key = `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      candidates.push(fromGeoPoint(point, 'telegram', null));
-      if (candidates.length >= MAX_CANDIDATES) break;
-    }
-  }
-
-  // Адресные варианты впереди: они точнее. Найденные по названию идут следом,
-  // на случай если адрес разобрался неверно, — выбор всё равно за человеком (§3).
-  const all = dedupeDrafts([...addressCandidates, ...candidates]).slice(0, MAX_CANDIDATES);
-
-  if (all.length === 0) {
+  if (all.length === 0 || hints.length === 0) {
     return { status: 'failed', reason: 'Не нашли на карте ничего похожего' };
   }
 

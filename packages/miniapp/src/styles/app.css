@@ -99,6 +99,42 @@
   font-weight: var(--w-semibold);
 }
 
+/* --- Добавить место вручную ----------------------------------------------- */
+
+.addplace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  width: 100%;
+  margin-bottom: var(--s-4);
+  padding: var(--s-3);
+  background: var(--c-surface);
+  border: 1px dashed var(--c-seal);
+  border-radius: var(--r-md);
+  font-size: var(--t-meta);
+  font-weight: var(--w-medium);
+  color: var(--c-seal);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.addplace:active:not(:disabled) {
+  background: var(--c-seal-wash);
+}
+
+.addplace__plus {
+  font-size: var(--t-title);
+  line-height: 1;
+}
+
+/* Теги в форме места — те же чипы, но переносятся по строкам, а не скроллятся вбок. */
+.tagpick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-1);
+}
+
 /* --- Фильтры -------------------------------------------------------------- */
 
 .filters {
@@ -266,6 +302,60 @@
   display: flex;
   flex-direction: column;
   background: var(--c-paper);
+  transform-origin: center 40%;
+  will-change: transform, opacity;
+}
+
+/* Уход карточки: чуть сжимается к центру и гаснет — будто складывается обратно
+   в список. Поля с вводом (тело и футер) гаснут первыми и чуть быстрее, чтобы к
+   моменту сжатия остался только «конверт» карточки, а не мельтешащий текст.
+   Настоящий onClose (размонтирование) стреляет по концу sheet-out. */
+@media (prefers-reduced-motion: no-preference) {
+  .sheet {
+    animation: sheet-in var(--dur-base) var(--ease) both;
+  }
+
+  .sheet--closing {
+    animation: sheet-out 460ms var(--ease) both;
+    pointer-events: none;
+  }
+
+  .sheet--closing .sheet__body,
+  .sheet--closing .sheet__foot {
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity var(--dur-fast) var(--ease-haze),
+      transform var(--dur-fast) var(--ease-haze);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sheet-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  /* Держим карточку видимой, пока она заметно сжимается — глаз должен успеть
+     считать движение, а не «моргание». Прозрачность уводим только в хвосте. */
+  55% {
+    opacity: 1;
+    transform: scale(0.93);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
 }
 
 .sheet__head {
@@ -403,13 +493,132 @@
   transform: translateX(-50%) scale(0.98);
 }
 
-.compose {
+/* Язычок сборки: свёрнут — тонкая полоска со счётчиком, лента мест видна и
+   скроллится под ней; тап/потяг вверх разворачивает подпись и сборку. */
+.composed {
   position: fixed;
   inset: auto 0 0 0;
   z-index: 15;
   display: flex;
   flex-direction: column;
+  background: var(--c-surface);
+  border-top: 1px solid var(--c-hairline);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--sh-lift);
+  max-width: var(--page-max);
+  margin: 0 auto;
+}
+
+/* Развёрнутый — над затемнением. */
+.composed--open {
+  z-index: 31;
+}
+
+/* Хват: полоска-грабер и строка-пик. Это и есть язычок — тянется и тапается. */
+.composed__grip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4) var(--s-3);
+  cursor: grab;
+  /* Вертикальный потяг за язычок не должен скроллить страницу. */
+  touch-action: none;
+  user-select: none;
+}
+
+.composed__grabber {
+  align-self: center;
+  width: 2.25rem;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--c-hairline);
+}
+
+.composed__peek {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: var(--s-3);
+  min-width: 0;
+}
+
+.composed__count {
+  font-weight: var(--w-semibold);
+  flex: 0 0 auto;
+}
+
+.composed__hint {
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Разворачиваемая часть: подпись и сборка. Свёрнута — схлопнута по высоте. */
+.composed__body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--dur-base) var(--ease);
+}
+
+.composed--open .composed__body {
+  max-height: 70vh;
+}
+
+.composed__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 0 var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+}
+
+.composed__names {
+  font-size: var(--t-meta);
+  color: var(--c-ink-soft);
+}
+
+.composed__actions {
+  display: flex;
+  gap: var(--s-3);
+}
+
+.composed__actions .btn {
+  flex: 1;
+}
+
+/* Готовый конверт: ссылка по центру, без язычка. */
+.composed--done {
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+}
+
+/* Пока собираем — низ списка не должен уходить под свёрнутый язычок. */
+.app--composing .list {
+  padding-bottom: 6rem;
+}
+
+/* Затемнение под листом заметки и развёрнутым язычком. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* Мягче — под развёрнутым язычком: лента ещё читается, тап сворачивает. */
+.scrim--soft {
+  background: rgba(0, 0, 0, 0.16);
+}
+
+/* Лист заметки одного места — лёгкая шторка снизу поверх выбора. */
+.notesheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
   padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
   background: var(--c-surface);
   border-top: 1px solid var(--c-hairline);
@@ -419,19 +628,47 @@
   margin: 0 auto;
 }
 
-.compose__head {
+.notesheet__head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-3);
 }
 
-.compose__title {
-  font-weight: var(--w-semibold);
+.notesheet__id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.compose__cancel {
+.notesheet__name {
+  font-weight: var(--w-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notesheet__meta {
   font-size: var(--t-meta);
   color: var(--c-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notesheet__foot {
+  display: flex;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+
+.notesheet__foot .btn {
+  flex: 1;
+}
+
+/* Тексты экрана готового конверта (живёт внутри .composed--done). */
+.compose__title {
+  font-weight: var(--w-semibold);
 }
 
 .compose__lead {
@@ -456,51 +693,6 @@
 
 .compose__actions .btn {
   flex: 1;
-}
-
-.compose__submit {
-  width: 100%;
-}
-
-/* Заметки к местам в панели сборки. Список скроллится внутри шторки: мест до
-   пяти, у каждого поле в две строки — без ограничения высоты шторка переросла бы
-   экран и увела бы кнопку сборки под нижнюю кромку. */
-.compose__notes {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-
-.compose__notes-title {
-  font-weight: var(--w-medium);
-}
-
-.compose__places {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  max-height: 42vh;
-  overflow-y: auto;
-  /* Место под кромку фокуса поля, чтобы её не срезал overflow. */
-  padding: 2px;
-  margin: 0;
-  list-style: none;
-}
-
-.compose__place {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.compose__place-name {
-  font-size: var(--t-meta);
-  font-weight: var(--w-medium);
-  color: var(--c-ink-soft);
-}
-
-.compose__place-note {
-  min-height: 3.5rem;
 }
 
 /* --- Конверты -------------------------------------------------------------- */

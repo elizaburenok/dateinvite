@@ -601,6 +601,55 @@ describe('LLM-разбор поста без адреса (§7)', () => {
     expect(result.status).toBe('needs_confirmation');
   });
 
+  it('адрес есть, но карта по нему молчит — зовём LLM как фолбэк', async () => {
+    // Адрес распознан, но ни по нему, ни по слитному названию из ссылки карта
+    // ничего не отдаёт. Тогда — и только тогда — разбираем пост моделью: она
+    // достаёт чистое имя, по которому место наконец находится.
+    const { client } = clientReturning((url) => {
+      const q = decodeURIComponent(new URL(url).searchParams.get('q') ?? '');
+      return q.startsWith('Забыли Сахар') && !q.includes('One Trinity') ? [ZABYLI] : [];
+    });
+    const analyzer = {
+      analyze: vi.fn(async () => ({
+        names: [{ text: 'Забыли Сахар', weight: 100 }],
+        city: 'Москва',
+      })),
+    };
+
+    const result = await resolvePlace(
+      {
+        // Дом есть — адрес распознается и LLM сразу не зовётся; но «Мясницкая, 24»
+        // в OSM не находится, а «Забыли Сахар One Trinity Place» — тем более.
+        text: 'Заглянули в Забыли Сахар One Trinity Place на Мясницкой, 24',
+        nameHints: ['Забыли Сахар One Trinity Place'],
+      },
+      { nominatim: client, analyzer },
+    );
+
+    expect(analyzer.analyze).toHaveBeenCalledOnce();
+    expect(result.status).toBe('needs_confirmation');
+    if (result.status !== 'needs_confirmation') return;
+    expect(result.candidates[0]?.name).toBe('Забыли Сахар');
+  });
+
+  it('фолбэк не срабатывает, если карта по адресу что-то нашла', async () => {
+    // Адрес разрешился — место есть. Модель не нужна, лишний запрос не тратим.
+    const { client } = clientReturning((url) =>
+      decodeURIComponent(new URL(url).searchParams.get('q') ?? '').startsWith('Садовническая')
+        ? [ZABYLI]
+        : [],
+    );
+    const analyzer = { analyze: vi.fn(async () => ({ names: [], city: null })) };
+
+    const result = await resolvePlace(
+      { text: 'Забыли Сахар на Садовнической, 24', nameHints: ['Забыли Сахар'] },
+      { nominatim: client, analyzer },
+    );
+
+    expect(analyzer.analyze).not.toHaveBeenCalled();
+    expect(result.status).toBe('needs_confirmation');
+  });
+
   it('падение LLM не роняет резолвер — остаётся ссылка и эвристика', async () => {
     const { client } = clientReturning(() => []);
     const analyzer = {

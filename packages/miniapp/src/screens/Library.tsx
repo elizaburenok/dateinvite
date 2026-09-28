@@ -8,7 +8,8 @@ interface LibraryProps {
   selection: string[];
   composing: boolean;
   onOpenPlace(place: PlaceWithCandidates): void;
-  onToggleSelect(id: string): void;
+  onPickPlace(place: PlaceWithCandidates): void;
+  onAddPlace(): void;
 }
 
 type Tab = 'all' | 'inbox';
@@ -23,7 +24,8 @@ export function Library({
   selection,
   composing,
   onOpenPlace,
-  onToggleSelect,
+  onPickPlace,
+  onAddPlace,
 }: LibraryProps) {
   const [tab, setTab] = useState<Tab>('all');
   const [district, setDistrict] = useState<string>();
@@ -69,6 +71,15 @@ export function Library({
           {pending > 0 && <span className="tab__badge">{pending}</span>}
         </button>
       </div>
+
+      {!composing && (
+        <button type="button" className="addplace" onClick={onAddPlace}>
+          <span className="addplace__plus" aria-hidden="true">
+            +
+          </span>
+          Добавить место вручную
+        </button>
+      )}
 
       {tab === 'all' && (
         <div className="filters">
@@ -138,9 +149,9 @@ export function Library({
                   <button
                     type="button"
                     className={`pick${picked ? ' pick--on' : ''}`}
-                    aria-label={picked ? 'Убрать из конверта' : 'Добавить в конверт'}
+                    aria-label={picked ? 'Заметка и место в конверте' : 'Добавить в конверт'}
                     aria-pressed={picked}
-                    onClick={() => onToggleSelect(place.id)}
+                    onClick={() => onPickPlace(place)}
                   >
                     {picked ? index + 1 : '+'}
                   </button>

@@ -1,4 +1,5 @@
 import { useReveal, type RevealChain, type RevealState } from '../envelope/useReveal.js';
+import tapUrl from '../../assets/Tap.svg';
 
 /**
  * Кучка мини-превью — вход по умолчанию (второй, конверт, живёт в Envelope.tsx).
@@ -74,23 +75,12 @@ export function Pile({ state, onOpen }: PileProps) {
       */}
       <button type="button" className="pile__tap" onClick={onOpen} disabled={!sealed}>
         {/*
-          «Tap» из макета — ровно тот глиф, которым Figma подписывает хотспот
-          прототипа: синяя заливка в белой обводке. Именно SVG, а не текст:
-          paint-order в SVG стандартен везде, а на HTML-тексте поддержан неровно,
-          и без него обводка рисуется по центру контура — она съедает заливку
-          изнутри, и глиф выходит тонким и бледным вместо плотного.
+          «Tap» из макета — готовый глиф, выгруженный из Figma (assets/Tap.svg):
+          жёлтый контур #FCED99 с прозрачными буквами и скруглением ровно как в
+          дизайне. Картинкой, а не программным SVG: контур в макете нарисован
+          вручную, повторять его обводкой и масками — лишний риск расхождений.
         */}
-        <svg className="pile__glyph" viewBox="0 0 81 54" aria-hidden="true" focusable="false">
-          {/*
-            Базовая линия стоит так, чтобы буквы вместе с контуром ровно заполнили
-            viewBox: сверху и снизу от них остаётся по 8px наружной половины
-            обводки. viewBox тем самым описывает то, что видно, — и доля от
-            ширины карточки в CSS считается по нему без поправок.
-          */}
-          <text x="40.5" y="37" textAnchor="middle" paintOrder="stroke">
-            Tap
-          </text>
-        </svg>
+        <img className="pile__glyph" src={tapUrl} alt="" aria-hidden="true" />
         <span className="visually-hidden">Показать места</span>
       </button>
     </>

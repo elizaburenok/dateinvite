@@ -1,5 +1,6 @@
 import type {
   CreateEnvelopeResponse,
+  CreatePlaceRequest,
   EnvelopeSummary,
   PlaceFilters,
   PlacesResponse,
@@ -51,6 +52,12 @@ export const api = {
   places: (filters: PlaceFilters = {}) => request<PlacesResponse>(`/api/places${query(filters)}`),
 
   place: (id: string) => request<PlaceWithCandidates>(`/api/places/${id}`),
+
+  createPlace: (body: CreatePlaceRequest) =>
+    request<PlaceWithCandidates>('/api/places', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   updatePlace: (id: string, patch: UpdatePlaceRequest) =>
     request<PlaceWithCandidates>(`/api/places/${id}`, {

@@ -34,8 +34,8 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const reducedMotion = usePrefersReducedMotion();
 
   const [selected, setSelected] = useState<string | null>(invite.answer?.chosen_place_id ?? null);
-  // Заметка хоста про выбранное место — её показываем выжимкой под карточкой в
-  // момент выбора (см. блок .host-say ниже). Держим в состоянии, а не читаем из
+  // Заметка хоста про выбранное место — её показываем подписью под карточкой в
+  // момент выбора (см. блок .place-note ниже). Держим в состоянии, а не читаем из
   // selected прямо в разметке: при закрытии выбор снимается сразу, а блок ещё
   // сворачивается тем же тактом, что и поле-заметка, — без запоминания текст
   // пропал бы в первый же кадр свёртки, и сворачивалась бы пустая полоса.
@@ -47,6 +47,12 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Выбор места и написание ответа разведены на два шага. Сначала под карточкой
+  // стоит подпись хоста и кнопка «Let's go there»: тап по ней подтверждает место
+  // и раскрывает поле для деталей встречи — но ответ ещё не уходит (шлёт его уже
+  // «Send» в самом поле). composing поднимается на этом тапе и опускает кнопку,
+  // показывая поле на её месте.
+  const [composing, setComposing] = useState(false);
   // Идёт сворачивание выбранной карточки: выбор уже снят (сцена расходится назад
   // в барабан), но такт обратной пружины ещё играет. Флаг живёт CLOSE_MS и вешает
   // data-closing на .reveal — под ним карточка «сужается» (wheel.css).
@@ -70,6 +76,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   // быстрое закрыл-открыл-закрыл не должно оборвать флаг досрочно.
   function close() {
     setSelected(null);
+    setComposing(false);
     setClosing(true);
     clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(() => setClosing(false), CLOSE_MS);
@@ -83,6 +90,9 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
       return;
     }
     setSelected(id);
+    // Новый выбор всегда открывается на шаге подтверждения, а не в наборе ответа:
+    // поле от прошлого места закрываем, кнопку «Let's go there» показываем снова.
+    setComposing(false);
   }
 
   // Обновляем выжимку под выбор: на новом выборе берём заметку его места (или
@@ -146,6 +156,11 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   // Место выбрано, и ответ ещё не отправлен: заголовок сменился на ответный,
   // рядом с ним стоит кнопка назад, под карточкой открыто поле заметки.
   const picking = selected !== null && !readOnly;
+  // Кнопка «Let's go there» видна, пока идёт выбор и не начали набирать ответ.
+  const goVisible = picking && !composing;
+  // Плашка-заметка открыта, когда есть что показать: заметку хоста либо кнопку под
+  // ней (кнопка позиционирована абсолютно, но плашка держит под неё резерв высоты).
+  const noteOpen = picking && (Boolean(hostSay) || goVisible);
 
   return (
     <main
@@ -230,28 +245,59 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
           onSelect={toggle}
         />
 
-        {/* Выжимка про место — заметка хоста о том, куда он зовёт. Появляется в
-            момент выбора, между выросшей карточкой и полем-заметкой: сперва
-            читаешь, зачем это место, потом отвечаешь. Реплика хоста, а не справка,
-            поэтому машинописный моноширинный шрифт (.host-say в note.css). Блок
-            есть в разметке всегда и свёрнут в ноль вне выбора — тем же тактом,
-            что и поле ниже, чтобы под барабаном не зияла пустая полоса. */}
+        {/* Плашка-заметка и кнопка подтверждения (макет 514:44). Плашка выезжает
+            из-под карточки в момент выбора: сабтайтл «Note» и текст заметки хоста, а
+            под ними — резерв высоты под кнопку. Кнопка «Let's go there» лежит НАД
+            плашкой отдельным слоем (position: absolute в .place-note-wrap), по центру
+            у нижнего края, а не в потоке плашки, — так плашка не тянется под неё и не
+            дёргается на переходах.
+
+            Обёртка — точка отсчёта для абсолютной кнопки; её низ совпадает с низом
+            плашки, поэтому кнопка привязана к нижней кромке плашки при любой длине
+            заметки. Заметки может не быть (place.note нулевой) — тогда плашка стоит
+            компактным подносом под одну кнопку (--noteless). Тап по кнопке ответ не
+            шлёт, а раскрывает поле деталей встречи ниже (composing): кнопка гаснет,
+            поле встаёт на её место. */}
         {!readOnly && (
-          <p
-            className={`host-say${picking && hostSay ? ' host-say--open' : ''}`}
-            aria-hidden={picking && hostSay ? undefined : true}
-          >
-            {hostSay}
-          </p>
+          <div className="place-note-wrap">
+            <div
+              className={[
+                'place-note',
+                noteOpen && 'place-note--open',
+                goVisible && 'place-note--reserve',
+                noteOpen && !hostSay && 'place-note--noteless',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              aria-hidden={noteOpen ? undefined : true}
+            >
+              {hostSay && (
+                <>
+                  <span className="place-note__label">Note</span>
+                  <p className="place-note__text">{hostSay}</p>
+                </>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className={`go${goVisible ? ' go--on' : ''}`}
+              tabIndex={goVisible ? undefined : -1}
+              aria-hidden={goVisible ? undefined : true}
+              onClick={() => setComposing(true)}
+            >
+              Let&rsquo;s go there
+            </button>
+          </div>
         )}
 
         {/* Поле-заметка стоит внутри сцены, сразу под колодой, — так в макете:
             ответ пишут не в отдельной панели у края экрана, а под той самой
-            карточкой, которую только что выбрали. */}
+            карточкой, которую только что выбрали. Открывается после подтверждения. */}
         {!readOnly && (
           <NoteComposer
             value={message}
-            open={picking}
+            open={picking && composing}
             sending={sending}
             error={error}
             onChange={setMessage}

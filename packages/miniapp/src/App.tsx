@@ -4,7 +4,8 @@ import type { EnvelopeSummary, PlacesResponse, PlaceWithCandidates } from '@invi
 import { api, ApiError } from './api.js';
 import { Library } from './screens/Library.js';
 import { PlaceDetail } from './screens/PlaceDetail.js';
-import { Compose } from './screens/Compose.js';
+import { AddPlace } from './screens/AddPlace.js';
+import { ComposeDrawer, PlaceNoteEditor } from './screens/Compose.js';
 import { Envelopes } from './screens/Envelopes.js';
 import { haptic } from './telegram.js';
 
@@ -15,8 +16,15 @@ export function App() {
   const [places, setPlaces] = useState<PlacesResponse | null>(null);
   const [envelopes, setEnvelopes] = useState<EnvelopeSummary[]>([]);
   const [openPlace, setOpenPlace] = useState<PlaceWithCandidates | null>(null);
+  // Открыт лист ручного добавления места.
+  const [adding, setAdding] = useState(false);
   const [composing, setComposing] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
+  // Заметки к местам этого конверта по id места. Набираются на фазе выбора,
+  // в библиотеку (place.note) не пишутся — снимок делает бэкенд при сборке.
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  // Место, чей лист заметки открыт поверх выбора. null — лист закрыт.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -49,16 +57,53 @@ export function App() {
     })();
   }, [loadPlaces, loadEnvelopes]);
 
-  const toggleSelect = (id: string) => {
+  const startCompose = () => {
+    setComposing(true);
+    setSelection([]);
+    setNotes({});
+    setEditingId(null);
+  };
+
+  const cancelCompose = () => {
+    setComposing(false);
+    setSelection([]);
+    setNotes({});
+    setEditingId(null);
+  };
+
+  // Тап по месту в режиме сборки — открыть его лист заметки (добавить/поправить),
+  // а не молча переключить выбор: заметку пишем в момент выбора места.
+  const pickPlace = (place: PlaceWithCandidates) => {
     haptic('tap');
+    setEditingId(place.id);
+  };
+
+  const editingPlace = editingId
+    ? (places?.places.find((place) => place.id === editingId) ?? null)
+    : null;
+
+  const saveNote = (id: string, note: string) => {
+    setNotes((prev) => ({ ...prev, [id]: note }));
     setSelection((current) =>
       current.includes(id)
-        ? current.filter((item) => item !== id)
-        : // Сверх лимита не даём набрать прямо в интерфейсе — не ждём отказа сервера.
+        ? current
+        : // Сверх лимита не набираем — но кнопка «Добавить» там уже заблокирована.
           current.length >= ENVELOPE_MAX_PLACES
           ? current
           : [...current, id],
     );
+    haptic('success');
+    setEditingId(null);
+  };
+
+  const removeFromEnvelope = (id: string) => {
+    setSelection((current) => current.filter((item) => item !== id));
+    setNotes((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setEditingId(null);
   };
 
   if (loading) {
@@ -103,38 +148,53 @@ export function App() {
           selection={selection}
           composing={composing}
           onOpenPlace={setOpenPlace}
-          onToggleSelect={toggleSelect}
+          onPickPlace={pickPlace}
+          onAddPlace={() => setAdding(true)}
         />
       ) : (
         <Envelopes envelopes={envelopes} />
       )}
 
       {view === 'library' && !composing && (
-        <button
-          type="button"
-          className="btn btn--primary fab"
-          onClick={() => {
-            setComposing(true);
-            setSelection([]);
-          }}
-        >
+        <button type="button" className="btn btn--primary fab" onClick={startCompose}>
           Собрать конверт
         </button>
       )}
 
-      {composing && (
-        <Compose
-          places={places.places}
-          selection={selection}
-          onCancel={() => {
-            setComposing(false);
-            setSelection([]);
-          }}
+      {composing && !editingPlace && (
+        <ComposeDrawer
+          chosen={selection
+            .map((id) => places.places.find((place) => place.id === id))
+            .filter((place): place is PlaceWithCandidates => Boolean(place))}
+          notes={notes}
+          onCancel={cancelCompose}
           onDone={() => {
-            setComposing(false);
-            setSelection([]);
+            cancelCompose();
             void loadEnvelopes();
             setView('envelopes');
+          }}
+        />
+      )}
+
+      {composing && editingPlace && (
+        <PlaceNoteEditor
+          key={editingPlace.id}
+          place={editingPlace}
+          initialNote={notes[editingPlace.id] ?? editingPlace.note ?? ''}
+          picked={selection.includes(editingPlace.id)}
+          atCapacity={selection.length >= ENVELOPE_MAX_PLACES}
+          onSave={(note) => saveNote(editingPlace.id, note)}
+          onRemove={() => removeFromEnvelope(editingPlace.id)}
+          onClose={() => setEditingId(null)}
+        />
+      )}
+
+      {adding && (
+        <AddPlace
+          availableTags={places.facets.tags}
+          onClose={() => setAdding(false)}
+          onCreated={() => {
+            void loadPlaces();
           }}
         />
       )}
