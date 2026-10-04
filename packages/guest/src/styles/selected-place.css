@@ -262,6 +262,8 @@
   }
 
   .page[data-picking] .note {
+    --note-fill: rgba(255, 253, 244, 0.58);
+    --note-focus-fill: rgba(255, 253, 244, 0.68);
     position: fixed;
     inset: auto 0 var(--keyboard-offset, 0px);
     z-index: 60;
@@ -301,8 +303,14 @@
   }
 
   .page[data-picking] .note__send {
+    width: 52px;
+    height: 52px;
     right: 24px;
     bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .page[data-picking] .note__send img {
+    width: 22px;
   }
 
   .selected-place__identity {
