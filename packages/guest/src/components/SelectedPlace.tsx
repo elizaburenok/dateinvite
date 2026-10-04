@@ -1,6 +1,7 @@
 import type { GuestPlace } from '@invite/shared';
 import { PhotoFrame } from './PhotoFrame.js';
-import letsGoUrl from '../assets/lets-go.svg';
+import letsGoArtwork from '../assets/lets-go.svg?raw';
+import { InlineArtwork } from './InlineArtwork.js';
 import backCircleUrl from '../assets/back-circle.svg';
 
 interface SelectedPlaceProps {
@@ -42,7 +43,7 @@ export function SelectedPlace({ place, composing, onCompose, onBack }: SelectedP
             seed={place.id}
             category={place.category}
           />
-          <img className="selected-place__go-label" src={letsGoUrl} alt="" aria-hidden="true" />
+          <InlineArtwork className="selected-place__go-label" markup={letsGoArtwork} />
         </button>
       )}
       </div>

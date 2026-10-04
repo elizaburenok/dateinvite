@@ -444,6 +444,13 @@
   filter: drop-shadow(0 2px 5px var(--c-tap-shadow));
 }
 
+.pile__glyph > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  shape-rendering: geometricPrecision;
+}
+
 /*
  * Нажатие и уход — быстро, как было. Плавная база выше нужна только наведению;
  * под пальцем (:active) и в момент раскрытия (--tap-press: 0.86 на не-sealed)

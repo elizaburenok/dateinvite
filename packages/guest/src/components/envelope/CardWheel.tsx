@@ -705,6 +705,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
 
     let tapY = 0;
     let tapT = 0;
+    let tapHit = -1;
 
     const onScroll = () => {
       // Красим не синхронно на каждое событие скролла, а один раз за кадр через
@@ -727,6 +728,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       });
     };
     const onDown = (e: PointerEvent) => {
+      tapHit = -1;
       tapY = e.clientY;
       tapT = performance.now();
     };
@@ -742,17 +744,33 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       const item = document
         .elementsFromPoint(e.clientX, e.clientY)
         .find((el) => el.classList.contains('wheel__item'));
-      pickAt(item ? itemsRef.current.indexOf(item as HTMLDivElement) : -1);
+      tapHit = item ? itemsRef.current.indexOf(item as HTMLDivElement) : -1;
+    };
+    const onCancel = () => {
+      tapHit = -1;
+    };
+    const onClick = (e: MouseEvent) => {
+      // Finish the tap before replacing the wheel. Selecting on pointerup lets
+      // iOS retarget the following click to the newly mounted Let's go button.
+      e.preventDefault();
+      e.stopPropagation();
+      const hit = tapHit;
+      tapHit = -1;
+      pickAt(hit);
     };
 
     scroller.addEventListener('scroll', onScroll, { passive: true });
     scroller.addEventListener('pointerdown', onDown);
     scroller.addEventListener('pointerup', onUp);
+    scroller.addEventListener('pointercancel', onCancel);
+    scroller.addEventListener('click', onClick);
     scroller.scrollTop = Math.round(pos.current * PX);
     return () => {
       scroller.removeEventListener('scroll', onScroll);
       scroller.removeEventListener('pointerdown', onDown);
       scroller.removeEventListener('pointerup', onUp);
+      scroller.removeEventListener('pointercancel', onCancel);
+      scroller.removeEventListener('click', onClick);
       cancelAnimationFrame(scrollRaf.current);
       scrollRaf.current = 0;
     };
