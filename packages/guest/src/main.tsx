@@ -16,6 +16,7 @@ import './styles/wheel.css';
 // Последним из раскладочных: часть его правил гасит геометрию конверта у колеса
 // тем же весом селектора, и разводит их порядок подключения (см. шапку файла).
 import './styles/pile.css';
+import './styles/selected-place.css';
 import { App } from './App.js';
 
 const root = document.getElementById('root');

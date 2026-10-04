@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { AnswerResponse, InviteResponse } from '@invite/shared';
 import { AnswerError } from './api.js';
 import resultUrl from './assets/result.svg';
-import titleUrl from './assets/title.svg';
 import { LensFilter } from './components/LensFilter.js';
 import { NoteComposer } from './components/NoteComposer.js';
+import { SelectedPlace } from './components/SelectedPlace.js';
 import { CardWheel } from './components/envelope/CardWheel.js';
 import { Envelope, useEnvelopeOpening } from './components/envelope/Envelope.js';
 import { Pile, usePileReveal } from './components/pile/Pile.js';
@@ -34,24 +34,13 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const reducedMotion = usePrefersReducedMotion();
 
   const [selected, setSelected] = useState<string | null>(invite.answer?.chosen_place_id ?? null);
-  // Заметка хоста про выбранное место — её показываем подписью под карточкой в
-  // момент выбора (см. блок .place-note ниже). Держим в состоянии, а не читаем из
-  // selected прямо в разметке: при закрытии выбор снимается сразу, а блок ещё
-  // сворачивается тем же тактом, что и поле-заметка, — без запоминания текст
-  // пропал бы в первый же кадр свёртки, и сворачивалась бы пустая полоса.
-  const [hostSay, setHostSay] = useState<string | null>(
-    () => invite.places.find((place) => place.id === selected)?.note ?? null,
-  );
+  const selectedPlace = invite.places.find((place) => place.id === selected);
   // Заметка необязательна: пустую отправка превращает в null. Готовые фразы,
   // которыми она набирается в один тап, живут в самом поле (NoteComposer).
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Выбор места и написание ответа разведены на два шага. Сначала под карточкой
-  // стоит подпись хоста и кнопка «Let's go there»: тап по ней подтверждает место
-  // и раскрывает поле для деталей встречи — но ответ ещё не уходит (шлёт его уже
-  // «Send» в самом поле). composing поднимается на этом тапе и опускает кнопку,
-  // показывая поле на её месте.
+  // Миниатюра выбранного места открывает поле ответа; отправляет его только Send.
   const [composing, setComposing] = useState(false);
   // Идёт сворачивание выбранной карточки: выбор уже снят (сцена расходится назад
   // в барабан), но такт обратной пружины ещё играет. Флаг живёт CLOSE_MS и вешает
@@ -69,7 +58,6 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const envelope = useEnvelopeOpening(entry !== 'envelope' || skip, invite.places.length);
   const pile = usePileReveal(entry !== 'pile' || skip);
   const { state, open } = entry === 'envelope' ? envelope : pile;
-
   // Снятие выбора через сворачивание: выбор убираем сразу (сцена и поле заметки
   // расходятся назад), а на такт закрытия поднимаем флаг closing — под ним
   // карточка доигрывает обратную пружину (wheel.css). Прежний таймер сбрасываем:
@@ -90,19 +78,9 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
       return;
     }
     setSelected(id);
-    // Новый выбор всегда открывается на шаге подтверждения, а не в наборе ответа:
-    // поле от прошлого места закрываем, кнопку «Let's go there» показываем снова.
+    // Новый выбор начинается с заметки автора и миниатюры-кнопки.
     setComposing(false);
   }
-
-  // Обновляем выжимку под выбор: на новом выборе берём заметку его места (или
-  // null, если её нет — тогда блок остаётся свёрнутым). На снятии выбора текст
-  // намеренно не трогаем — он доживает такт свёртки, см. useState(hostSay) выше.
-  useEffect(() => {
-    if (selected === null) return;
-    const place = invite.places.find((item) => item.id === selected);
-    setHostSay(place?.note ?? null);
-  }, [selected, invite.places]);
 
   // Таймер флага закрытия не должен пережить размонтирование.
   useEffect(() => () => clearTimeout(closeTimer.current), []);
@@ -153,14 +131,8 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   // своей очереди задержкой (--pile-lead в invite.css), а не этим признаком.
   const bare = entry === 'pile' && state === 'sealed';
 
-  // Место выбрано, и ответ ещё не отправлен: заголовок сменился на ответный,
-  // рядом с ним стоит кнопка назад, под карточкой открыто поле заметки.
+  // Выбранное место показывает заметку автора и миниатюру для перехода к ответу.
   const picking = selected !== null && !readOnly;
-  // Кнопка «Let's go there» видна, пока идёт выбор и не начали набирать ответ.
-  const goVisible = picking && !composing;
-  // Плашка-заметка открыта, когда есть что показать: заметку хоста либо кнопку под
-  // ней (кнопка позиционирована абсолютно, но плашка держит под неё резерв высоты).
-  const noteOpen = picking && (Boolean(hostSay) || goVisible);
 
   return (
     <main
@@ -171,39 +143,14 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
     >
       <LensFilter />
 
-      <header className="hero">
-        <div className="hero__row">
-          {/* Крестик закрывает выбор и возвращает ко всем карточкам. Видна кнопка
-              только при выборе (hero__back--on), и места вне этого экрана не
-              занимает: CSS уводит её из потока, иначе резерв под невидимую кнопку
-              сдвигал бы заголовок с центра экрана вправо (разбор в invite.css).
-              Встретиться им негде — на экране выбранного места (data-picking)
-              заголовка нет, а кнопка там уходит к правому краю карточки. */}
-          <button
-            type="button"
-            className={`hero__back${picking ? ' hero__back--on' : ''}`}
-            tabIndex={picking ? undefined : -1}
-            aria-hidden={picking ? undefined : true}
-            onClick={close}
-          >
-            <CloseIcon />
-            <span className="visually-hidden">Вернуться ко всем местам</span>
-          </button>
-
-          {/* Заголовок — не набранный текст, а готовая надпись: буквы в ней
-              подогнаны вручную, шрифтом такое не повторить. Пока место выбирают
-              и пишут заметку, страница по-прежнему спрашивает: ответная надпись
-              «Looks good» — это уже реплика на отправленный ответ, и живёт она на
-              экране «Ответ отправлен» (ветка выше), а не в момент выбора. */}
-          <div className="hero__titles">
-            <img
-              className="hero__title hero__title--on"
-              src={titleUrl}
-              alt="Shall we meet up? Where do you want to go?"
-            />
-          </div>
+      <header className="hero" />
+      {bare && (!new URLSearchParams(window.location.search).get('caption') ||
+        new URLSearchParams(window.location.search).get('caption') === 'top-left-text') && (
+        <div className="page-invitation">
+          <p className="page-invitation__lead">I’d like to meet<br />with you</p>
+          <p className="page-invitation__detail">This invitation has some places to choose from</p>
         </div>
-      </header>
+      )}
 
       <section
         className="reveal"
@@ -218,82 +165,45 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
          */
         style={{ '--n': Math.max(1, invite.places.length) } as React.CSSProperties}
       >
-        {entry === 'envelope' ? (
-          <Envelope state={state} onOpen={open} />
-        ) : (
-          // Кучка живёт ровно свой такт — до конца дымки, — и уходит, не
-          // дожидаясь конца роста.
-          //
-          // Раньше она досиживала до 'open', и это стоило верхней карточке
-          // отдельного, ни с чем не связанного вздрагивания в самом конце.
-          // Виден там уже не блюр: к концу такта и замутнение, и пелена, и
-          // мишень стоят на нуле. Виден снос слоя. Замутнение — backdrop-filter
-          // (.pile__haze), а он и с нулевым радиусом снимает подложку в
-          // отдельную поверхность; убирается слой — карточка растеризуется
-          // заново. Пока это происходило после роста, рябь приходилась на
-          // остановившуюся картинку, где её ни с чем не спутать.
-          //
-          // Теперь тот же снос приходится на границу тактов: движение только
-          // начинается, и прятать его больше ни во что не нужно.
-          (state === 'sealed' || state === 'unsealing') && <Pile state={state} onOpen={open} />
-        )}
-        <CardWheel
-          places={invite.places}
-          selected={selected}
-          readOnly={readOnly}
-          state={state}
-          onSelect={toggle}
-        />
+        <div hidden={picking}>
+          {entry === 'envelope' ? (
+            <Envelope state={state} onOpen={open} />
+          ) : (
+            // Кучка живёт ровно свой такт — до конца дымки, — и уходит, не
+            // дожидаясь конца роста.
+            //
+            // Раньше она досиживала до 'open', и это стоило верхней карточке
+            // отдельного, ни с чем не связанного вздрагивания в самом конце.
+            // Виден там уже не блюр: к концу такта и замутнение, и пелена, и
+            // мишень стоят на нуле. Виден снос слоя. Замутнение — backdrop-filter
+            // (.pile__haze), а он и с нулевым радиусом снимает подложку в
+            // отдельную поверхность; убирается слой — карточка растеризуется
+            // заново. Пока это происходило после роста, рябь приходилась на
+            // остановившуюся картинку, где её ни с чем не спутать.
+            //
+            // Теперь тот же снос приходится на границу тактов: движение только
+            // начинается, и прятать его больше ни во что не нужно.
+            (state === 'sealed' || state === 'unsealing') && <Pile state={state} onOpen={open} />
+          )}
+          <CardWheel
+            places={invite.places}
+            selected={selected}
+            readOnly={readOnly}
+            state={state}
+            onSelect={toggle}
+          />
+        </div>
 
-        {/* Плашка-заметка и кнопка подтверждения (макет 514:44). Плашка выезжает
-            из-под карточки в момент выбора: сабтайтл «Note» и текст заметки хоста, а
-            под ними — резерв высоты под кнопку. Кнопка «Let's go there» лежит НАД
-            плашкой отдельным слоем (position: absolute в .place-note-wrap), по центру
-            у нижнего края, а не в потоке плашки, — так плашка не тянется под неё и не
-            дёргается на переходах.
-
-            Обёртка — точка отсчёта для абсолютной кнопки; её низ совпадает с низом
-            плашки, поэтому кнопка привязана к нижней кромке плашки при любой длине
-            заметки. Заметки может не быть (place.note нулевой) — тогда плашка стоит
-            компактным подносом под одну кнопку (--noteless). Тап по кнопке ответ не
-            шлёт, а раскрывает поле деталей встречи ниже (composing): кнопка гаснет,
-            поле встаёт на её место. */}
-        {!readOnly && (
-          <div className="place-note-wrap">
-            <div
-              className={[
-                'place-note',
-                noteOpen && 'place-note--open',
-                goVisible && 'place-note--reserve',
-                noteOpen && !hostSay && 'place-note--noteless',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              aria-hidden={noteOpen ? undefined : true}
-            >
-              {hostSay && (
-                <>
-                  <span className="place-note__label">Note</span>
-                  <p className="place-note__text">{hostSay}</p>
-                </>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className={`go${goVisible ? ' go--on' : ''}`}
-              tabIndex={goVisible ? undefined : -1}
-              aria-hidden={goVisible ? undefined : true}
-              onClick={() => setComposing(true)}
-            >
-              Let&rsquo;s go there
-            </button>
-          </div>
+        {picking && selectedPlace && (
+          <SelectedPlace
+            place={selectedPlace}
+            composing={composing}
+            onCompose={() => setComposing(true)}
+            onBack={close}
+          />
         )}
 
-        {/* Поле-заметка стоит внутри сцены, сразу под колодой, — так в макете:
-            ответ пишут не в отдельной панели у края экрана, а под той самой
-            карточкой, которую только что выбрали. Открывается после подтверждения. */}
+        {/* Поле ответа раскрывается после нажатия на миниатюру выбранного места. */}
         {!readOnly && (
           <NoteComposer
             value={message}
@@ -307,26 +217,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
       </section>
 
       <p className="attribution">Данные о местах — © участники OpenStreetMap</p>
-    </main>
-  );
-}
 
-/*
- * Крестик на кнопке закрытия. Нарисован здесь, а не файлом: в макете иконки нет,
- * а обводка обязана брать цвет у кнопки — иначе на стекле она темнеет вместе
- * с тем, что под ним просвечивает. Так же сделаны глиф на мишени кучки
- * (components/pile/Pile.tsx) и сургучная печать.
- */
-function CloseIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path
-        d="M6 6l8 8M14 6l-8 8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    </main>
   );
 }

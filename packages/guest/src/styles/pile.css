@@ -99,7 +99,7 @@
    */
   --pile-scale: 1;
   /* Замутнение в самом мутном месте. */
-  --pile-blur: 14px;
+  --pile-blur: 7px;
 
   /*
    * Кармана нет — нет и его геометрии. Стопка не утоплена, подниматься ей
@@ -179,6 +179,38 @@
 .reveal[data-variant='pile'][data-state='unsealing'] .wheel__item:not([data-front]) {
   opacity: 0 !important;
   visibility: hidden;
+}
+
+/* Тень принадлежит раскрывающейся колоде: до начала раздачи оба её
+   слоя скрыты. На dealing их плавно проявляет переход из wheel.css. */
+.reveal[data-variant='pile'][data-state='sealed'] .wheel__card::before,
+.reveal[data-variant='pile'][data-state='sealed'] .wheel__card::after,
+.reveal[data-variant='pile'][data-state='unsealing'] .wheel__card::before,
+.reveal[data-variant='pile'][data-state='unsealing'] .wheel__card::after {
+  opacity: 0;
+}
+
+/* Карточка перед тапом неподвижна: снятие подсказки при нажатии
+   не должно сбрасывать её наклон или масштаб отдельным рывком. */
+
+/* Карточка, дымка и подписи движутся вместе до первого нажатия. */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal[data-variant='pile'][data-state='sealed'] {
+    transform-origin: 50% calc(var(--wheel-headroom) + var(--card-h) / 2);
+    animation: pile-idle-hint 6400ms ease-in-out 700ms infinite;
+  }
+}
+
+@keyframes pile-idle-hint {
+  0%, 65%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  20% {
+    transform: rotate(-0.65deg) scale(1.012);
+  }
+  42% {
+    transform: rotate(0.5deg) scale(1.006);
+  }
 }
 
 /* --- Дымка ----------------------------------------------------------------- */
@@ -431,5 +463,72 @@
 @media (prefers-reduced-motion: reduce) {
   .reveal[data-variant='pile'] {
     height: auto;
+  }
+}
+
+/* Варианты приглашения: caption в ссылке позволяет сравнить посадки. */
+.pile__invitation {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  top: calc(var(--wheel-headroom) + 24px);
+  width: calc(var(--env-w) - 76px);
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: var(--fog);
+}
+
+.pile__invitation img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.65));
+}
+
+.pile__invitation[data-caption='bottom-center'],
+.pile__invitation[data-caption='bottom-left'] {
+  top: calc(var(--wheel-headroom) + var(--card-h) - 64px);
+}
+
+.pile__invitation[data-caption='top-left'],
+.pile__invitation[data-caption='bottom-left'] {
+  width: calc((var(--env-w) - 20px) * 0.7);
+  left: calc(50% - (var(--env-w) - 20px) / 2 + 24px);
+  transform: none;
+}
+
+.pile__invitation[data-caption='above'] {
+  top: calc(var(--wheel-headroom) - 64px);
+}
+
+.pile__invitation[data-caption='below'] {
+  top: calc(var(--wheel-headroom) + var(--card-h) + 24px);
+}
+
+.pile__invitation[data-caption='above'] img,
+.pile__invitation[data-caption='below'] img {
+  filter: none;
+}
+
+/* Печать лежит над дымкой и выступает за правый верхний угол карточки.
+   SVG содержит прозрачные поля: размер и вынос учитывают их. */
+.pile__stamp {
+  --stamp-card-w: calc((var(--env-w) - 20px) * var(--pile-now));
+  position: absolute;
+  z-index: 6;
+  top: calc(var(--wheel-headroom) - var(--stamp-card-w) * 0.22);
+  left: calc(50% + var(--stamp-card-w) * 0.175);
+  width: calc(var(--stamp-card-w) * 0.59);
+  height: auto;
+  display: block;
+  opacity: clamp(0, calc(var(--fog) * 1.7 - 0.7), 1);
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (max-width: 480px) {
+  .pile__stamp {
+    /* На телефоне оставляем печать целиком в экране. */
+    left: calc(50% + var(--stamp-card-w) * 0.05);
   }
 }

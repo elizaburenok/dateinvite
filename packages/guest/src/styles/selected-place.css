@@ -1,0 +1,357 @@
+/* Selected place, Figma 561:122. Center the note and keep the identity at its left. */
+.page[data-picking] {
+  --selected-top: clamp(120px, 22.08dvh, 217px);
+  --selected-back-top: max(24px, 5.19dvh, env(safe-area-inset-top));
+  max-width: none;
+  padding-top: var(--selected-top);
+  font-family: var(--font-card);
+}
+
+.page[data-picking] ~ .dev-reset {
+  font-family: var(--font-card);
+}
+
+.page[data-picking] > .hero {
+  position: relative;
+  width: min(753px, 100%);
+  height: 0;
+  padding: 0;
+  margin-inline: auto;
+  animation: none;
+}
+
+.page[data-picking] .hero__row {
+  width: 100%;
+}
+
+.page[data-picking] > .reveal {
+  width: min(753px, 100%);
+  margin-inline: auto;
+}
+
+.selected-place {
+  position: relative;
+  width: 100%;
+  text-align: center;
+  color: var(--c-answer, #424343);
+  animation: selected-place-appear 240ms var(--ease) both;
+}
+
+.selected-place__text {
+  display: flow-root;
+  width: calc(100% - 82px);
+  margin: 0 auto;
+  text-align: center;
+  font-size: 40px;
+  font-weight: 400;
+  line-height: 48px;
+  letter-spacing: -0.72px;
+  overflow-wrap: anywhere;
+}
+
+/* An inline block uses its last text baseline (the address) on the note's first line.
+   This follows wrapped names and addresses naturally, without a fixed vertical offset. */
+.selected-place__identity {
+  position: relative;
+  opacity: 0.82;
+  display: inline-block;
+  width: max-content;
+  max-width: 180px;
+  margin: 0 4px 0 0;
+  padding: 0;
+  vertical-align: baseline;
+  text-align: left;
+  color: #434343;
+  font-weight: 600;
+  letter-spacing: normal;
+  filter: drop-shadow(0 2px 6.5px rgba(120, 119, 116, 0.18));
+}
+
+.selected-place__name {
+  display: block;
+  /* Wrap the title by words so its full unwrapped length does not add
+     invisible space after the address on the shared baseline. */
+  width: min-content;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  font-size: 24px;
+  line-height: 22.464px;
+  letter-spacing: -1.44px;
+}
+
+.selected-place__address {
+  display: block;
+  width: max-content;
+  max-width: 180px;
+  font-size: 14px;
+  line-height: 12.096px;
+}
+
+.selected-place__note {
+  display: inline;
+  --text-outline: 1px;
+  white-space: pre-wrap;
+  transition: opacity var(--dur-base) var(--ease);
+}
+
+.selected-place__identity {
+  transition: opacity var(--dur-base) var(--ease);
+}
+
+.selected-place__go {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  width: 180px;
+  height: 118px;
+  margin: 48px auto 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0.567px solid rgba(226, 226, 226, 0.05);
+  border-radius: 16.395px;
+  background: transparent;
+  transform: rotate(4.41deg) scale(1);
+  box-shadow:
+    0 3.087px 6.174px 3.087px rgba(58, 96, 90, 0.1),
+    0 5.246px 11.804px rgba(63, 46, 26, 0.07),
+    0 1.312px 1.967px rgba(63, 46, 26, 0.05),
+    0 5.246px 15.739px rgba(63, 46, 26, 0.07),
+    0 0.656px 1.312px rgba(63, 46, 26, 0.06);
+  /* Ease into hover and back without the fast initial kick used for presses. */
+  transition: transform 360ms var(--ease-deal);
+}
+
+.selected-place__go .photo {
+  inset: 0;
+  border-radius: inherit;
+  corner-shape: round;
+}
+
+.selected-place__go .photo__scrim {
+  corner-shape: round;
+}
+
+.selected-place__go .photo__glyph {
+  display: none;
+}
+
+.selected-place__go-label {
+  position: absolute;
+  z-index: 2;
+  top: calc(50% + 5px);
+  left: 50%;
+  display: block;
+  width: 148px;
+  height: 71px;
+  max-width: none;
+  transform: translate(-50%, -50%) rotate(-4.41deg);
+  pointer-events: none;
+}
+
+.selected-place__go:hover {
+  transform: rotate(3deg) scale(1.025);
+}
+
+.selected-place__go:active {
+  transform: rotate(3deg) scale(0.97);
+  transition-duration: var(--dur-fast);
+}
+
+.selected-place__go:focus-visible {
+  outline: 2px solid #434343;
+  outline-offset: 5px;
+}
+
+.page[data-picking] .note {
+  position: relative;
+  inset: auto;
+  /* Keep the reply width consistent regardless of the place's name or note. */
+  width: min(340px, 100%);
+  padding: 20px 24px;
+  border-radius: 40px;
+  align-items: flex-start;
+  text-align: left;
+  gap: 16px;
+  /* Set the final geometry immediately; only fade and lift the reply into place. */
+  transform: translateY(18px);
+  transition:
+    opacity var(--dur-base) var(--ease),
+    transform var(--dur-base) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.page[data-picking] .note--open {
+  margin: 48px auto 0;
+  transform: none;
+}
+
+.page[data-picking] .note:not(.note--open) {
+  max-height: 0;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-width: 0;
+  border-bottom-width: 0;
+  overflow: hidden;
+}
+
+.page[data-picking] .note__field,
+.page[data-picking] .note__ghost {
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  text-align: left;
+}
+
+.page[data-picking] .note__field {
+  min-height: 56px;
+}
+
+.page[data-picking] .note__input {
+  width: calc(100% - 60px);
+}
+
+.page[data-picking] .note__send {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #FDF2B8;
+}
+
+.page[data-picking] .note__send img {
+  display: block;
+  width: 16px;
+  height: auto;
+}
+
+.page[data-picking] .note__send:focus-visible {
+  outline: 2px solid var(--c-answer);
+  outline-offset: 3px;
+}
+
+.page[data-picking] .note__error {
+  width: calc(100% - 60px);
+}
+
+@keyframes selected-place-appear {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .selected-place__text {
+    width: 100%;
+    /* Scale the centered note from 22px on small phones to 40px on desktop. */
+    font-size: clamp(22px, calc(6.429vw + 1.429px), 40px);
+    line-height: 1.1;
+    letter-spacing: -0.018em;
+  }
+
+  .page[data-picking] .note {
+    position: fixed;
+    inset: auto 0 var(--keyboard-offset, 0px);
+    z-index: 60;
+    width: 100%;
+    min-height: clamp(220px, 30dvh, 300px);
+    max-height: 70dvh;
+    margin: 0;
+    padding: 36px 24px calc(80px + env(safe-area-inset-bottom));
+    border-radius: 32px 32px 0 0;
+    corner-shape: round;
+    align-items: center;
+    text-align: center;
+    transform: translateY(100%);
+  }
+
+  .page[data-picking] .note:not(.note--open) {
+    max-height: 70dvh;
+    margin: 0;
+    padding: 36px 24px calc(80px + env(safe-area-inset-bottom));
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+  }
+
+  .page[data-picking] .note--open {
+    margin: 0;
+    transform: translateY(0);
+  }
+
+  .page[data-picking] .note__input,
+  .page[data-picking] .note__error {
+    width: 100%;
+  }
+
+  .page[data-picking] .note__field {
+    max-height: max(56px, calc(60dvh - 130px));
+    overflow-y: auto;
+  }
+
+  .page[data-picking] .note__send {
+    right: 24px;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .selected-place__identity {
+    max-width: 140px;
+    margin-left: 0;
+  }
+
+  .selected-place__name {
+    font-size: clamp(16px, calc(2.857vw + 6.857px), 24px);
+    line-height: 0.95;
+    letter-spacing: -0.06em;
+  }
+
+  .selected-place__address {
+    max-width: 140px;
+    font-size: clamp(10px, calc(1.429vw + 5.429px), 14px);
+    line-height: 1;
+  }
+
+  .page[data-picking] .note__field,
+  .page[data-picking] .note__ghost {
+    line-height: 1.27;
+    letter-spacing: -0.023em;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page[data-picking] .note {
+    transform: none;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  .selected-place { animation: none; }
+  .selected-place__go { transition: none; }
+  .selected-place__note,
+  .selected-place__identity { transition: none; }
+}
+
+.selected-place__back {
+  position: absolute;
+  top: calc(var(--selected-back-top) - var(--selected-top));
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.selected-place__back img {
+  display: block;
+  max-width: none;
+}
+
+.selected-place__back:hover { opacity: 0.7; }
+.selected-place__back:focus-visible { outline: 2px solid #434343; outline-offset: 3px; }

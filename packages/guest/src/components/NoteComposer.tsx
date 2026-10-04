@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePrefersReducedMotion } from './envelope/usePrefersReducedMotion.js';
+import sendUrl from '../assets/send.svg';
 
 /**
  * Примеры того, что сюда пишут. Первый — из макета, второй добавляет второй
@@ -41,6 +42,7 @@ export function NoteComposer({
   onSubmit,
 }: NoteComposerProps) {
   const field = useRef<HTMLTextAreaElement>(null);
+  const example = useRef<HTMLSpanElement>(null);
   const reducedMotion = usePrefersReducedMotion();
 
   const [focused, setFocused] = useState(false);
@@ -60,9 +62,39 @@ export function NoteComposer({
   useLayoutEffect(() => {
     const el = field.current;
     if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
+    const resize = () => {
+      el.style.height = 'auto';
+      el.style.height = `${Math.max(el.scrollHeight, example.current?.offsetHeight ?? 0)}px`;
+    };
+    resize();
+    // Refit wrapped text when the viewport changes, including after typing.
+    let width = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === width) return;
+      width = el.clientWidth;
+      resize();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [value, ghost, showExample]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const form = field.current?.closest('form');
+    if (!open || !viewport || !form) return;
+    const fitKeyboard = () => {
+      const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      form.style.setProperty('--keyboard-offset', `${offset}px`);
+    };
+    fitKeyboard();
+    viewport.addEventListener('resize', fitKeyboard);
+    viewport.addEventListener('scroll', fitKeyboard);
+    return () => {
+      viewport.removeEventListener('resize', fitKeyboard);
+      viewport.removeEventListener('scroll', fitKeyboard);
+      form.style.removeProperty('--keyboard-offset');
+    };
+  }, [open]);
 
   // Печатная машинка. Один рекурсивный таймер вместо интервала: паузы между
   // буквой, концом фразы и её стиранием разной длины, интервалом их не свести.
@@ -111,6 +143,8 @@ export function NoteComposer({
   return (
     <form
       className={`note${open ? ' note--open' : ''}`}
+      inert={!open}
+      aria-hidden={!open || undefined}
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
@@ -119,9 +153,7 @@ export function NoteComposer({
       <label className="visually-hidden" htmlFor="guest-message">
         Note to the host
       </label>
-      {/* Видимой подписи у поля больше нет: сабтайтл «Note» переехал в подпись
-          места над кнопкой (.place-note в InvitePage). Для голоса поле подписано
-          скрытым <label> выше. */}
+      {/* Поле подписано скрытым label для экранного диктора. */}
 
       {/* Обёртка держит пример: он лежит поверх начала строки, а не в потоке,
           поэтому высоту поля (её задаёт текст) не трогает. */}
@@ -131,7 +163,7 @@ export function NoteComposer({
             последней букве, а не в стороне. aria-hidden: для голоса поле
             подписано настоящим <label>, а бегущий текст читать вслух незачем. */}
         {showExample && (
-          <span className="note__ghost" aria-hidden="true">
+          <span ref={example} className="note__ghost" aria-hidden="true">
             {ghost}
             <span className="note__caret" />
           </span>
@@ -162,8 +194,9 @@ export function NoteComposer({
         />
       </div>
 
-      <button type="submit" className="note__send" disabled={sending}>
-        {sending ? 'Sending…' : 'Send'}
+      <button type="submit" className="note__send" disabled={sending}
+        aria-label={sending ? 'Sending…' : 'Send'} aria-busy={sending}>
+        <img src={sendUrl} width="24" height="25" alt="" aria-hidden="true" />
       </button>
 
       {error && <p className="note__error">{error}</p>}

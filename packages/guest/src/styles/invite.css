@@ -204,7 +204,8 @@ body {
 }
 
 .page:not([data-picking]) .hero__title {
-  height: calc(min(58px, 12vw) * var(--hero, 1));
+  height: calc(89px * var(--hero, 1));
+  transform: scale(var(--hero, 1));
 }
 
 .hero__seal {
@@ -250,54 +251,82 @@ body {
   position: absolute;
 }
 
-/*
- * Две надписи лежат в одной ячейке грида и меняются кроссфейдом: до выбора —
- * вопрос («Shall we meet up?»), после — ответ («Looks good»). Стопкой, а не
- * подменой src, потому что подмена — это мигание, а высоту строки держат обе
- * сразу и она не скачет.
- */
+/* Текст сохраняет переносы при сворачивании: масштаб и высота меняются
+ * вместе с барабаном, а ширина набора остаётся постоянной. */
 .hero__titles {
-  display: grid;
+  width: 358px;
+  max-width: 100%;
   min-width: 0;
 }
 
-.hero__titles > * {
-  grid-area: 1 / 1;
-}
-
-/*
- * Заголовок-картинка: 58 px по высоте, ширина считается по пропорции исходника.
- * На узком экране места на всю ширину нет — тогда надпись ужимается целиком
- * (object-fit), а не обрезается по краям.
- *
- * Кегль сбавлен с макетных 65px: при 65px надпись выходила 349px — почти во всю
- * ширину карточки под ней (380px), и два блока стояли в одной весовой категории,
- * споря за первый взгляд. 58px уводят надпись к ~82% ширины карточки: иерархия
- * читается (карточка главная), а сам заголовок остаётся крупной рисованной
- * строкой, а не подписью.
- *
- * Высота при этом не постоянная, и вот почему. Рядом с надписью стоит кнопка
- * назад, и место она занимает всегда — сорок пикселей плюс отступ. На узком
- * экране их не хватает: надпись шире оставшейся полосы, ужимается до неё и
- * встаёт впритык к правому полю страницы, а весь заголовок съезжает с
- * оптического центра вправо на ширину кнопки.
- *
- * 12vw — тот же кегль, пересчитанный на экран: на 480px даёт ровно 58px, на
- * 375px — сорок пять с небольшим. Так надпись уменьшается вместе со страницей —
- * как уменьшается вместе с ней карточка, — и полоса рядом с кнопкой ей больше не
- * тесна. С 480px и шире работает потолок, и высота снова 58px.
- */
 .hero__title {
-  height: min(58px, 12vw);
-  width: auto;
-  max-width: 100%;
-  object-fit: contain;
+  height: 89px;
+  margin: 0;
+  font-family: 'Inter Tight', sans-serif;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 30px;
+  letter-spacing: -0.72px;
+  color: #424343;
+  text-align: center;
+  overflow-wrap: break-word;
+  transform-origin: top center;
   opacity: 0;
   transition: opacity var(--dur-base) var(--ease);
 }
 
 .hero__title--on {
   opacity: 1;
+}
+
+/* После приглашения карточки остаются без заголовка. */
+.page:not([data-picking]) > .hero {
+  display: none;
+}
+
+.page:not([data-picking]) > .reveal {
+  margin-top: calc(183px * var(--hero, 1));
+}
+
+/* Tap и раскрытая колода используют один отступ сцены выше.
+   data-bare скрывает подпись, но не меняет положение карточки. */
+
+.page[data-intro] > .reveal {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.invite-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: #424343;
+  font-family: 'Inter Tight', sans-serif;
+  animation: invite-intro 2800ms linear both;
+}
+
+@keyframes invite-intro {
+  0% {
+    opacity: 0;
+    animation-timing-function: ease-in;
+  }
+  35% { opacity: 1; }
+  70% {
+    opacity: 1;
+    animation-timing-function: ease-in-out;
+  }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .invite-intro { animation: none; }
 }
 
 /*
@@ -643,23 +672,20 @@ body {
    */
   left: calc(var(--frame-w) + 4.38cqw);
   bottom: calc(var(--frame-w) + 4.79cqw);
-  max-width: 62%;
+  /* Та же узкая колонка названия, что на детальной странице. */
+  width: min-content;
+  max-width: min(180px, 62%);
+  overflow-wrap: anywhere;
 }
 
 .card__name {
   font-family: var(--font-card);
-  /* Кегль, интерлиньяж и трекинг — из макета (Figma node 440-541). */
+  /* Плотность текста совпадает с названием на детальной странице. */
   font-size: 24px;
   font-weight: var(--w-semibold);
-  /* Межстрочное 26px при кегле 26 — доля кегля, а не пиксели: от смены кегля
-     плотность не плывёт. Блок прижат к низу и вне обрезающего контейнера,
-     поэтому вторая строка длинного названия растёт вверх, на фото. */
-  line-height: 1;
-  /* Трекинг макета: -1.56px при 26 = -0.06em, в em — не плывёт от кегля. */
+  line-height: 0.936;
   letter-spacing: -0.06em;
-  /* Адрес идёт вплотную под названием, без наезда: в макете он ровно под
-     строчной коробкой имени. */
-  margin-bottom: 0;
+  margin: 0;
   color: var(--c-frame-ink);
   -webkit-text-stroke: 0.3px rgba(125, 118, 78, 0.58);
   text-stroke: 0.3px rgba(125, 118, 78, 0.58);
@@ -668,23 +694,15 @@ body {
   text-wrap: balance;
 }
 
-/*
- * Название на две строки (см. измерение в PlaceCard.tsx): межстрочное сверху
- * подобрано под высоту одной строки, а между двух реальных строк то же число
- * читается слишком просторным зазором — плотнее сюда, чем в макете, где
- * название однострочное.
- */
-.card__name--wrapped {
-  line-height: 0.86;
-}
-
 .card__address {
   font-family: var(--font-card);
-  /* Кегль и строчная коробка из макета (Figma node 440-542): 16px при высоте
-     строки 14px. Трекинг в макете обычный. */
-  font-size: 16px;
+  /* Адрес не расширяет колонку названия и стоит вплотную под ней. */
+  width: max-content;
+  max-width: 180px;
+  font-size: 14px;
   font-weight: var(--w-semibold);
-  line-height: calc(14 / 16);
+  line-height: 0.864;
+  margin: 0;
   color: var(--c-frame-ink);
   -webkit-text-stroke: 0.3px rgba(125, 118, 78, 0.58);
   text-stroke: 0.3px rgba(125, 118, 78, 0.58);
@@ -784,6 +802,12 @@ body {
    */
   corner-shape: var(--corner-card);
   background:
+    radial-gradient(
+      ellipse at top right,
+      rgba(0, 0, 0, 0.38) 0%,
+      rgba(0, 0, 0, 0.16) 30%,
+      rgba(0, 0, 0, 0) 65%
+    ),
     linear-gradient(
       57.33deg,
       rgba(0, 0, 0, 0.4) 0.9%,
@@ -928,11 +952,27 @@ body {
    пропорция, что у заголовка-вопроса в шапке (.hero__title): 58px по высоте, на
    узком экране ужимается вместе со страницей (12vw). Пара с заголовком-вопросом
    держится в одном масштабе, поэтому кегль сбавлен вместе с ним. */
+/* Начальная и финальная надписи стоят в центре одной области экрана. */
+.done {
+  position: fixed;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  pointer-events: none;
+}
+
+.invite-intro__lettering,
 .done__lettering {
-  height: min(58px, 12vw);
+  display: block;
+  /* Общая высота двух строк; длинное приглашение задаёт предел на телефоне. */
   width: auto;
+  height: min(97px, calc((100vw - 48px) * 53 / 439));
   max-width: 100%;
   object-fit: contain;
+}
+
+.invite-intro__lettering {
+  height: min(53px, calc((100vw - 48px) * 29 / 439));
 }
 
 .notice__text,
@@ -1020,4 +1060,70 @@ body {
   .dev-reset:active {
     transform: none;
   }
+}
+
+.page[data-variant='pile'] {
+  --env-w: min(100vw - var(--page-gutter) * 2 + 20px, 368px);
+}
+
+.page-invitation {
+  position: fixed;
+  top: calc(var(--s-6) + 183px + 24px + (min(100vw - 20px, 368px) - 20px) * 314 / 480 + 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(306px, calc(100vw - 48px));
+  height: 94px;
+  font-family: 'Inter Tight', sans-serif;
+  color: #424343;
+  pointer-events: none;
+}
+
+.page-invitation p { margin: 0; }
+
+.page-invitation__lead {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 126px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 22.464px;
+  letter-spacing: -1.2px;
+  text-align: left;
+}
+
+.page-invitation__detail {
+  --text-outline: 0.7px;
+  position: absolute;
+  top: 21px;
+  right: -3px;
+  width: min(239px, 78%);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 24px;
+  letter-spacing: -0.432px;
+  text-align: center;
+}
+
+/* Figma's OUTSIDE / ROUND stroke: a circular ring of same-color glyphs
+   expands only the contour, without changing text metrics or sharp joins. */
+.page-invitation__detail,
+.selected-place__note {
+  text-shadow:
+    var(--text-outline) 0 0 currentColor,
+    calc(var(--text-outline) * 0.924) calc(var(--text-outline) * 0.383) 0 currentColor,
+    calc(var(--text-outline) * 0.707) calc(var(--text-outline) * 0.707) 0 currentColor,
+    calc(var(--text-outline) * 0.383) calc(var(--text-outline) * 0.924) 0 currentColor,
+    0 var(--text-outline) 0 currentColor,
+    calc(var(--text-outline) * -0.383) calc(var(--text-outline) * 0.924) 0 currentColor,
+    calc(var(--text-outline) * -0.707) calc(var(--text-outline) * 0.707) 0 currentColor,
+    calc(var(--text-outline) * -0.924) calc(var(--text-outline) * 0.383) 0 currentColor,
+    calc(var(--text-outline) * -1) 0 0 currentColor,
+    calc(var(--text-outline) * -0.924) calc(var(--text-outline) * -0.383) 0 currentColor,
+    calc(var(--text-outline) * -0.707) calc(var(--text-outline) * -0.707) 0 currentColor,
+    calc(var(--text-outline) * -0.383) calc(var(--text-outline) * -0.924) 0 currentColor,
+    0 calc(var(--text-outline) * -1) 0 currentColor,
+    calc(var(--text-outline) * 0.383) calc(var(--text-outline) * -0.924) 0 currentColor,
+    calc(var(--text-outline) * 0.707) calc(var(--text-outline) * -0.707) 0 currentColor,
+    calc(var(--text-outline) * 0.924) calc(var(--text-outline) * -0.383) 0 currentColor;
 }

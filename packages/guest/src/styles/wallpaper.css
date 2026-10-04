@@ -60,7 +60,8 @@ body {
  * с нижней растягиваются. На телефоне это 8px против 30 — сверху рамка, по бокам
  * ниточка. Разницу добирают два градиента по краям (--edge-fix ниже).
  */
-body::before {
+body::before,
+.invite-cover {
   content: '';
   position: fixed;
   inset: 0;
@@ -95,4 +96,23 @@ body::before {
     url('../assets/wallpaper.webp');
   background-size: 100% 100%;
   background-repeat: no-repeat;
+}
+
+/* Заслонка уходит поверх готовой карточки, не изолируя её backdrop-filter. */
+.invite-cover {
+  z-index: 9;
+  pointer-events: none;
+}
+
+.invite-cover[data-fading] {
+  animation: invite-cover-away 1200ms ease-in forwards;
+}
+
+@keyframes invite-cover-away {
+  from { opacity: 1; }
+  to { opacity: 0; visibility: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .invite-cover[data-fading] { animation-duration: 1ms; }
 }
