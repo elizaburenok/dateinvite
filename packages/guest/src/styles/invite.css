@@ -1108,7 +1108,8 @@ body {
 /* Figma's OUTSIDE / ROUND stroke: a circular ring of same-color glyphs
    expands only the contour, without changing text metrics or sharp joins. */
 .page-invitation__detail,
-.selected-place__note {
+.selected-place__note,
+.invitation-intro__headline {
   text-shadow:
     var(--text-outline) 0 0 currentColor,
     calc(var(--text-outline) * 0.924) calc(var(--text-outline) * 0.383) 0 currentColor,

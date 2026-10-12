@@ -4,6 +4,7 @@ import { api, ApiError } from '../api.js';
 import { PlaceThumb } from '../components/PlaceThumb.js';
 import { useSheetClose } from '../hooks/useSheetClose.js';
 import { haptic } from '../telegram.js';
+import { PhotoEditor } from './PhotoEditor.js';
 
 interface PlaceDetailProps {
   place: PlaceWithCandidates;
@@ -21,6 +22,7 @@ export function PlaceDetail({ place, onSaved, onDeleted, onClose }: PlaceDetailP
   const [name, setName] = useState(place.name);
   const [tagsText, setTagsText] = useState(place.tags.join(', '));
   const [busy, setBusy] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { closing, requestClose, onAnimationEnd } = useSheetClose(onClose);
 
@@ -69,6 +71,8 @@ export function PlaceDetail({ place, onSaved, onDeleted, onClose }: PlaceDetailP
       requestClose();
     });
 
+  if (editingPhoto) return <PhotoEditor place={place} onSaved={onSaved} onClose={() => setEditingPhoto(false)} />;
+
   return (
     <div
       className={`sheet${closing ? ' sheet--closing' : ''}`}
@@ -85,6 +89,7 @@ export function PlaceDetail({ place, onSaved, onDeleted, onClose }: PlaceDetailP
 
       <div className="sheet__body">
         <PlaceThumb src={place.photo_url} name={place.name} seed={place.id} size="lg" />
+        <button type="button" className="btn" onClick={() => setEditingPhoto(true)}>{place.photo_url ? 'Настроить фото' : 'Добавить фото'}</button>
 
         {needsConfirmation && place.candidates.length > 0 && (
           <section className="confirm">

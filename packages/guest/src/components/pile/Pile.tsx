@@ -1,7 +1,6 @@
 import { useReveal, type RevealChain, type RevealState } from '../envelope/useReveal.js';
 import tapArtwork from '../../assets/Tap.svg?raw';
 import { InlineArtwork } from '../InlineArtwork.js';
-import stampUrl from '../../assets/Stamp.svg';
 import startUrl from '../../assets/start.svg';
 
 /**
@@ -89,7 +88,6 @@ export function Pile({ state, onOpen }: PileProps) {
         <InlineArtwork className="pile__glyph" markup={tapArtwork} />
         <span className="visually-hidden">Показать места</span>
       </button>
-      <img className="pile__stamp" src={stampUrl} alt="" aria-hidden="true" draggable={false} />
       {caption !== 'top-left-text' && sealed && (
         <div className="pile__invitation" data-caption={caption}>
           <img src={startUrl} alt="I'd like to invite you on a date — choose where you'd like to go." />

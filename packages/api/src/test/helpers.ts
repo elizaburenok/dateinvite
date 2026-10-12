@@ -1,4 +1,7 @@
 import type { FastifyInstance } from 'fastify';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { buildApp } from '../app.js';
 import { openDb, type Db } from '../db/index.js';
 import { buildDataCheckString, signInitData } from '../auth/initData.js';
@@ -50,6 +53,7 @@ export function recordingNotifier(): { notifier: Notifier; sent: RecordedNotific
 }
 
 export interface TestContext {
+  mediaDir: string;
   app: FastifyInstance;
   db: Db;
   sent: RecordedNotification[];
@@ -58,22 +62,25 @@ export interface TestContext {
 
 export async function makeTestContext(): Promise<TestContext> {
   const db = openDb(':memory:');
+  const mediaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'invite-test-'));
   const { notifier, sent } = recordingNotifier();
   const app = await buildApp({
     db,
     botToken: TEST_BOT_TOKEN,
     publicBaseUrl: PUBLIC_BASE_URL,
     envelopeTtlDays: 14,
-    mediaDir: '/nonexistent-media-dir',
+    mediaDir,
     notifier,
   });
   return {
+    mediaDir,
     app,
     db,
     sent,
     async close() {
       await app.close();
       db.close();
+      fs.rmSync(mediaDir, { recursive: true, force: true });
     },
   };
 }

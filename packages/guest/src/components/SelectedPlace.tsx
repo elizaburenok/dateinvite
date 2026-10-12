@@ -1,51 +1,33 @@
 import type { GuestPlace } from '@invite/shared';
 import { PhotoFrame } from './PhotoFrame.js';
-import letsGoArtwork from '../assets/lets-go.svg?raw';
-import { InlineArtwork } from './InlineArtwork.js';
+import { SelectedPlaceHeading } from './SelectedPlaceHeading.js';
 import backCircleUrl from '../assets/back-circle.svg';
 
 interface SelectedPlaceProps {
   place: GuestPlace;
-  composing: boolean;
-  onCompose(): void;
+  sending: boolean;
   onBack(): void;
 }
 
-export function SelectedPlace({ place, composing, onCompose, onBack }: SelectedPlaceProps) {
-  const address = place.address || place.district;
+export function SelectedPlace({ place, sending, onBack }: SelectedPlaceProps) {
   return (
-    <section className="selected-place" data-composing={composing || undefined} aria-label={place.name}>
+    <section className="selected-place" aria-label={place.name}>
       <button type="button" className="selected-place__back" onClick={onBack}
-        aria-label="Вернуться ко всем местам">
+        disabled={sending} aria-label="Вернуться ко всем местам">
         <img src={backCircleUrl} width="44" height="44" alt="" aria-hidden="true" />
       </button>
-      <p className="selected-place__text">
-        <span className="selected-place__identity">
-          <span className="selected-place__name">{place.name}</span>
-          {address && <span className="selected-place__address">{address}</span>}
-        </span>{place.note && <span className="selected-place__note">{place.note}</span>}
-      </p>
-
-      <div className="selected-place__actions">
-      {!composing && (
-        <button
-          type="button"
-          className="selected-place__go"
-          aria-label={`Let’s go — ${place.name}`}
-          aria-controls="guest-message"
-          aria-expanded={false}
-          onClick={onCompose}
-        >
-          <PhotoFrame
-            key={place.id}
-            photos={place.photos.slice(0, 1)}
-            alt=""
-            seed={place.id}
-            category={place.category}
-          />
-          <InlineArtwork className="selected-place__go-label" markup={letsGoArtwork} />
-        </button>
-      )}
+      <SelectedPlaceHeading name={place.name} address={place.address || place.district} />
+      <div className="selected-place__card">
+        <div className="selected-place__photo">
+          <PhotoFrame key={place.id} photos={place.photos.slice(0, 1)} alt={place.name}
+            seed={place.id} category={place.category} />
+        </div>
+        {place.note && (
+          <div className="selected-place__caption">
+            <h2>Note</h2>
+            <p>{place.note}</p>
+          </div>
+        )}
       </div>
     </section>
   );

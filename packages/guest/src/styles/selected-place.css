@@ -1,360 +1,241 @@
-/* Selected place, Figma 561:122. Center the note and keep the identity at its left. */
+/* Selected place — Figma 756:550. Geometry is scoped to the detail screen. */
 .page[data-picking] {
-  --selected-top: clamp(120px, 22.08dvh, 217px);
-  --selected-back-top: max(24px, 5.19dvh, env(safe-area-inset-top));
   max-width: none;
-  padding-top: var(--selected-top);
+  padding: max(54px, env(safe-area-inset-top)) var(--page-gutter) max(75px, env(safe-area-inset-bottom));
   font-family: var(--font-card);
+  background: url('../assets/wheel-wallpaper.png') center / cover fixed;
+  box-shadow:
+    inset -4px -12px 26px 16px rgb(255 255 255 / 25%),
+    inset 3px 12px 26px 15px rgb(255 255 255 / 47%);
 }
 
-.page[data-picking] ~ .dev-reset {
-  font-family: var(--font-card);
-}
-
-.page[data-picking] > .hero {
-  position: relative;
-  width: min(753px, 100%);
-  height: 0;
-  padding: 0;
-  margin-inline: auto;
-  animation: none;
-}
-
-.page[data-picking] .hero__row {
-  width: 100%;
+.page[data-picking] > .hero,
+.page[data-picking] > .attribution {
+  display: none;
 }
 
 .page[data-picking] > .reveal {
-  width: min(753px, 100%);
-  margin-inline: auto;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: min(352px, 100%);
+  height: auto;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 0;
 }
 
 .selected-place {
   position: relative;
   width: 100%;
-  text-align: center;
-  color: var(--c-answer, #424343);
+  color: #454949;
   animation: selected-place-appear 240ms var(--ease) both;
 }
 
-.selected-place__text {
-  display: flow-root;
-  width: calc(100% - 82px);
+.selected-place__heading {
+  width: 220px;
   margin: 0 auto;
+  font-family: var(--font-card);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.56px;
+  line-height: 28px;
   text-align: center;
-  font-size: 40px;
-  font-weight: 400;
-  line-height: 48px;
-  letter-spacing: -0.72px;
-  overflow-wrap: anywhere;
 }
 
-/* An inline block uses its last text baseline (the address) on the note's first line.
-   This follows wrapped names and addresses naturally, without a fixed vertical offset. */
-.selected-place__identity {
+.selected-place__heading svg {
+  display: block;
+  margin: -16px 0;
+  overflow: visible;
+  text-anchor: middle;
+  filter: drop-shadow(0 0.639px 8.01px #dad1a1);
+}
+
+.selected-place__card {
+  margin-top: 104px;
+}
+
+.selected-place__photo {
   position: relative;
-  opacity: 0.82;
-  display: inline-block;
-  width: max-content;
-  max-width: 180px;
-  margin: 0 4px 0 0;
-  padding: 0;
-  vertical-align: baseline;
-  text-align: left;
-  color: #434343;
-  font-weight: 600;
-  letter-spacing: normal;
-  filter: drop-shadow(0 2px 6.5px rgba(120, 119, 116, 0.18));
-}
-
-.selected-place__name {
-  display: block;
-  /* Wrap the title by words so its full unwrapped length does not add
-     invisible space after the address on the shared baseline. */
-  width: min-content;
-  max-width: 100%;
-  overflow-wrap: break-word;
-  font-size: 24px;
-  line-height: 22.464px;
-  letter-spacing: -1.44px;
-}
-
-.selected-place__address {
-  display: block;
-  width: max-content;
-  max-width: 180px;
-  font-size: 14px;
-  line-height: 12.096px;
-}
-
-.selected-place__note {
-  display: inline;
-  --text-outline: 1px;
-  white-space: pre-wrap;
-  transition: opacity var(--dur-base) var(--ease);
-}
-
-.selected-place__identity {
-  transition: opacity var(--dur-base) var(--ease);
-}
-
-.selected-place__go {
-  position: relative;
-  isolation: isolate;
-  display: block;
-  width: 180px;
-  height: 118px;
-  margin: 48px auto 0;
-  padding: 0;
-  overflow: hidden;
-  border: 0.567px solid rgba(226, 226, 226, 0.05);
-  border-radius: 16.395px;
-  background: transparent;
-  transform: rotate(4.41deg) scale(1);
+  width: min(322.896px, calc(100% - 28px));
+  aspect-ratio: 322.896 / 220;
+  margin: 0 auto;
+  border: 2.431px solid rgb(255 245 192 / 38%);
+  border-radius: 14.588px;
+  transform: rotate(-1.19deg);
   box-shadow:
-    0 3.087px 6.174px 3.087px rgba(58, 96, 90, 0.1),
-    0 5.246px 11.804px rgba(63, 46, 26, 0.07),
-    0 1.312px 1.967px rgba(63, 46, 26, 0.05),
-    0 5.246px 15.739px rgba(63, 46, 26, 0.07),
-    0 0.656px 1.312px rgba(63, 46, 26, 0.06);
-  /* Ease into hover and back without the fast initial kick used for presses. */
-  transition: transform 360ms var(--ease-deal);
+    0 5.928px 11.856px 5.928px rgb(181 177 155 / 10%),
+    0 4.863px 24.313px rgb(181 177 155 / 45%);
 }
 
-.selected-place__go .photo {
+.selected-place__photo::after {
+  content: '';
+  position: absolute;
+  inset: -1.216px;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 7.294px 12.157px 3.647px rgb(238 237 237 / 25%),
+    inset 0 -12.157px 4.863px rgb(47 40 45 / 36%);
+  pointer-events: none;
+}
+
+.selected-place__photo .photo {
   inset: 0;
   border-radius: inherit;
   corner-shape: round;
 }
 
-.selected-place__go .photo__scrim {
-  corner-shape: round;
-}
-
-.selected-place__go .photo__glyph {
+.selected-place__photo .photo__scrim {
   display: none;
 }
 
-.selected-place__go-label {
-  position: absolute;
+/* The caption overlaps the bottom edge of the image, just as in the design. */
+.selected-place__caption {
+  position: relative;
   z-index: 2;
-  top: calc(50% + 5px);
-  left: 50%;
-  display: block;
-  width: 148px;
-  height: 71px;
-  max-width: none;
-  transform: translate(-50%, -50%) rotate(-4.41deg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: -20.72px;
+  padding: 16px 20px;
+  border: 1px solid rgb(253 251 239 / 76%);
+  border-radius: 16px;
+  box-shadow: 0 4px 10px rgb(219 216 199 / 45%);
+  overflow-wrap: anywhere;
+}
+
+.selected-place__caption::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(249 250 237 / 40%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   pointer-events: none;
 }
 
-.selected-place__go-label > svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  shape-rendering: geometricPrecision;
+.selected-place__caption::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 -4px 15px rgb(255 255 255 / 25%),
+    inset 0 4px 15px rgb(255 255 255 / 25%);
+  pointer-events: none;
 }
 
-.selected-place__go:hover {
-  transform: rotate(3deg) scale(1.025);
+.selected-place__caption h2,
+.selected-place__caption p {
+  position: relative;
+  z-index: 1;
 }
 
-.selected-place__go:active {
-  transform: rotate(3deg) scale(0.97);
-  transition-duration: var(--dur-fast);
+.selected-place__caption h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: -0.36px;
 }
 
-.selected-place__go:focus-visible {
-  outline: 2px solid #434343;
-  outline-offset: 5px;
+.selected-place__caption p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: pre-wrap;
 }
 
 .page[data-picking] .note {
   position: relative;
   inset: auto;
-  /* Keep the reply width consistent regardless of the place's name or note. */
-  width: min(340px, 100%);
-  padding: 20px 24px;
-  border-radius: 40px;
+  flex: none;
+  width: min(327px, 100%);
+  min-height: 60px;
+  max-height: none;
+  margin: auto auto 0;
+  padding: 16px 68px 14px 20px;
+  border: 0;
+  border-radius: 16px;
+  corner-shape: round;
+  background: #f4f4da;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow:
+    inset 0 -2px 17px rgb(232 232 202 / 24%),
+    inset 0 2px 9px rgb(232 232 202 / 10%);
   align-items: flex-start;
+  gap: 8px;
   text-align: left;
-  gap: 16px;
-  /* Set the final geometry immediately; only fade and lift the reply into place. */
-  transform: translateY(18px);
-  transition:
-    opacity var(--dur-base) var(--ease),
-    transform var(--dur-base) var(--ease),
-    background-color var(--dur-fast) var(--ease),
-    box-shadow var(--dur-fast) var(--ease);
-}
-
-.page[data-picking] .note--open {
-  margin: 48px auto 0;
   transform: none;
+  scroll-margin-block: 24px;
 }
 
-.page[data-picking] .note:not(.note--open) {
-  max-height: 0;
-  margin: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-top-width: 0;
-  border-bottom-width: 0;
-  overflow: hidden;
+.page[data-picking] .selected-place {
+  margin-bottom: 48px;
+}
+
+.page[data-picking] .note__input,
+.page[data-picking] .note__error {
+  width: 100%;
 }
 
 .page[data-picking] .note__field,
 .page[data-picking] .note__ghost {
-  font-size: 18px;
-  line-height: 28px;
+  font-size: 16px;
   font-weight: 400;
-  letter-spacing: -0.5px;
+  line-height: 28px;
+  letter-spacing: -0.16px;
   text-align: left;
+  color: #4e4e4e;
+  overflow-wrap: anywhere;
 }
 
 .page[data-picking] .note__field {
-  min-height: 56px;
+  display: block;
+  min-height: 28px;
+  max-height: 168px;
+  overflow-y: auto;
 }
 
-.page[data-picking] .note__input {
-  width: calc(100% - 60px);
+.page[data-picking] .note__ghost {
+  opacity: 0.6;
 }
 
 .page[data-picking] .note__send {
   position: absolute;
-  right: 16px;
-  bottom: 16px;
+  right: 12px;
+  bottom: 9px;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: #FDF2B8;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border-radius: 12px;
+  background: transparent;
 }
 
 .page[data-picking] .note__send img {
   display: block;
-  width: 16px;
-  height: auto;
+  width: 24px;
+  height: 24px;
+  transform: rotate(-28.78deg);
 }
 
-.page[data-picking] .note__send:focus-visible {
-  outline: 2px solid var(--c-answer);
+.page[data-picking] .note__send:focus-visible,
+.selected-place__back:focus-visible {
+  outline: 2px solid #454949;
   outline-offset: 3px;
-}
-
-.page[data-picking] .note__error {
-  width: calc(100% - 60px);
-}
-
-@keyframes selected-place-appear {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 600px) {
-  .selected-place__text {
-    width: 100%;
-    /* Scale the centered note from 22px on small phones to 40px on desktop. */
-    font-size: clamp(22px, calc(6.429vw + 1.429px), 40px);
-    line-height: 1.1;
-    letter-spacing: -0.018em;
-  }
-
-  .page[data-picking] .note {
-    --note-fill: rgba(255, 253, 244, 0.58);
-    --note-focus-fill: rgba(255, 253, 244, 0.68);
-    position: fixed;
-    inset: auto 0 var(--keyboard-offset, 0px);
-    z-index: 60;
-    width: 100%;
-    min-height: clamp(220px, 30dvh, 300px);
-    max-height: 70dvh;
-    margin: 0;
-    padding: 36px 24px calc(80px + env(safe-area-inset-bottom));
-    border-radius: 32px 32px 0 0;
-    corner-shape: round;
-    align-items: center;
-    text-align: center;
-    transform: translateY(100%);
-  }
-
-  .page[data-picking] .note:not(.note--open) {
-    max-height: 70dvh;
-    margin: 0;
-    padding: 36px 24px calc(80px + env(safe-area-inset-bottom));
-    border-top-width: 1px;
-    border-bottom-width: 1px;
-  }
-
-  .page[data-picking] .note--open {
-    margin: 0;
-    transform: translateY(0);
-  }
-
-  .page[data-picking] .note__input,
-  .page[data-picking] .note__error {
-    width: 100%;
-  }
-
-  .page[data-picking] .note__field {
-    max-height: max(56px, calc(60dvh - 130px));
-    overflow-y: auto;
-  }
-
-  .page[data-picking] .note__send {
-    width: 52px;
-    height: 52px;
-    right: 24px;
-    bottom: calc(20px + env(safe-area-inset-bottom));
-  }
-
-  .page[data-picking] .note__send img {
-    width: 22px;
-  }
-
-  .selected-place__identity {
-    max-width: 140px;
-    margin-left: 0;
-  }
-
-  .selected-place__name {
-    font-size: clamp(16px, calc(2.857vw + 6.857px), 24px);
-    line-height: 0.95;
-    letter-spacing: -0.06em;
-  }
-
-  .selected-place__address {
-    max-width: 140px;
-    font-size: clamp(10px, calc(1.429vw + 5.429px), 14px);
-    line-height: 1;
-  }
-
-  .page[data-picking] .note__field,
-  .page[data-picking] .note__ghost {
-    line-height: 1.27;
-    letter-spacing: -0.023em;
-    overflow-wrap: anywhere;
-    text-align: center;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page[data-picking] .note {
-    transform: none;
-    transition: opacity var(--dur-fast) var(--ease);
-  }
-
-  .selected-place { animation: none; }
-  .selected-place__go { transition: none; }
-  .selected-place__note,
-  .selected-place__identity { transition: none; }
 }
 
 .selected-place__back {
   position: absolute;
-  top: calc(var(--selected-back-top) - var(--selected-top));
-  left: 0;
+  top: 0;
+  left: -56px;
   display: grid;
   place-items: center;
   width: 44px;
@@ -363,10 +244,30 @@
   border-radius: 50%;
 }
 
-.selected-place__back img {
-  display: block;
-  max-width: none;
+.selected-place__back img { display: block; max-width: none; }
+.selected-place__back:hover { opacity: 0.7; }
+.selected-place__back:disabled { opacity: 0.4; }
+
+@keyframes selected-place-appear {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.selected-place__back:hover { opacity: 0.7; }
-.selected-place__back:focus-visible { outline: 2px solid #434343; outline-offset: 3px; }
+@media (max-width: 600px) {
+  .page[data-picking] {
+    padding-top: max(36px, env(safe-area-inset-top));
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+  .selected-place__back { left: 0; }
+  .selected-place__card { margin-top: clamp(48px, 10dvh, 84px); }
+  .page[data-picking] .note { z-index: 3; }
+  .page[data-picking] ~ .dev-reset {
+    bottom: 2px;
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selected-place { animation: none; }
+}

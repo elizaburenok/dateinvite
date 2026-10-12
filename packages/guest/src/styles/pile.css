@@ -241,7 +241,7 @@
   position: absolute;
   z-index: 3;
   /*
-   * Дымка сидит ровно на карточке — той же ширины, высоты и формы (squircle),
+   * Дымка сидит ровно на карточке — той же ширины и высоты,
    * без выноса наружу. Прежде слой был шире колоды на поле с каждой стороны,
    * чтобы кромка карточки размывалась в обои. Но backdrop-filter сглаживает и
    * зерно обоев в этом поле, а его непрозрачная часть вплотную обнимала
@@ -250,7 +250,7 @@
    * наружу его не убирала: внутренний край (у самой кромки карточки) всё равно
    * оставался резким.
    *
-   * Прижав слой к карточке и обрезав его по её squircle-форме, мы сглаживаем
+   * Прижав слой к карточке и обрезав его с радиусом 12px, мы сглаживаем
    * только то, что под непрозрачной карточкой, — снаружи обои не трогаются
    * вовсе, ореолу взяться неоткуда. Кромка карточки при этом чёткая: карточка до
    * тапа читается матовым стеклом, а не растворяется в фоне.
@@ -260,17 +260,12 @@
   width: calc((var(--env-w) - 20px) * var(--pile-now));
   height: calc(var(--pile-deck-h) * var(--pile-now));
   transform: translateX(-50%);
-  /* Обрезка блюра по форме карточки: тот же радиус и squircle, что у .card. */
-  border-radius: var(--r-card);
-  corner-shape: var(--corner-card);
+  /* The blurred preview has its own 12px rounded edge. */
+  border-radius: 12px;
+  corner-shape: round;
   -webkit-backdrop-filter: blur(calc(var(--fog) * var(--pile-blur)));
   backdrop-filter: blur(calc(var(--fog) * var(--pile-blur)));
-  /*
-   * Та же стеклянная кромка, что у карточек на барабане (.wheel .card::before):
-   * outline рисуется по squircle (border и box-shadow в этом движке углы читают
-   * кругло — см. wheel.css). Слой дымки уже прижат к карточке той же формой и
-   * радиусом, поэтому кромка ложится ровно по краю превью.
-   */
+  /* Тонкая кромка повторяет скругление дымки. */
   outline: 1px solid rgba(255, 255, 255, 0.62);
   outline-offset: -1px;
   pointer-events: none;
@@ -515,27 +510,4 @@
 .pile__invitation[data-caption='above'] img,
 .pile__invitation[data-caption='below'] img {
   filter: none;
-}
-
-/* Печать лежит над дымкой и выступает за правый верхний угол карточки.
-   SVG содержит прозрачные поля: размер и вынос учитывают их. */
-.pile__stamp {
-  --stamp-card-w: calc((var(--env-w) - 20px) * var(--pile-now));
-  position: absolute;
-  z-index: 6;
-  top: calc(var(--wheel-headroom) - var(--stamp-card-w) * 0.22);
-  left: calc(50% + var(--stamp-card-w) * 0.175);
-  width: calc(var(--stamp-card-w) * 0.59);
-  height: auto;
-  display: block;
-  opacity: clamp(0, calc(var(--fog) * 1.7 - 0.7), 1);
-  pointer-events: none;
-  user-select: none;
-}
-
-@media (max-width: 480px) {
-  .pile__stamp {
-    /* На телефоне оставляем печать целиком в экране. */
-    left: calc(50% + var(--stamp-card-w) * 0.05);
-  }
 }

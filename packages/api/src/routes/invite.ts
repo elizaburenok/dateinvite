@@ -13,11 +13,15 @@ import {
 } from '../domain/envelopes.js';
 import { getUserById } from '../domain/users.js';
 import { makePublicUrl } from '../lib/media.js';
+import { PhotoStore } from '../resolver/photos.js';
+import { localPhotoUrl } from './photos.js';
+import type { PlaceRow } from '../domain/places.js';
 
 export interface InviteRoutesDeps {
   db: Db;
   publicBaseUrl: string;
   notifier: Notifier;
+  mediaDir: string;
 }
 
 /**
@@ -27,6 +31,7 @@ export interface InviteRoutesDeps {
 export async function inviteRoutes(app: FastifyInstance, deps: InviteRoutesDeps): Promise<void> {
   const { db, notifier } = deps;
   const toPublicUrl = makePublicUrl(deps.publicBaseUrl);
+  const photoStore = new PhotoStore({ mediaDir: deps.mediaDir });
 
   app.get<{ Params: { token: string } }>('/api/invite/:token', async (request, reply) => {
     const envelope = requireEnvelopeByToken(db, request.params.token);
@@ -41,7 +46,23 @@ export async function inviteRoutes(app: FastifyInstance, deps: InviteRoutesDeps)
       }
     }
 
-    const places = envelopePlaceRows(db, envelope.id);
+    // Invitations may contain previously stylized URLs. Resolve each saved
+    // frame to its original so every guest card uses the unfiltered photo.
+    const originals = new Map<string, Promise<string>>();
+    const guestPhoto = (url: string): Promise<string> => {
+      const source = localPhotoUrl(url, deps.publicBaseUrl);
+      let original = originals.get(source);
+      if (!original) {
+        original = photoStore.original(source).catch(() => url);
+        originals.set(source, original);
+      }
+      return original;
+    };
+    const places: PlaceRow[] = await Promise.all(envelopePlaceRows(db, envelope.id).map(async (row) => {
+      const savedPhotos: string[] = JSON.parse(row.photos);
+      const photos = await Promise.all(savedPhotos.map(guestPhoto));
+      return { ...row, photos: JSON.stringify(photos), photo_url: photos[0] ?? null };
+    }));
     const answer = getAnswer(db, envelope.id);
     // Ответ отдаём даже для протухшего конверта: страница сама покажет нужное состояние,
     // а контракт остаётся одной формы (§8).

@@ -15,6 +15,7 @@ import { resolvePlace, type ResolverInput } from '../resolver/index.js';
 import type { NominatimClient } from '../resolver/nominatim.js';
 import type { PostAnalyzer } from '../resolver/postAnalyzer.js';
 import type { PhotoStore } from '../resolver/photos.js';
+import { getPhotoStyle } from '../domain/photoStyle.js';
 import type { Locale } from '../locale/index.js';
 import { candidateLine, escapeHtml, placeCard } from './format.js';
 
@@ -297,6 +298,7 @@ export function createBot(deps: BotDeps): Bot {
           photoUrl = await deps.photoStore.saveFromUrl(
             `https://api.telegram.org/file/bot${deps.token}/${file.file_path}`,
             file.file_path,
+            getPhotoStyle(deps.db, user.id),
           );
         }
       } catch {

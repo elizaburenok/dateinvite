@@ -17,6 +17,7 @@ import './styles/wheel.css';
 // тем же весом селектора, и разводит их порядок подключения (см. шапку файла).
 import './styles/pile.css';
 import './styles/selected-place.css';
+import './styles/invitation-intro.css';
 import { App } from './App.js';
 
 const root = document.getElementById('root');

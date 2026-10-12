@@ -1,0 +1,124 @@
+.invitation-intro {
+  --intro-paper: #fdfdde;
+  --intro-ink: #4e4e4e;
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  background: var(--intro-paper);
+  color: var(--intro-ink);
+  box-shadow: inset -4px -12px 26px 16px rgb(255 255 255 / 25%), inset 3px 12px 26px 15px rgb(255 255 255 / 47%);
+  font-family: 'Inter Tight', sans-serif;
+  overscroll-behavior: none;
+}
+
+.invitation-intro__headline {
+  --text-outline: 1px;
+  position: absolute;
+  left: 50%;
+  top: 44.3%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  width: max-content;
+  font-size: clamp(32px, 4.5vw, 45px);
+  font-weight: 400;
+  line-height: 1.111111;
+  letter-spacing: -0.01em;
+  transition: opacity 280ms ease;
+}
+
+.invitation-intro__line { display: flex; white-space: nowrap; }
+.invitation-intro__line--card { align-items: center; height: 1.111111em; gap: 0.15em; }
+
+.invitation-intro__card {
+  position: relative;
+  flex: 0 0 auto;
+  width: 2.088889em;
+  height: 1.422222em;
+  display: block;
+  border: 1.062px solid rgb(230 84 154 / 41%);
+  border-radius: 5.312px;
+  background: #ee96c4;
+  overflow: hidden;
+  transform: rotate(6.57deg);
+  animation: invitation-card-sway 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.invitation-intro__card img,
+.invitation-intro__surface img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center 49%;
+  pointer-events: none;
+}
+
+.invitation-intro__hint {
+  position: absolute;
+  bottom: max(38px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 12px 20px;
+  font-size: 13px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: rgb(78 78 78 / 65%);
+  animation: invitation-hint-appear 700ms ease 900ms both;
+}
+
+.invitation-intro__arrow { font-size: 20px; animation: invitation-hint-down 2s ease-in-out infinite; }
+.invitation-intro[data-phase='expanding'] .invitation-intro__card { visibility: hidden; }
+.invitation-intro:not([data-phase='idle']) .invitation-intro__headline,
+.invitation-intro:not([data-phase='idle']) .invitation-intro__hint { opacity: 0; pointer-events: none; }
+.invitation-intro:not([data-phase='idle']) .invitation-intro__hint { animation: none; }
+
+.invitation-intro__surface {
+  position: fixed;
+  inset: 0 auto auto 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background: #ee96c4;
+  pointer-events: none;
+}
+
+/* The source image has grey bands above and below its pink artwork. As the
+   surface grows taller, crop those bands inside the moving card. At the small
+   starting size this keeps almost the same framing as the inline preview. */
+.invitation-intro__surface img {
+  position: absolute;
+  top: -25%;
+  height: 150%;
+}
+
+.invitation-intro[data-phase='revealing'] {
+  background: transparent;
+  box-shadow: none;
+}
+.invitation-intro[data-phase='revealing'] .invitation-intro__surface {
+  animation: invitation-surface-away 420ms ease-out both;
+}
+
+/* Keep the existing place wheel's geometry underneath the new entrance. */
+.page[data-entry-covered] > .reveal,
+.page[data-entry-covered] > .attribution { visibility: hidden; }
+
+@keyframes invitation-card-sway {
+  0%, 100% { transform: translateX(-1.5px) rotate(4deg); }
+  50% { transform: translateX(1.5px) rotate(8.5deg); }
+}
+@keyframes invitation-hint-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes invitation-hint-down { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+@keyframes invitation-surface-away { from { opacity: 1; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .invitation-intro__card, .invitation-intro__hint, .invitation-intro__arrow { animation: none; }
+  .invitation-intro__headline { transition: none; }
+}

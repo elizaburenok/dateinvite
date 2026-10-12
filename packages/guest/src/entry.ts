@@ -1,18 +1,7 @@
-/**
- * Чем открывается приглашение.
- *
- * Вход по умолчанию — кучка заблюренных мини-превью: гость сразу видит, что
- * места есть, но ещё не видит какие. Конверт остался вторым вариантом, чтобы
- * два входа можно было сравнить.
- *
- * Query-параметр, а не переключатель в интерфейсе: варианты смотрят рядом, в
- * двух вкладках, и ссылку с ?entry=envelope можно просто послать. Держать ради
- * этого состояние в приложении незачем — вход выбирают один раз на загрузку.
- */
-export type Entry = 'pile' | 'envelope';
+/** The inline pink card is the default; legacy entrances remain available by URL. */
+export type Entry = 'card' | 'pile' | 'envelope';
 
 export function entryFromLocation(): Entry {
-  return new URLSearchParams(window.location.search).get('entry') === 'envelope'
-    ? 'envelope'
-    : 'pile';
+  const entry = new URLSearchParams(window.location.search).get('entry');
+  return entry === 'envelope' || entry === 'pile' ? entry : 'card';
 }

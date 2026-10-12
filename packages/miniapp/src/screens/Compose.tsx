@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { ENVELOPE_MAX_PLACES, ENVELOPE_MIN_PLACES } from '@invite/shared/constants';
 import type { PlaceWithCandidates } from '@invite/shared';
 import { api, ApiError } from '../api.js';
@@ -57,7 +58,7 @@ export function ComposeDrawer({
         : !enough
           ? `Ещё ${ENVELOPE_MIN_PLACES - count} до сборки`
           : open
-            ? 'Подпись и сборка'
+            ? ''
             : 'Потяните вверх — соберём';
 
   function onGripPointerDown(event: React.PointerEvent) {
@@ -161,18 +162,29 @@ export function ComposeDrawer({
           }}
         >
           <span className="composed__grabber" />
+          <span className="composed__title">Ваш конверт</span>
           <div className="composed__peek">
             <span className="composed__count">
               {count} из {ENVELOPE_MAX_PLACES}
             </span>
-            <span className="composed__hint">{peekHint}</span>
+            {peekHint && <span className="composed__hint">{peekHint}</span>}
           </div>
         </div>
 
         <div className="composed__body">
           <div className="composed__panel">
             {chosen.length > 0 && (
-              <p className="composed__names">{chosen.map((place) => place.name).join(' · ')}</p>
+              <ul className="compose-deck" aria-label="Места в конверте">
+                {chosen.map((place, index) => (
+                  <li key={place.id} className="compose-deck__item"
+                    style={{ '--deck-angle': `${(index - (chosen.length - 1) / 2) * 5}deg`, zIndex: chosen.length - index } as CSSProperties}>
+                    <span className="compose-deck__name" title={place.name}>{place.name}</span>
+                    <div className="compose-deck__card">
+                      <PlaceThumb src={place.photo_url} name={place.name} seed={place.id} size="lg" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
 
             <input
@@ -195,7 +207,7 @@ export function ComposeDrawer({
                 disabled={!enough || tooMany || busy}
                 onClick={create}
               >
-                {busy ? 'Собираем…' : `Собрать конверт · ${count}`}
+                {busy ? 'Собираем…' : `Собрать конверт ${count}`}
               </button>
             </div>
           </div>
@@ -245,11 +257,9 @@ export function PlaceNoteEditor({
           </div>
         </div>
 
-        <label className="label" htmlFor="env-note">
-          Почему сюда — по желанию
-        </label>
         <textarea
           id="env-note"
+          aria-label="Заметка к месту"
           className="field field--area"
           rows={3}
           maxLength={500}
@@ -258,7 +268,6 @@ export function PlaceNoteEditor({
           value={note}
           onChange={(event) => setNote(event.target.value)}
         />
-        <p className="hint">Гость увидит её выжимкой на карточке. Можно оставить пустой.</p>
 
         {blocked && (
           <p className="error">

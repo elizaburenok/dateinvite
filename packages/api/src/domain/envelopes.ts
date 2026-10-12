@@ -57,6 +57,8 @@ export interface CreateEnvelopeInput {
    * наследуют все (обратная совместимость).
    */
   placeNotes?: Record<string, string | null>;
+  /** Materialized photos for this invitation, independent of later library edits. */
+  placePhotos?: Record<string, string[]>;
 }
 
 export function createEnvelope(db: Db, input: CreateEnvelopeInput): EnvelopeRow {
@@ -117,7 +119,7 @@ export function createEnvelope(db: Db, input: CreateEnvelopeInput): EnvelopeRow 
              @opened_at, @answered_at, @expires_at)`,
   );
   const insertLink = db.prepare(
-    'INSERT INTO envelope_places (envelope_id, place_id, position, note) VALUES (?, ?, ?, ?)',
+    'INSERT INTO envelope_places (envelope_id, place_id, position, note, photos) VALUES (?, ?, ?, ?, ?)',
   );
 
   // Заметку места конверт снимает копией — из присланной карты, а нет ключа —
@@ -136,7 +138,8 @@ export function createEnvelope(db: Db, input: CreateEnvelopeInput): EnvelopeRow 
   db.transaction(() => {
     insertEnvelope.run(envelope);
     // Порядок берём из запроса хоста, а не из порядка строк в БД.
-    unique.forEach((placeId, index) => insertLink.run(envelope.id, placeId, index, noteFor(placeId)));
+    unique.forEach((placeId, index) => insertLink.run(envelope.id, placeId, index, noteFor(placeId),
+      input.placePhotos?.[placeId] ? JSON.stringify(input.placePhotos[placeId]) : rowById.get(placeId)!.photos));
   })();
 
   return envelope;
@@ -162,7 +165,7 @@ export function envelopePlaceRows(db: Db, envelopeId: string): PlaceRow[] {
       // снимок заметки для этого конверта, а не живое поле места. Так весь
       // низлежащий код (toInviteResponse, сводка «Мои конверты») читает заметку
       // конверта, не меняя сигнатур.
-      `SELECT p.*, ep.note AS note FROM envelope_places ep
+      `SELECT p.*, ep.note AS note, COALESCE(ep.photos, p.photos) AS photos FROM envelope_places ep
        JOIN places p ON p.id = ep.place_id
        WHERE ep.envelope_id = ?
        ORDER BY ep.position`,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AnswerResponse, InviteResponse } from '@invite/shared';
 import { AnswerError } from './api.js';
 import resultUrl from './assets/result.svg';
@@ -9,6 +9,7 @@ import { CardWheel } from './components/envelope/CardWheel.js';
 import { Envelope, useEnvelopeOpening } from './components/envelope/Envelope.js';
 import { Pile, usePileReveal } from './components/pile/Pile.js';
 import { usePrefersReducedMotion } from './components/envelope/usePrefersReducedMotion.js';
+import { InvitationIntro } from './components/InvitationIntro.js';
 import type { Entry } from './entry.js';
 
 /**
@@ -20,7 +21,7 @@ const CLOSE_MS = 820;
 
 interface InvitePageProps {
   invite: InviteResponse;
-  /** Чем открывается приглашение: кучкой мини-превью или конвертом. */
+  /** Новый вход с розовой карточкой; прежние варианты доступны по URL. */
   entry: Entry;
   /** Отправку внедряет App: у демо-режима она своя, без бэкенда. */
   onSubmit(chosenPlaceId: string, message: string | null): Promise<AnswerResponse>;
@@ -40,8 +41,6 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Миниатюра выбранного места открывает поле ответа; отправляет его только Send.
-  const [composing, setComposing] = useState(false);
   // Идёт сворачивание выбранной карточки: выбор уже снят (сцена расходится назад
   // в барабан), но такт обратной пружины ещё играет. Флаг живёт CLOSE_MS и вешает
   // data-closing на .reveal — под ним карточка «сужается» (wheel.css).
@@ -57,14 +56,27 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   const skip = readOnly || reducedMotion;
   const envelope = useEnvelopeOpening(entry !== 'envelope' || skip, invite.places.length);
   const pile = usePileReveal(entry !== 'pile' || skip);
-  const { state, open } = entry === 'envelope' ? envelope : pile;
+  const [cardState, setCardState] = useState<'sealed' | 'dealing' | 'open'>(readOnly ? 'open' : 'sealed');
+  const revealCard = useCallback(() => setCardState('dealing'), []);
+  const finishCard = useCallback(() => setCardState('open'), []);
+  const { state, open } = entry === 'card'
+    ? { state: cardState, open: revealCard }
+    : entry === 'envelope' ? envelope : pile;
+  const introVisible = entry === 'card' && cardState !== 'open' && !readOnly;
+  const sceneVariant = entry === 'card' ? 'pile' : entry;
+
+  useEffect(() => {
+    if (entry !== 'card' || cardState !== 'open' || readOnly) return;
+    document.querySelector<HTMLElement>('.wheel')?.focus({ preventScroll: true });
+  }, [entry, cardState, readOnly]);
   // Снятие выбора через сворачивание: выбор убираем сразу (сцена и поле заметки
   // расходятся назад), а на такт закрытия поднимаем флаг closing — под ним
   // карточка доигрывает обратную пружину (wheel.css). Прежний таймер сбрасываем:
   // быстрое закрыл-открыл-закрыл не должно оборвать флаг досрочно.
   function close() {
+    if (sending) return;
     setSelected(null);
-    setComposing(false);
+    setError(null);
     setClosing(true);
     clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(() => setClosing(false), CLOSE_MS);
@@ -78,8 +90,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
       return;
     }
     setSelected(id);
-    // Новый выбор начинается с заметки автора и миниатюры-кнопки.
-    setComposing(false);
+    setError(null);
   }
 
   // Таймер флага закрытия не должен пережить размонтирование.
@@ -131,93 +142,98 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   // своей очереди задержкой (--pile-lead в invite.css), а не этим признаком.
   const bare = entry === 'pile' && state === 'sealed';
 
-  // Выбранное место показывает заметку автора и миниатюру для перехода к ответу.
+  // Просмотр места сразу открывает ответ; выбор подтверждается его отправкой.
   const picking = selected !== null && !readOnly;
 
   return (
-    <main
-      className="page"
-      data-variant={entry}
-      data-bare={bare || undefined}
-      data-picking={picking || undefined}
-    >
-      <LensFilter />
-
-      <header className="hero" />
-      {bare && (!new URLSearchParams(window.location.search).get('caption') ||
-        new URLSearchParams(window.location.search).get('caption') === 'top-left-text') && (
-        <div className="page-invitation">
-          <p className="page-invitation__lead">I’d like to meet<br />with you</p>
-          <p className="page-invitation__detail">This invitation has some places to choose from</p>
-        </div>
-      )}
-
-      <section
-        className="reveal"
-        data-state={state}
-        data-variant={entry}
-        data-closing={closing || undefined}
-        /*
-         * Размер колоды нужен самой сцене, а не только колоде: по нему кучка
-         * считает свою высоту в уменьшенном виде и ставит мишень с глифом ровно
-         * на верхнюю карточку. Колода объявляет его же у себя — она умеет
-         * работать и вне этой сцены.
-         */
-        style={{ '--n': Math.max(1, invite.places.length) } as React.CSSProperties}
+    <>
+      <main
+        className="page"
+        data-variant={sceneVariant}
+        data-entry-covered={(introVisible && cardState === 'sealed') || undefined}
+        inert={introVisible}
+        data-bare={bare || undefined}
+        data-picking={picking || undefined}
+        data-browsing={!picking && (state === 'dealing' || state === 'open') || undefined}
       >
-        <div hidden={picking}>
-          {entry === 'envelope' ? (
-            <Envelope state={state} onOpen={open} />
-          ) : (
-            // Кучка живёт ровно свой такт — до конца дымки, — и уходит, не
-            // дожидаясь конца роста.
-            //
-            // Раньше она досиживала до 'open', и это стоило верхней карточке
-            // отдельного, ни с чем не связанного вздрагивания в самом конце.
-            // Виден там уже не блюр: к концу такта и замутнение, и пелена, и
-            // мишень стоят на нуле. Виден снос слоя. Замутнение — backdrop-filter
-            // (.pile__haze), а он и с нулевым радиусом снимает подложку в
-            // отдельную поверхность; убирается слой — карточка растеризуется
-            // заново. Пока это происходило после роста, рябь приходилась на
-            // остановившуюся картинку, где её ни с чем не спутать.
-            //
-            // Теперь тот же снос приходится на границу тактов: движение только
-            // начинается, и прятать его больше ни во что не нужно.
-            (state === 'sealed' || state === 'unsealing') && <Pile state={state} onOpen={open} />
-          )}
-          <CardWheel
-            places={invite.places}
-            selected={selected}
-            readOnly={readOnly}
-            state={state}
-            onSelect={toggle}
-          />
-        </div>
+        <LensFilter />
 
-        {picking && selectedPlace && (
-          <SelectedPlace
-            place={selectedPlace}
-            composing={composing}
-            onCompose={() => setComposing(true)}
-            onBack={close}
-          />
+        <header className="hero" />
+        {bare && (!new URLSearchParams(window.location.search).get('caption') ||
+          new URLSearchParams(window.location.search).get('caption') === 'top-left-text') && (
+          <div className="page-invitation">
+            <p className="page-invitation__lead">I’d like to meet<br />with you</p>
+            <p className="page-invitation__detail">This invitation has some places to choose from</p>
+          </div>
         )}
 
-        {/* Поле ответа раскрывается после нажатия на миниатюру выбранного места. */}
-        {!readOnly && (
-          <NoteComposer
-            value={message}
-            open={picking && composing}
+        <section
+          className="reveal"
+          data-state={state}
+          data-variant={sceneVariant}
+          data-closing={closing || undefined}
+          /*
+           * Размер колоды нужен самой сцене, а не только колоде: по нему кучка
+           * считает свою высоту в уменьшенном виде и ставит мишень с глифом ровно
+           * на верхнюю карточку. Колода объявляет его же у себя — она умеет
+           * работать и вне этой сцены.
+           */
+          style={{ '--n': Math.max(1, invite.places.length) } as React.CSSProperties}
+        >
+          <div hidden={picking}>
+            {entry === 'envelope' ? (
+              <Envelope state={state} onOpen={open} />
+            ) : (
+              // Кучка живёт ровно свой такт — до конца дымки, — и уходит, не
+              // дожидаясь конца роста.
+              //
+              // Раньше она досиживала до 'open', и это стоило верхней карточке
+              // отдельного, ни с чем не связанного вздрагивания в самом конце.
+              // Виден там уже не блюр: к концу такта и замутнение, и пелена, и
+              // мишень стоят на нуле. Виден снос слоя. Замутнение — backdrop-filter
+              // (.pile__haze), а он и с нулевым радиусом снимает подложку в
+              // отдельную поверхность; убирается слой — карточка растеризуется
+              // заново. Пока это происходило после роста, рябь приходилась на
+              // остановившуюся картинку, где её ни с чем не спутать.
+              //
+              // Теперь тот же снос приходится на границу тактов: движение только
+              // начинается, и прятать его больше ни во что не нужно.
+              entry === 'pile' && (state === 'sealed' || state === 'unsealing') && <Pile state={state} onOpen={open} />
+            )}
+            <CardWheel
+              places={invite.places}
+              selected={selected}
+              readOnly={readOnly}
+              state={state}
+              onSelect={toggle}
+            />
+          </div>
+
+          {picking && selectedPlace && (
+            <SelectedPlace
+              place={selectedPlace}
             sending={sending}
-            error={error}
-            onChange={setMessage}
-            onSubmit={submit}
-          />
-        )}
-      </section>
+              onBack={close}
+            />
+          )}
 
-      <p className="attribution">Данные о местах — © участники OpenStreetMap</p>
+        {/* Sent отправляет ответ и подтверждает выбранное место одним действием. */}
+          {!readOnly && (
+            <NoteComposer
+              value={message}
+            open={picking}
+              sending={sending}
+              error={error}
+              onChange={setMessage}
+              onSubmit={submit}
+            />
+          )}
+        </section>
 
-    </main>
+        <p className="attribution">Данные о местах — © участники OpenStreetMap</p>
+
+      </main>
+    {introVisible && <InvitationIntro onReveal={revealCard} onFinish={finishCard} />}
+    </>
   );
 }

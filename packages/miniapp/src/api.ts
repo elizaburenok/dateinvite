@@ -6,6 +6,7 @@ import type {
   PlacesResponse,
   PlaceWithCandidates,
   UpdatePlaceRequest,
+  HalftoneSettings,
 } from '@invite/shared';
 import { initData } from './telegram.js';
 
@@ -49,6 +50,11 @@ function query(filters: PlaceFilters): string {
 }
 
 export const api = {
+  photoStyle: () => request<HalftoneSettings>('/api/photo-style'),
+  savePhotoStyle: (settings: HalftoneSettings) => request<HalftoneSettings>('/api/photo-style', { method: 'PUT', body: JSON.stringify(settings) }),
+  photoSource: (url: string) => request<{ source_url: string; settings: HalftoneSettings }>(`/api/photos/source?photo_url=${encodeURIComponent(url)}`),
+  uploadPhoto: (file: File) => request<{ source_url: string }>('/api/photos', { method: 'POST', body: file, headers: { 'content-type': file.type } }),
+  renderPhoto: (url: string, settings: HalftoneSettings) => request<{ photo_url: string }>('/api/photos/render', { method: 'POST', body: JSON.stringify({ photo_url: url, settings }) }),
   places: (filters: PlaceFilters = {}) => request<PlacesResponse>(`/api/places${query(filters)}`),
 
   place: (id: string) => request<PlaceWithCandidates>(`/api/places/${id}`),

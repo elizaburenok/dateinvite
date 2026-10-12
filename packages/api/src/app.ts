@@ -6,6 +6,7 @@ import type { Db } from './db/index.js';
 import { DomainError } from './domain/errors.js';
 import { hostRoutes } from './routes/host.js';
 import { inviteRoutes } from './routes/invite.js';
+import { photoRoutes } from './routes/photos.js';
 import { noopNotifier, type Notifier } from './notify.js';
 import type { Locale } from './locale/index.js';
 
@@ -48,16 +49,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   app.get('/api/health', async () => ({ ok: true }));
 
-  if (fs.existsSync(deps.mediaDir)) {
-    await app.register(fastifyStatic, {
-      root: deps.mediaDir,
-      prefix: '/media/',
-      // Кешированные снимки не меняются: имя файла содержит хеш содержимого.
-      maxAge: '30d',
-      index: false,
-      list: false,
-    });
-  }
+  fs.mkdirSync(deps.mediaDir, { recursive: true });
+  await app.register(fastifyStatic, {
+    root: deps.mediaDir,
+    prefix: '/media/',
+    // Кешированные снимки не меняются: имя файла содержит хеш содержимого.
+    maxAge: '30d',
+    index: false,
+    list: false,
+  });
 
   await app.register(hostRoutes, {
     db: deps.db,
@@ -65,11 +65,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     publicBaseUrl: deps.publicBaseUrl,
     envelopeTtlDays: deps.envelopeTtlDays,
     locale: deps.locale,
+    mediaDir: deps.mediaDir,
   });
+
+  await app.register(photoRoutes, deps);
 
   await app.register(inviteRoutes, {
     db: deps.db,
     publicBaseUrl: deps.publicBaseUrl,
+    mediaDir: deps.mediaDir,
     notifier: deps.notifier ?? noopNotifier,
   });
 

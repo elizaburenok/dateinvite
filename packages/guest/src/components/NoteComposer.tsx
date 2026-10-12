@@ -1,13 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePrefersReducedMotion } from './envelope/usePrefersReducedMotion.js';
-import sendUrl from '../assets/send.svg';
+import sendUrl from '../assets/selected-send.svg';
 
-/**
- * Примеры того, что сюда пишут. Первый — из макета, второй добавляет второй
- * тон: не «согласен и во сколько», а «согласен и с кем». Печатаются по очереди,
- * так что подсказка заодно показывает, что поле живое, и что ответ короткий.
- */
-const EXAMPLES = ['Sounds awesome! See you on 7pm', "Can't wait — can I bring a friend?"];
+/** The design's prompt leads the existing rotating reply examples. */
+const EXAMPLES = ['Let’s go there', 'Sounds awesome! See you at 7pm', "Can't wait — can I bring a friend?"];
 
 interface NoteComposerProps {
   value: string;
@@ -19,20 +15,8 @@ interface NoteComposerProps {
   onSubmit(): void;
 }
 
-/**
- * Поле-заметка под выбранной карточкой.
- *
- * Единственное тёмное пятно на всей светлой странице — так в макете, и это же
- * делает всю работу: карточка выше остаётся главной, а ответ читается вторым
- * шагом, не споря с ней за внимание. Отдельной кнопки-плашки внизу больше нет,
- * «Send» живёт внутри поля.
- *
- * Пока поле пустое и не в фокусе, в нём печатается пример ответа с курсором на
- * конце (см. .note__ghost). Он делает две вещи разом: показывает, что тут вообще
- * пишут (тёмное стекло без него читалось надписью), и подсказывает, каким ответ
- * бывает — короткой живой репликой, а не сочинением. Как только человек ставит
- * курсор или начинает печатать, пример гаснет и поле становится обычным.
- */
+/** Reply and confirm the place in one step. The typewriter is only a hint;
+ * its text is never included in the submitted value. */
 export function NoteComposer({
   value,
   open,
@@ -63,7 +47,7 @@ export function NoteComposer({
     const el = field.current;
     if (!el) return;
     const resize = () => {
-      el.style.height = 'auto';
+      el.style.height = '0px';
       el.style.height = `${Math.max(el.scrollHeight, example.current?.offsetHeight ?? 0)}px`;
     };
     resize();
@@ -187,7 +171,7 @@ export function NoteComposer({
           // заметка в одну-две строки, поэтому Enter отправляет, а перенос — по
           // Shift+Enter, как в мессенджерах, откуда на эту страницу и приходят.
           onKeyDown={(event) => {
-            if (event.key !== 'Enter' || event.shiftKey) return;
+            if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
             event.preventDefault();
             onSubmit();
           }}
@@ -195,11 +179,11 @@ export function NoteComposer({
       </div>
 
       <button type="submit" className="note__send" disabled={sending}
-        aria-label={sending ? 'Sending…' : 'Send'} aria-busy={sending}>
-        <img src={sendUrl} width="24" height="25" alt="" aria-hidden="true" />
+        aria-label={sending ? 'Sending…' : 'Sent'} aria-busy={sending}>
+        <img src={sendUrl} width="24" height="24" alt="" aria-hidden="true" />
       </button>
 
-      {error && <p className="note__error">{error}</p>}
+      {error && <p className="note__error" role="alert">{error}</p>}
     </form>
   );
 }

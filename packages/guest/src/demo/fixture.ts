@@ -20,7 +20,7 @@ export const DEMO_INVITE: InviteResponse = {
   places: [
     {
       id: 'demo-1',
-      name: 'Cooperative Chorny',
+      name: 'Kooperative Chorny',
       address: '12 Bolshaya Nikitskaya',
       district: 'Patriarshiye',
       category: 'Coffee shop',

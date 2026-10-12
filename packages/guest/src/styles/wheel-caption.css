@@ -1,0 +1,86 @@
+/* Figma 756:561: neutral captions beneath the photos. */
+.wheel {
+  --r-card: 12px;
+  --r-card-inner: 12px;
+  --corner-card: round;
+  --wheel-caption-fill: #4e4e4e;
+}
+
+/* Titles now sit below the photo, so the old scrim for text on the photo and
+   the extra shading on receding wheel faces are no longer needed. */
+.wheel .photo__scrim,
+.wheel__shade {
+  display: none;
+}
+
+.wheel .card::before {
+  box-shadow: none;
+}
+
+.wheel__content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* Composite the photo and caption before the cylinder's 3D transform.
+     Otherwise their coplanar layers intersect on mobile compositors. */
+  isolation: isolate;
+  transform-style: flat;
+}
+
+.wheel__visual {
+  width: 100%;
+  height: 100%;
+  transform: none;
+  transition: transform 1100ms var(--ease);
+}
+
+.wheel[data-dealt] .wheel__visual {
+  /* Reserve room for the tilt and caption within the original wheel slot. */
+  transform: scale(0.82) rotate(var(--wheel-tilt));
+}
+
+.wheel[data-dealt] .card__body {
+  display: none;
+}
+
+.wheel__caption {
+  position: absolute;
+  z-index: 6;
+  top: 91%;
+  left: 50%;
+  width: max-content;
+  max-width: none;
+  margin: 0;
+  transform: translateX(-50%) scale(calc(1 / var(--wheel-scale, 1)));
+  transform-origin: top center;
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease);
+  pointer-events: none;
+  user-select: none;
+}
+
+.wheel[data-dealt] .wheel__caption {
+  opacity: 1;
+}
+
+.wheel__caption canvas {
+  display: block;
+  margin-top: -24px;
+  height: auto;
+  overflow: visible;
+  font-family: var(--font-card);
+  font-size: 32px;
+  font-weight: var(--w-medium);
+  letter-spacing: -0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel__visual { transition: none; }
+  .wheel__caption { transition: none; transform: translateX(-50%); }
+  .wheel .wheel__drum { gap: 120px; }
+  .wheel .wheel__item { aspect-ratio: auto; }
+  .wheel__content { height: auto; }
+  .wheel__visual { aspect-ratio: var(--card-ratio); height: auto; }
+  .wheel__card { aspect-ratio: var(--card-ratio); height: auto; }
+  .wheel__caption { position: relative; top: auto; margin-top: -4%; }
+}

@@ -12,6 +12,7 @@
     "smoke:resolver": "npm run build && node --env-file-if-exists=../../.env dist/scripts/smoke-resolver.js",
     "seed:dev": "npm run build && node --env-file-if-exists=../../.env dist/scripts/seed-dev.js",
     "translate:places": "npm run build && node --env-file-if-exists=../../.env dist/scripts/translate-places.js",
+    "style:guest-demo": "npm run build && node dist/scripts/styleGuestDemo.js",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
     "better-sqlite3": "^12.2.0",
     "fastify": "^5.5.0",
     "grammy": "^1.38.1",
+    "sharp": "^0.35.5",
     "zod": "^4.1.5"
   },
   "devDependencies": {

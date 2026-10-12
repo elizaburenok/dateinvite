@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { GuestPlace } from '@invite/shared';
 import { PlaceCard } from '../PlaceCard.js';
+import { WheelCaption } from './WheelCaption.js';
+import '../../styles/wheel-caption.css';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion.js';
 import type { EnvelopeState } from './Envelope.js';
 
@@ -11,6 +13,7 @@ interface CardWheelProps {
   state: EnvelopeState;
   onSelect(id: string): void;
 }
+
 
 /* ========================================================================== *
  * Числа барабана — вариант «Колесо», подобранный на стенде
@@ -24,7 +27,7 @@ const STEP = 30;
 /** Радиус цилиндра в высотах карточки: на нём соседи расходятся с просветом.
  *  Меньше — соседи сходятся ближе к центральной по вертикали (тот же наклон
  *  STEP, тот же снап и та же раздача — короче только просвет между гранями). */
-const RADIUS = 2.2;
+const RADIUS = 3.08;
 /** Перспектива сцены (px). Больше — слабее ракурс, барабан площе и спокойнее. */
 const PERSP = 2200;
 /** За этим углом карточку не рисуем: она уже отвернулась от зрителя. */
@@ -64,22 +67,11 @@ const DEAL_MS = 1100;
  * одна из другой. Прежде это глушили прозрачностью (соседи выезжали призраками),
  * но пересечение от этого не исчезало, только становилось полупрозрачным.
  *
- * Число не на глаз, а из прогона геометрии. Считаем, где плоскость соседа
- * пересекает плоскость передней карточки, и смотрим, попадает ли эта линия в
- * тело соседа. Критичен ближайший сосед (дальние расходятся быстрее), и самый
- * тесный момент у него — около spread ≈ 0.6. Запас там по STACK_Z:
- *
- *   26px → −3px (всё ещё режутся)   34px → +7px
- *   30px → +3px (впритык)           38px → +11px
- *
- * Берём 38: одиннадцати пикселей хватает, чтобы порог пережил и субпиксельную
- * разницу движков, и небольшую правку RADIUS / STEP / GROW. Платим перспективным
- * сжатием стопки — 1.7% на первом соседе, 4.9% на третьем; в стопке это и
- * читается как стопка, а к середине хода смещение уже наполовину разошлось.
+ * Смещение 50px оставляет запас между соседними гранями во время раздачи.
  *
  * Если поедут RADIUS / STEP / GROW — прогнать заново, а не подкручивать на глаз.
  */
-const STACK_Z = 38;
+const STACK_Z = 50;
 
 /** Пикселей нативного скролла на одну карточку (мобильный ввод). */
 const PX = 150;
@@ -372,6 +364,8 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       // системе): карточка растёт в своей плоскости, и лишь потом её выносит R.
       const near = Math.max(0, Math.cos((deg / STEP) * (Math.PI / 2)));
       const scale = 1 + GROW * near;
+      // Keep caption type sizes independent of the photo’s centre enlargement.
+      el.style.setProperty('--wheel-scale', scale.toFixed(4));
       // Разведение по глубине: на раздаче карточки лежат стопкой (каждая
       // следующая чуть дальше от зрителя), к полному раскрытию смещение сходит в
       // ноль и барабан становится честным цилиндром. Считаем от dist, а не от
@@ -847,17 +841,22 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
               // его querySelector'ом на каждый кадр прокрутки (см. paint).
               shadesRef.current[index] = el?.querySelector<HTMLElement>('.wheel__shade') ?? null;
             }}
-            style={{ '--i': index } as React.CSSProperties}
+            style={{ '--i': index, '--wheel-tilt': index % 2 === 0 ? '2deg' : '-2.5deg' } as React.CSSProperties}
           >
-            <div className="wheel__card">
-              <PlaceCard
-                place={place}
-                selected={selected === place.id}
-                readOnly={readOnly}
-                onSelect={onSelect}
-              />
-              {/* Затемнение уходящей в глубину грани — opacity пишет paint(). */}
-              <div className="wheel__shade" aria-hidden="true" />
+            <div className="wheel__content">
+              <div className="wheel__visual">
+                <div className="wheel__card">
+                  <PlaceCard
+                    place={place}
+                    selected={selected === place.id}
+                    readOnly={readOnly}
+                    onSelect={onSelect}
+                  />
+                  {/* Затемнение уходящей в глубину грани — opacity пишет paint(). */}
+                  <div className="wheel__shade" aria-hidden="true" />
+                </div>
+              </div>
+            <WheelCaption name={place.name} visible={!focused} />
             </div>
           </div>
         ))}

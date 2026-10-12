@@ -7,6 +7,7 @@ import { PlaceDetail } from './screens/PlaceDetail.js';
 import { AddPlace } from './screens/AddPlace.js';
 import { ComposeDrawer, PlaceNoteEditor } from './screens/Compose.js';
 import { Envelopes } from './screens/Envelopes.js';
+import { PhotoEditor } from './screens/PhotoEditor.js';
 import { haptic } from './telegram.js';
 
 type View = 'library' | 'envelopes';
@@ -18,6 +19,7 @@ export function App() {
   const [openPlace, setOpenPlace] = useState<PlaceWithCandidates | null>(null);
   // Открыт лист ручного добавления места.
   const [adding, setAdding] = useState(false);
+  const [editingPhotoStyle, setEditingPhotoStyle] = useState(false);
   const [composing, setComposing] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
   // Заметки к местам этого конверта по id места. Набираются на фазе выбора,
@@ -120,27 +122,13 @@ export function App() {
 
   return (
     <div className={`app${composing ? ' app--composing' : ''}`}>
-      <header className="top">
-        <nav className="top__nav">
-          <button
-            type="button"
-            className={`top__tab${view === 'library' ? ' top__tab--on' : ''}`}
-            onClick={() => setView('library')}
-          >
-            Места
+      {view === 'envelopes' && (
+        <div className="screen">
+          <button type="button" className="btn" onClick={() => setView('library')}>
+            ← К местам
           </button>
-          <button
-            type="button"
-            className={`top__tab${view === 'envelopes' ? ' top__tab--on' : ''}`}
-            onClick={() => {
-              setView('envelopes');
-              void loadEnvelopes();
-            }}
-          >
-            Конверты
-          </button>
-        </nav>
-      </header>
+        </div>
+      )}
 
       {view === 'library' ? (
         <Library
@@ -150,6 +138,7 @@ export function App() {
           onOpenPlace={setOpenPlace}
           onPickPlace={pickPlace}
           onAddPlace={() => setAdding(true)}
+          onPhotoStyle={() => setEditingPhotoStyle(true)}
         />
       ) : (
         <Envelopes envelopes={envelopes} />
@@ -198,6 +187,8 @@ export function App() {
           }}
         />
       )}
+
+      {editingPhotoStyle && <PhotoEditor sampleUrl={places.places.find((place) => place.photo_url)?.photo_url} onClose={() => setEditingPhotoStyle(false)} />}
 
       {openPlace && (
         <PlaceDetail

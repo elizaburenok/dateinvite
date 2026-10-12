@@ -31,6 +31,9 @@ import { setUserCity } from '../domain/users.js';
 import { makePublicUrl } from '../lib/media.js';
 import { badRequest, notFound } from '../domain/errors.js';
 import { passthroughLocale, type Locale } from '../locale/index.js';
+import { PhotoStore } from '../resolver/photos.js';
+import { getPhotoStyle } from '../domain/photoStyle.js';
+import { localPhotoUrl } from './photos.js';
 
 export interface HostRoutesDeps {
   db: Db;
@@ -38,6 +41,7 @@ export interface HostRoutesDeps {
   publicBaseUrl: string;
   envelopeTtlDays: number;
   locale?: Locale;
+  mediaDir: string;
 }
 
 /** Роуты Mini App (§8). Каждый запрос подтверждается свежей initData. */
@@ -46,6 +50,13 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
   const locale = deps.locale ?? passthroughLocale;
   const toPublicUrl = makePublicUrl(deps.publicBaseUrl);
   const requireHost = makeRequireHost({ db, botToken: deps.botToken });
+  const photoStore = new PhotoStore({ mediaDir: deps.mediaDir });
+  const preparePhotos = async (photos: string[], ownerId: string) => {
+    const style = getPhotoStyle(db, ownerId);
+    const prepared: string[] = [];
+    for (const photo of photos) prepared.push(await photoStore.prepare(localPhotoUrl(photo, deps.publicBaseUrl), style));
+    return prepared;
+  };
 
   app.addHook('preHandler', requireHost);
 
@@ -121,6 +132,7 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
       owner_id: user.id,
       ...parsed.data,
       ...english,
+      photos: await preparePhotos(parsed.data.photos, user.id),
       source: 'manual',
       // Хост вводит данные руками — подтверждать нечего, это уже его правда.
       enrichment_status: 'resolved',
@@ -138,6 +150,7 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
     }
 
     const { confirm_candidate_id, ...patch } = parsed.data;
+    if (patch.photos) patch.photos = await preparePhotos(patch.photos, user.id);
 
     if (confirm_candidate_id) {
       const confirmed = confirmCandidate(db, user.id, request.params.id, confirm_candidate_id);
@@ -170,11 +183,23 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
       const first = parsed.error.issues[0];
       throw badRequest('invalid_place_count', first?.message ?? 'Некорректный конверт');
     }
+    // Materialize old local originals too, so every future selection uses the paper style.
+    // Validate the whole selection before rendering photos.
+    const selected = parsed.data.place_ids.map((id) => getPlaceRow(db, user.id, id));
+    if (new Set(parsed.data.place_ids).size !== parsed.data.place_ids.length) throw badRequest('duplicate_places', 'В конверте не может быть одного и того же места дважды');
+    if (selected.some((row) => !row)) throw badRequest('unknown_place', 'Некоторые места не найдены в вашей библиотеке');
+    if (selected.some((row) => row!.enrichment_status !== 'resolved')) throw badRequest('unconfirmed_place', 'Сначала подтвердите места');
+    const placePhotos: Record<string, string[]> = {};
+    for (const row of selected) {
+      const place = rowToPlace(row!);
+      placePhotos[place.id] = await preparePhotos(place.photos, user.id);
+    }
     const envelope = createEnvelope(db, {
       ownerId: user.id,
       placeIds: parsed.data.place_ids,
       hostNote: parsed.data.host_note,
       placeNotes: parsed.data.place_notes,
+      placePhotos,
       ttlDays: deps.envelopeTtlDays,
     });
     return reply.code(201).send({
