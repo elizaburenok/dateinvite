@@ -33,16 +33,20 @@ visudo -cf /etc/sudoers.d/deployer   # проверка синтаксиса, д
 
 ## 3. SSH-ключ для CI
 
-Сгенерируйте пару **без пароля** (пароль на ключе некому вводить в CI):
+Сгенерируйте пару **без пароля** (пароль на ключе некому вводить в CI).
+Если пользователь `deployer` и ключ уже существуют, не перезаписывайте их:
 
 ```bash
+install -d -m 700 -o deployer -g deployer /home/deployer/.ssh
 sudo -u deployer ssh-keygen -t ed25519 -N '' -f /home/deployer/.ssh/deploy_key -C 'github-actions-deploy'
 sudo -u deployer bash -c 'cat /home/deployer/.ssh/deploy_key.pub >> /home/deployer/.ssh/authorized_keys'
 chmod 600 /home/deployer/.ssh/authorized_keys
 ```
 
-Приватный ключ (`/home/deployer/.ssh/deploy_key`) уйдёт в секрет GitHub, потом его
-с сервера можно удалить.
+На сервере прочитайте `/home/deployer/.ssh/deploy_key` и скопируйте его целиком
+в секрет GitHub `DEPLOY_SSH_KEY`. Не отправляйте ключ в чат и не добавляйте его
+в репозиторий. После успешной проверки деплоя приватный ключ на сервере можно
+удалить; публичный ключ в `authorized_keys` оставьте.
 
 Заодно снимите строку known_hosts для строгой проверки хоста (шаг 4, необязательный,
 но желательный):
@@ -69,8 +73,9 @@ Settings → Secrets and variables → Actions → **New repository secret**:
 
 - Вкладка **Actions** → workflow **Deploy** → **Run workflow** (ручной запуск), либо
   любой пуш в `main`.
-- Зелёный прогон = сервер обновился. Красный — смотрите лог шага «Обновить
-  приложение на сервере».
+- Зелёный прогон = сервер обновился. Если написано `Missing repository secret
+  DEPLOY_SSH_KEY`, добавьте ключ из шага 3. При другой ошибке смотрите лог шага
+  «Обновить приложение на сервере».
 
 ## Ручной запуск как раньше
 
