@@ -34,13 +34,26 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
         run: |
           set -euo pipefail
+          if [ -z "$DEPLOY_SSH_KEY" ]; then
+            echo "::error::Missing repository secret DEPLOY_SSH_KEY. See deploy/AUTODEPLOY.md."
+            exit 1
+          fi
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ]; then
+            echo "::error::Missing repository secret DEPLOY_HOST or DEPLOY_USER."
+            exit 1
+          fi
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null 2>&1; then
+            echo "::error::DEPLOY_SSH_KEY is not a valid unencrypted SSH private key."
+            exit 1
+          fi
           if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
             printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           else
