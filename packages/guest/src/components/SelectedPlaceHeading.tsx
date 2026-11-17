@@ -1,3 +1,4 @@
+import { PRIMARY_GRADIENT } from '@invite/shared/design-tokens';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 
 /** Live text with the wheel's gradient outline, sized for the detail screen. */
@@ -55,15 +56,15 @@ export function SelectedPlaceHeading({ name, address }: { name: string; address:
       <svg width="220" height={height} viewBox={`0 0 220 ${height}`} aria-hidden="true">
         <defs>
           <linearGradient id={gradientId} x1="0" y1="1" x2="1" y2="0">
-            <stop offset="27.885%" stopColor="#fced99" />
-            <stop offset="63.462%" stopColor="#ffd7b0" />
-            <stop offset="100%" stopColor="#f9b1b3" />
+            {PRIMARY_GRADIENT.stops.map((stop) => (
+              <stop key={stop.cssVariable} offset={stop.offset} stopColor={`var(${stop.cssVariable})`} />
+            ))}
           </linearGradient>
         </defs>
-        <g fill="none" stroke={`url(#${gradientId})`} strokeWidth="16" strokeLinejoin="round" opacity="0.23">
+        <g fill="none" stroke={`url(#${gradientId})`} strokeWidth="16" strokeLinejoin="round" style={{ opacity: `var(${PRIMARY_GRADIENT.opacityVariable})` }}>
           {lines.map((line, i) => <text key={i} x="110" y={39 + i * 28}>{line}</text>)}
         </g>
-        <g fill="#4e4e4e">
+        <g fill="var(--invite-primitive-primary)">
           {lines.map((line, i) => <text key={i} x="110" y={39 + i * 28}>{line}</text>)}
         </g>
       </svg>

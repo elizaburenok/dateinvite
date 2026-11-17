@@ -1,12 +1,9 @@
 import { useReveal, type RevealChain, type RevealState } from '../envelope/useReveal.js';
-import tapArtwork from '../../assets/Tap.svg?raw';
-import { InlineArtwork } from '../InlineArtwork.js';
-import startUrl from '../../assets/start.svg';
 
 /**
  * Кучка мини-превью — вход по умолчанию (второй, конверт, живёт в Envelope.tsx).
  *
- * Страница открывается маленькой заблюренной кучкой карточек: видно, что места
+ * Страница открывается маленькой заблюренной кучкой карточек: видно, что places
  * есть, и не видно, какие именно. Поверх — «Tap». По нажатию блюр уходит
  * дымкой, кучка сходится и вырастает до полного размера, дальше это обычная
  * колода-карусель.
@@ -79,18 +76,13 @@ export function Pile({ state, onOpen }: PileProps) {
         по которой у конверта кликабелен весь конверт, а не сургуч.
       */}
       <button type="button" className="pile__tap" onClick={onOpen} disabled={!sealed}>
-        {/*
-          «Tap» из макета — готовый глиф, выгруженный из Figma (assets/Tap.svg):
-          жёлтый контур #FCED99 с прозрачными буквами и скруглением ровно как в
-          дизайне. Встраиваем исходный SVG, чтобы Safari рисовал маску в
-          разрешении экрана. Геометрия остаётся той же, что в экспорте.
-        */}
-        <InlineArtwork className="pile__glyph" markup={tapArtwork} />
-        <span className="visually-hidden">Показать места</span>
+        {/* Русская надпись с контуром поверх всей кликабельной карточки. */}
+        <span className="pile__glyph" aria-hidden="true">Tap</span>
+        <span className="visually-hidden">Show places</span>
       </button>
       {caption !== 'top-left-text' && sealed && (
         <div className="pile__invitation" data-caption={caption}>
-          <img src={startUrl} alt="I'd like to invite you on a date — choose where you'd like to go." />
+          <span>I’d love to meet up. Choose a place</span>
         </div>
       )}
     </>

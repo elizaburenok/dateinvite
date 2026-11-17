@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "build:feed-preview": "tsc -b && vite build --base=./ --outDir=feed-preview-dist",
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@invite/shared": "*",

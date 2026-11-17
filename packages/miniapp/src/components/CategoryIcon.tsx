@@ -1,7 +1,7 @@
 import categoryUrl from '../assets/category.svg';
 
 export function CategoryIcon({ category }: { category: string | null }) {
-  const label = category || 'Место';
+  const label = category || 'Place';
   const key = label.toLowerCase();
   let drawing;
   if (/coffee|cafe|коф|кафе/.test(key)) {

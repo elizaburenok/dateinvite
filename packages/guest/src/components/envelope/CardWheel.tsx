@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import type { GuestPlace } from '@invite/shared';
 import { PlaceCard } from '../PlaceCard.js';
 import { WheelCaption } from './WheelCaption.js';
@@ -12,6 +12,9 @@ interface CardWheelProps {
   readOnly: boolean;
   state: EnvelopeState;
   onSelect(id: string): void;
+  /** Cylinder radius in card heights; input and snap physics stay shared. */
+  radiusRatio?: number;
+  renderCardAction?(place: GuestPlace): ReactNode;
 }
 
 
@@ -175,7 +178,7 @@ function easeDeal(k: number): number {
  * Всё положение — одно число `pos` (дробный индекс карточки в центре). Из него
  * paint() каждый кадр пишет карточкам трансформы, минуя состояние React.
  */
-export function CardWheel({ places, selected, readOnly, state, onSelect }: CardWheelProps) {
+export function CardWheel({ places, selected, readOnly, state, onSelect, radiusRatio = RADIUS, renderCardAction }: CardWheelProps) {
   const count = places.length;
   const dealt = state === 'dealing' || state === 'open';
   const reducedMotion = usePrefersReducedMotion();
@@ -236,7 +239,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
   const scrollRaf = useRef(0);
 
   const focused = selected !== null && places.some((place) => place.id === selected);
-  // Ввод активен, только когда раздача доиграла и место ещё не выбрано. Именно
+  // Ввод активен, только когда раздача доиграла и место ещё не selected. Именно
   // open, а не dealt: на dealt барабан можно было схватить недораздатым, и pos
   // поехал бы одновременно со spread, утащив за собой --hero и посадку барабана.
   const live = state === 'open' && !reducedMotion && count > 1 && !focused;
@@ -303,7 +306,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     // Высоту не читаем из layout каждый кадр (см. drumH выше) — берём из кэша,
     // а до первого замера падаем на offsetHeight, чтобы первый кадр был верным.
     const h = drumH.current || drum.offsetHeight || 1;
-    const R = RADIUS * h;
+    const R = radiusRatio * h;
     const wp = warpPos(pos.current);
 
     /*
@@ -315,7 +318,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
      * Пишем на .page, а не на саму сцену: заголовок барабану не потомок, а брат,
      * и общий предок у них — страница.
      */
-    if (!pageEl.current) pageEl.current = sceneRef.current?.closest<HTMLElement>('.page') ?? null;
+    if (!pageEl.current) pageEl.current = sceneRef.current?.closest<HTMLElement>('.page, [data-wheel-page]') ?? null;
     const page = pageEl.current;
     if (page) {
       const hero = clamp(1 - pos.current / HERO_SPAN, 0, 1);
@@ -401,7 +404,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     });
 
     detent();
-  }, [detent]);
+  }, [detent, radiusRatio]);
 
   /* --- Пружина доводки до детента ------------------------------------------ */
 
@@ -651,6 +654,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     };
     const onDown = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return; // тач ведёт нативный скроллер
+      if (e.target instanceof Element && e.target.closest('[data-wheel-action]')) return;
       down = true;
       moved = 0;
       lastY = e.clientY;
@@ -700,6 +704,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     let tapY = 0;
     let tapT = 0;
     let tapHit = -1;
+    let tapAction: HTMLElement | null = null;
 
     const onScroll = () => {
       // Красим не синхронно на каждое событие скролла, а один раз за кадр через
@@ -723,6 +728,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     };
     const onDown = (e: PointerEvent) => {
       tapHit = -1;
+      tapAction = null;
       tapY = e.clientY;
       tapT = performance.now();
     };
@@ -735,8 +741,9 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
        * столбик узлов под точкой (elementsFromPoint отдаёт и то, что лежит под
        * лентой) и ищем в нём ближайшую грань.
        */
-      const item = document
-        .elementsFromPoint(e.clientX, e.clientY)
+      const targets = document.elementsFromPoint(e.clientX, e.clientY);
+      tapAction = targets.map(el => el.closest<HTMLElement>('[data-wheel-action]')).find(Boolean) ?? null;
+      const item = targets
         .find((el) => el.classList.contains('wheel__item'));
       tapHit = item ? itemsRef.current.indexOf(item as HTMLDivElement) : -1;
     };
@@ -750,6 +757,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       e.stopPropagation();
       const hit = tapHit;
       tapHit = -1;
+      if (tapAction) { const action = tapAction; tapAction = null; action.click(); return; }
       pickAt(hit);
     };
 
@@ -776,6 +784,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
     const scene = sceneRef.current;
     if (!scene || !live) return;
     const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof Element && e.target.closest('[data-wheel-action]')) return;
       const at = Math.round(pos.current);
       if (e.key === 'ArrowDown' || e.key === 'PageDown') {
         e.preventDefault();
@@ -813,8 +822,9 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
       ref={sceneRef}
       data-dealt={dealt || undefined}
       data-focus={focused || undefined}
+      data-single={count === 1 || undefined}
       tabIndex={live ? 0 : -1}
-      aria-label="Барабан с местами"
+      aria-label="Places carousel"
       style={{ '--n': Math.max(1, count), '--persp': `${PERSP}px` } as React.CSSProperties}
     >
       {/* Невидимая лента со снап-точками для мобильного ввода: угол считается из
@@ -852,6 +862,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect }: CardW
                     readOnly={readOnly}
                     onSelect={onSelect}
                   />
+                  {renderCardAction?.(place)}
                   {/* Затемнение уходящей в глубину грани — opacity пишет paint(). */}
                   <div className="wheel__shade" aria-hidden="true" />
                 </div>

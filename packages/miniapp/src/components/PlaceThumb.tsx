@@ -1,4 +1,4 @@
-/** Та же логика заглушки, что и на гость-странице: цвет выводится из места. */
+/** The placeholder color is derived from the place, as on the guest page. */
 function hueOf(seed: string): number {
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) % 360;
@@ -14,8 +14,9 @@ interface PlaceThumbProps {
 
 export function PlaceThumb({ src, name, seed, size = 'sm' }: PlaceThumbProps) {
   const className = `thumb thumb--${size}`;
-  if (src) {
-    return <img className={className} src={src} alt="" loading="lazy" aria-hidden="true" />;
+  const previewSrc = src ?? (import.meta.env.DEV ? demoPhotos[hueOf(seed) % demoPhotos.length] : null);
+  if (previewSrc) {
+    return <img className={className} src={previewSrc} alt="" loading="lazy" aria-hidden="true" />;
   }
   return (
     <div
@@ -27,3 +28,8 @@ export function PlaceThumb({ src, name, seed, size = 'sm' }: PlaceThumbProps) {
     </div>
   );
 }
+import terracePhoto from '../assets/place-previews/moscow-terrace.png';
+import cafePhoto from '../assets/places-feed/preview-first.jpg';
+import restaurantPhoto from '../assets/places-feed/preview-second.png';
+
+const demoPhotos = [terracePhoto, cafePhoto, restaurantPhoto];

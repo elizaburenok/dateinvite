@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { authHeader, makeTestContext, seedPlaces, type TestContext } from '../test/helpers.js';
 import { insertPlace, listCandidates, softDeletePlace } from '../domain/places.js';
+import { migrate } from '../db/index.js';
 import { upsertUser } from '../domain/users.js';
 
 const HOST_TG = 42;
@@ -123,7 +124,54 @@ describe('инбокс «на подтверждение» (§3, §7)', () => {
   });
 });
 
+describe('миграция библиотеки тегов', () => {
+  it('подхватывает прежние теги, объединяет регистр и не теряет снятые с мест теги после перезапуска', async () => {
+    const [first, second] = seedPlaces(ctx.db, HOST_TG, 2, { tags: [] });
+    ctx.db.prepare('UPDATE places SET tags = ? WHERE id = ?').run(JSON.stringify(['Утро', 'Cafe']), first);
+    ctx.db.prepare('UPDATE places SET tags = ? WHERE id = ?').run(JSON.stringify(['утро', 'CAFE', 'Вечер']), second);
+    // Reproduce a database from before 007, then run the ordinary startup migration.
+    ctx.db.exec("DROP TABLE tags; DELETE FROM schema_migrations WHERE name = '007_tag_library.sql'");
+    migrate(ctx.db);
+    const response = await ctx.app.inject({ method: 'GET', url: '/api/tags', headers: authHeader(HOST_TG) });
+    expect(response.json()).toEqual({ tags: ['Cafe', 'Вечер', 'Утро'] });
+    expect((await library(`?tag=${encodeURIComponent('УТРО')}`)).places).toHaveLength(2);
+    await ctx.app.inject({ method: 'PATCH', url: `/api/places/${first}`, headers: authHeader(HOST_TG), payload: { tags: [] } });
+    await ctx.app.inject({ method: 'DELETE', url: `/api/places/${second}`, headers: authHeader(HOST_TG) });
+    migrate(ctx.db);
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/tags', headers: authHeader(HOST_TG) })).json()).toEqual(response.json());
+  });
+});
+
 describe('правка карточки места (§10.2)', () => {
+  it('сохраняет библиотеку тегов после снятия тега и удаления места', async () => {
+    const [placeId] = seedPlaces(ctx.db, HOST_TG, 1, { tags: ['Cafe'] });
+    await ctx.app.inject({ method: 'PATCH', url: `/api/places/${placeId}`, headers: authHeader(HOST_TG), payload: { tags: ['Lunch'] } });
+    await ctx.app.inject({ method: 'DELETE', url: `/api/places/${placeId}`, headers: authHeader(HOST_TG) });
+    const tags = await ctx.app.inject({ method: 'GET', url: '/api/tags', headers: authHeader(HOST_TG) });
+    expect(tags.statusCode).toBe(200);
+    expect(tags.json()).toEqual({ tags: ['Cafe', 'Lunch'] });
+    expect((await library()).places).toEqual([]);
+  });
+
+  it('переиспользует написание тегов без учёта регистра, включая кириллицу', async () => {
+    const [placeId] = seedPlaces(ctx.db, HOST_TG, 1, { tags: ['Cafe', 'Утро'] });
+    const response = await ctx.app.inject({ method: 'PATCH', url: `/api/places/${placeId}`, headers: authHeader(HOST_TG), payload: { tags: ['cafe', 'CAFE', 'утро', 'УТРО'] } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().tags).toEqual(['Cafe', 'Утро']);
+    const tags = await ctx.app.inject({ method: 'GET', url: '/api/tags', headers: authHeader(HOST_TG) });
+    expect(tags.json()).toEqual({ tags: ['Cafe', 'Утро'] });
+  });
+
+  it('не отдаёт чужие теги и не создаёт тег при правке чужого места', async () => {
+    const [placeId] = seedPlaces(ctx.db, HOST_TG, 1, { tags: ['Private'] });
+    seedPlaces(ctx.db, 999, 1, { tags: ['Personal'] });
+    const response = await ctx.app.inject({ method: 'PATCH', url: `/api/places/${placeId}`, headers: authHeader(999), payload: { tags: ['Injected'] } });
+    expect(response.statusCode).toBe(404);
+    const tags = await ctx.app.inject({ method: 'GET', url: '/api/tags', headers: authHeader(999) });
+    expect(tags.json()).toEqual({ tags: ['Personal'] });
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/tags' })).statusCode).toBe(401);
+  });
+
   it('меняет пометку и теги', async () => {
     const [placeId] = seedPlaces(ctx.db, HOST_TG, 1);
     const res = await ctx.app.inject({

@@ -1,7 +1,7 @@
 /* Selected place — Figma 756:550. Geometry is scoped to the detail screen. */
 .page[data-picking] {
   max-width: none;
-  padding: max(54px, env(safe-area-inset-top)) var(--page-gutter) max(75px, env(safe-area-inset-bottom));
+  padding: max(var(--invite-space-54), env(safe-area-inset-top)) var(--page-gutter) max(var(--invite-space-76), env(safe-area-inset-bottom));
   font-family: var(--font-card);
   background: url('../assets/wheel-wallpaper.png') center / cover fixed;
   box-shadow:
@@ -28,7 +28,7 @@
 .selected-place {
   position: relative;
   width: 100%;
-  color: #454949;
+  color: var(--invite-primitive-primary);
   animation: selected-place-appear 240ms var(--ease) both;
 }
 
@@ -45,14 +45,14 @@
 
 .selected-place__heading svg {
   display: block;
-  margin: -16px 0;
+  margin: calc(-1 * var(--invite-space-16)) 0;
   overflow: visible;
   text-anchor: middle;
   filter: drop-shadow(0 0.639px 8.01px #dad1a1);
 }
 
 .selected-place__card {
-  margin-top: 104px;
+  margin-top: var(--invite-space-104);
 }
 
 .selected-place__photo {
@@ -60,8 +60,10 @@
   width: min(322.896px, calc(100% - 28px));
   aspect-ratio: 322.896 / 220;
   margin: 0 auto;
-  border: 2.431px solid rgb(255 245 192 / 38%);
+  /* Border/01 from the token-bound selected-card design. */
+  border: 1px solid var(--invite-border-01);
   border-radius: 14.588px;
+  overflow: clip;
   transform: rotate(-1.19deg);
   box-shadow:
     0 5.928px 11.856px 5.928px rgb(181 177 155 / 10%),
@@ -95,11 +97,11 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--invite-space-8);
   width: 100%;
-  margin-top: -20.72px;
-  padding: 16px 20px;
-  border: 1px solid rgb(253 251 239 / 76%);
+  margin-top: calc(-1 * var(--invite-space-20));
+  padding: var(--invite-space-16) var(--invite-space-20);
+  border: 1px solid var(--invite-border-02);
   border-radius: 16px;
   box-shadow: 0 4px 10px rgb(219 216 199 / 45%);
   overflow-wrap: anywhere;
@@ -110,7 +112,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgb(249 250 237 / 40%);
+  background: var(--invite-container-default);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   pointer-events: none;
@@ -157,25 +159,105 @@
   min-height: 60px;
   max-height: none;
   margin: auto auto 0;
-  padding: 16px 68px 14px 20px;
-  border: 0;
+  padding: var(--invite-space-16) var(--invite-space-68) var(--invite-space-16) var(--invite-space-20);
+  border: 1px solid var(--invite-border-02);
   border-radius: 16px;
   corner-shape: round;
-  background: #f4f4da;
+  background: var(--invite-container-neutral);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow:
     inset 0 -2px 17px rgb(232 232 202 / 24%),
-    inset 0 2px 9px rgb(232 232 202 / 10%);
+    inset 0 2px 9px rgb(232 232 202 / 10%),
+    0 0 0 0 transparent,
+    0 0 0 0 transparent;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--invite-space-8);
   text-align: left;
   transform: none;
-  scroll-margin-block: 24px;
+  scroll-margin-block: var(--invite-space-24);
+  transition: box-shadow 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The Figma 756:557 line is always present geometrically and fades in without
+   changing border width, padding or the field's 327×60 layout. */
+.page[data-picking] .note::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--note-pressed-edge, #fced99);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.page[data-picking] .note:focus-within {
+  box-shadow:
+    inset 0 -2px 17px rgb(232 232 202 / 24%),
+    inset 0 2px 9px rgb(232 232 202 / 10%),
+    var(--note-pressed-halo, 0 0 0 0 transparent),
+    var(--note-pressed-shadow, 0 0 0 0 transparent);
+}
+
+.page[data-picking] .note:focus-within::before { opacity: 1; }
+
+.page[data-picking] .note[data-pressed-style='warm'] {
+  --note-pressed-edge: #f2f2c3;
+  --note-pressed-halo: 0 0 0 3px rgb(242 242 195 / 55%);
+  --note-pressed-shadow: 0 8px 22px rgb(95 78 58 / 15%);
+}
+
+.page[data-picking] .note[data-pressed-style='rose'] {
+  --note-pressed-edge: rgb(214 139 159 / 68%);
+  --note-pressed-halo: 0 0 0 3px rgb(232 161 181 / 22%);
+  --note-pressed-shadow: 0 8px 22px rgb(149 86 111 / 17%);
+}
+
+.page[data-picking] .note[data-pressed-style='ink'] {
+  --note-pressed-edge: rgb(77 82 81 / 56%);
+  --note-pressed-halo: 0 0 0 3px rgb(83 91 88 / 12%);
+  --note-pressed-shadow: 0 8px 22px rgb(50 56 53 / 18%);
+}
+
+.note-pressed-demo {
+  position: fixed;
+  z-index: 30;
+  right: 24px;
+  bottom: 76px;
+  display: flex;
+  gap: var(--invite-space-6);
+  padding: var(--invite-space-6);
+  border: 1px solid rgb(96 82 66 / 13%);
+  border-radius: 999px;
+  background: rgb(255 252 235 / 92%);
+  box-shadow: 0 8px 28px rgb(74 56 40 / 13%);
+  backdrop-filter: blur(12px);
+}
+
+.note-pressed-demo button {
+  padding: var(--invite-space-8) var(--invite-space-12);
+  border-radius: 999px;
+  color: var(--invite-primitive-primary);
+  font: 500 13px var(--font-card);
+  cursor: pointer;
+}
+
+.note-pressed-demo button[aria-pressed='true'] {
+  background: #e8ddca;
+  box-shadow: inset 0 0 0 1px rgb(110 90 67 / 18%);
+}
+
+@media (max-width: 600px) {
+  .note-pressed-demo {
+    top: max(8px, env(safe-area-inset-top));
+    right: 8px;
+    bottom: auto;
+  }
 }
 
 .page[data-picking] .selected-place {
-  margin-bottom: 48px;
+  margin-bottom: var(--invite-space-48);
 }
 
 .page[data-picking] .note__input,
@@ -190,7 +272,7 @@
   line-height: 28px;
   letter-spacing: -0.16px;
   text-align: left;
-  color: #4e4e4e;
+  color: var(--invite-primitive-primary);
   overflow-wrap: anywhere;
 }
 
@@ -203,6 +285,14 @@
 
 .page[data-picking] .note__ghost {
   opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page[data-picking] .note,
+  .page[data-picking] .note::before { transition: none; }
 }
 
 .page[data-picking] .note__send {
@@ -228,7 +318,7 @@
 
 .page[data-picking] .note__send:focus-visible,
 .selected-place__back:focus-visible {
-  outline: 2px solid #454949;
+  outline: 2px solid var(--invite-primitive-primary);
   outline-offset: 3px;
 }
 
@@ -255,15 +345,15 @@
 
 @media (max-width: 600px) {
   .page[data-picking] {
-    padding-top: max(36px, env(safe-area-inset-top));
-    padding-bottom: max(28px, env(safe-area-inset-bottom));
+    padding-top: max(var(--invite-space-36), env(safe-area-inset-top));
+    padding-bottom: max(var(--invite-space-28), env(safe-area-inset-bottom));
   }
   .selected-place__back { left: 0; }
-  .selected-place__card { margin-top: clamp(48px, 10dvh, 84px); }
+  .selected-place__card { margin-top: clamp(var(--invite-space-48), 10dvh, var(--invite-space-84)); }
   .page[data-picking] .note { z-index: 3; }
   .page[data-picking] ~ .dev-reset {
     bottom: 2px;
-    padding: 3px 8px;
+    padding: var(--invite-space-4) var(--invite-space-8);
     font-size: 10px;
   }
 }

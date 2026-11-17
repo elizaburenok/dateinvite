@@ -26,7 +26,7 @@ export function useSheetClose(onClose: () => void) {
   const onAnimationEnd = useCallback(
     (event: AnimationEvent) => {
       // animationend всплывает и от дочерних узлов — ловим только уход самого листа.
-      if (closing && event.animationName === 'sheet-out') onClose();
+      if (closing && (event.animationName === 'sheet-out' || event.animationName === 'place-detail-out')) onClose();
     },
     [closing, onClose],
   );

@@ -413,7 +413,7 @@
 .cycle[data-focus] {
   padding-bottom: calc(
     (1 - var(--pick)) * (var(--n) - 1) * var(--cycle-peek) + var(--pick) *
-      (var(--env-w) - 20px) / (var(--card-ratio)) * (var(--cycle-focus) - 1)
+      (var(--env-w) - var(--invite-space-20)) / (var(--card-ratio)) * (var(--cycle-focus) - 1)
   );
 }
 
@@ -426,7 +426,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--deck-gap);
-    margin-top: var(--s-5);
+    margin-top: var(--invite-space-24);
     padding-bottom: 0;
   }
 

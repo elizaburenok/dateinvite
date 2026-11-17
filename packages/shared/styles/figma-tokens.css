@@ -1,0 +1,51 @@
+/* Generated from packages/shared/design/figma-tokens.json. Run npm run tokens:generate; do not edit.
+ * Source: https://www.figma.com/design/DoN18tOC8qla0R8XMEsCEZ/Untitled?node-id=832-348
+ * Gradient direction belongs to each SVG/Canvas consumer; the CSS swatch uses 45deg.
+ */
+:root {
+  /* color/wallpaper · VariableID:490:39 */
+  --invite-color-wallpaper: rgb(232.000001 244.000001 216.000002 / 1);
+  /* color/ink · VariableID:490:40 */
+  --invite-color-ink: rgb(33.000002 28 22.000001 / 1);
+  /* color/ink-soft · VariableID:490:41 */
+  --invite-color-ink-soft: rgb(111.000001 101.000002 88.000002 / 1);
+  /* color/ink-faint · VariableID:490:42 */
+  --invite-color-ink-faint: rgb(161.000006 150.000006 138.000007 / 1);
+  /* color/frame-ink · VariableID:490:43 */
+  --invite-color-frame-ink: rgb(255 245.000001 192.000004 / 1);
+  /* color/glass · VariableID:490:44 */
+  --invite-color-glass: rgb(255 255 255 / 1);
+  /* Primitive/Primary · VariableID:832:327 */
+  --invite-primitive-primary: rgb(77.527703 77.527703 77.527703 / 1);
+  /* Container/Default · VariableID:832:329 */
+  --invite-container-default: rgb(249.08431 249.689101 236.686016 / 0.4);
+  /* Container/Neutral · VariableID:832:330 */
+  --invite-container-neutral: rgb(243.789158 243.789158 218.095331 / 1);
+  /* Bg/Primary · VariableID:832:331 */
+  --invite-bg-primary: rgb(253 253 222.000002 / 1);
+  /* Border/01 · VariableID:832:332 */
+  --invite-border-01: rgb(255 245.000001 192.000004 / 0.38);
+  /* Container/Modal · VariableID:832:343 */
+  --invite-container-modal: rgb(249.174913 249.703464 238.340949 / 0.5);
+  /* Border/02 · VariableID:832:344 */
+  --invite-border-02: rgb(252.883301 250.515724 238.683311 / 0.76);
+  /* Primitive/Inverse · VariableID:832:345 */
+  --invite-primitive-inverse: rgb(255 255 255 / 1);
+  /* Color/Pink · VariableID:832:346 */
+  --invite-color-pink: rgb(233.698921 129.88881 180.734581 / 1);
+  /* Primitive/Secondary · VariableID:832:347 */
+  --invite-primitive-secondary: rgb(150.735799 150.641807 148.856131 / 1);
+  /* Gradient/Primary/Start · VariableID:846:129 */
+  --invite-gradient-primary-start: rgb(252 237.000001 153.000006 / 1);
+  /* Gradient/Primary/Middle · VariableID:846:130 */
+  --invite-gradient-primary-middle: rgb(255 214.741753 175.95421 / 1);
+  /* Gradient/Primary/End · VariableID:846:131 */
+  --invite-gradient-primary-end: rgb(249.157525 177.229011 179.355711 / 1);
+  /* Bg/Library · VariableID:884:147 */
+  --invite-bg-library: rgb(248 248 248 / 1);
+  --invite-gradient-primary-opacity: 0.23;
+  --invite-gradient-primary-position-1: 0.278846;
+  --invite-gradient-primary-position-2: 0.634615;
+  --invite-gradient-primary-position-3: 1;
+  --invite-gradient-primary: linear-gradient(45deg, var(--invite-gradient-primary-start) 27.8846%, var(--invite-gradient-primary-middle) 63.4615%, var(--invite-gradient-primary-end) 100%);
+}

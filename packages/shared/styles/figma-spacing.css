@@ -1,0 +1,123 @@
+/* Generated from packages/shared/design/figma-spacing.json. Run npm run tokens:generate; do not edit. */
+:root {
+  /* Spacing/002 · VariableID:852:135 */
+  --invite-space-2: 2px;
+  /* Spacing/004 · VariableID:852:136 */
+  --invite-space-4: 4px;
+  /* Spacing/006 · VariableID:852:137 */
+  --invite-space-6: 6px;
+  /* Spacing/008 · VariableID:852:138 */
+  --invite-space-8: 8px;
+  /* Spacing/010 · VariableID:852:139 */
+  --invite-space-10: 10px;
+  /* Spacing/012 · VariableID:852:140 */
+  --invite-space-12: 12px;
+  /* Spacing/014 · VariableID:852:141 */
+  --invite-space-14: 14px;
+  /* Spacing/016 · VariableID:852:142 */
+  --invite-space-16: 16px;
+  /* Spacing/018 · VariableID:852:143 */
+  --invite-space-18: 18px;
+  /* Spacing/020 · VariableID:852:144 */
+  --invite-space-20: 20px;
+  /* Spacing/022 · VariableID:852:145 */
+  --invite-space-22: 22px;
+  /* Spacing/024 · VariableID:852:146 */
+  --invite-space-24: 24px;
+  /* Spacing/026 · VariableID:852:147 */
+  --invite-space-26: 26px;
+  /* Spacing/028 · VariableID:852:148 */
+  --invite-space-28: 28px;
+  /* Spacing/030 · VariableID:852:149 */
+  --invite-space-30: 30px;
+  /* Spacing/032 · VariableID:852:150 */
+  --invite-space-32: 32px;
+  /* Spacing/034 · VariableID:852:151 */
+  --invite-space-34: 34px;
+  /* Spacing/036 · VariableID:852:152 */
+  --invite-space-36: 36px;
+  /* Spacing/038 · VariableID:852:153 */
+  --invite-space-38: 38px;
+  /* Spacing/040 · VariableID:852:154 */
+  --invite-space-40: 40px;
+  /* Spacing/042 · VariableID:852:155 */
+  --invite-space-42: 42px;
+  /* Spacing/044 · VariableID:852:156 */
+  --invite-space-44: 44px;
+  /* Spacing/046 · VariableID:852:157 */
+  --invite-space-46: 46px;
+  /* Spacing/048 · VariableID:852:158 */
+  --invite-space-48: 48px;
+  /* Spacing/050 · VariableID:852:159 */
+  --invite-space-50: 50px;
+  /* Spacing/052 · VariableID:852:160 */
+  --invite-space-52: 52px;
+  /* Spacing/054 · VariableID:852:161 */
+  --invite-space-54: 54px;
+  /* Spacing/056 · VariableID:852:162 */
+  --invite-space-56: 56px;
+  /* Spacing/058 · VariableID:852:163 */
+  --invite-space-58: 58px;
+  /* Spacing/060 · VariableID:852:164 */
+  --invite-space-60: 60px;
+  /* Spacing/062 · VariableID:852:165 */
+  --invite-space-62: 62px;
+  /* Spacing/064 · VariableID:852:166 */
+  --invite-space-64: 64px;
+  /* Spacing/066 · VariableID:852:167 */
+  --invite-space-66: 66px;
+  /* Spacing/068 · VariableID:852:168 */
+  --invite-space-68: 68px;
+  /* Spacing/070 · VariableID:852:169 */
+  --invite-space-70: 70px;
+  /* Spacing/072 · VariableID:852:170 */
+  --invite-space-72: 72px;
+  /* Spacing/074 · VariableID:852:171 */
+  --invite-space-74: 74px;
+  /* Spacing/076 · VariableID:852:172 */
+  --invite-space-76: 76px;
+  /* Spacing/078 · VariableID:852:173 */
+  --invite-space-78: 78px;
+  /* Spacing/080 · VariableID:852:174 */
+  --invite-space-80: 80px;
+  /* Spacing/082 · VariableID:852:175 */
+  --invite-space-82: 82px;
+  /* Spacing/084 · VariableID:852:176 */
+  --invite-space-84: 84px;
+  /* Spacing/086 · VariableID:852:177 */
+  --invite-space-86: 86px;
+  /* Spacing/088 · VariableID:852:178 */
+  --invite-space-88: 88px;
+  /* Spacing/090 · VariableID:852:179 */
+  --invite-space-90: 90px;
+  /* Spacing/092 · VariableID:852:180 */
+  --invite-space-92: 92px;
+  /* Spacing/094 · VariableID:852:181 */
+  --invite-space-94: 94px;
+  /* Spacing/096 · VariableID:852:182 */
+  --invite-space-96: 96px;
+  /* Spacing/098 · VariableID:852:183 */
+  --invite-space-98: 98px;
+  /* Spacing/100 · VariableID:852:184 */
+  --invite-space-100: 100px;
+  /* Spacing/102 · VariableID:852:185 */
+  --invite-space-102: 102px;
+  /* Spacing/104 · VariableID:852:186 */
+  --invite-space-104: 104px;
+  /* Spacing/106 · VariableID:852:187 */
+  --invite-space-106: 106px;
+  /* Spacing/108 · VariableID:852:188 */
+  --invite-space-108: 108px;
+  /* Spacing/110 · VariableID:852:189 */
+  --invite-space-110: 110px;
+  /* Spacing/112 · VariableID:852:190 */
+  --invite-space-112: 112px;
+  /* Spacing/114 · VariableID:852:191 */
+  --invite-space-114: 114px;
+  /* Spacing/116 · VariableID:852:192 */
+  --invite-space-116: 116px;
+  /* Spacing/118 · VariableID:852:193 */
+  --invite-space-118: 118px;
+  /* Spacing/120 · VariableID:852:194 */
+  --invite-space-120: 120px;
+}

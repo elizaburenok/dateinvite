@@ -23,22 +23,22 @@ export function createTelegramNotifier(bot: Bot, publicBaseUrl: string): Notifie
       const note = envelope.host_note ? ` «${escapeHtml(envelope.host_note)}»` : '';
       await send(
         host.telegram_id,
-        `👀 Ваше приглашение${note} открыли.\n<a href="${publicBaseUrl}/i/${envelope.token}">Посмотреть конверт</a>`,
+        `👀 Your invitation${note} was opened.\n<a href="${publicBaseUrl}/i/${envelope.token}">View envelope</a>`,
       );
     },
 
     async envelopeAnswered(host, envelope, chosenPlace, guestMessage) {
       const lines = [
-        '💌 На ваше приглашение ответили!',
+        '💌 Someone replied to your invitation!',
         '',
-        `Выбрали: <b>${escapeHtml(chosenPlace.name)}</b>`,
+        `Chosen: <b>${escapeHtml(chosenPlace.name)}</b>`,
       ];
       const meta = [chosenPlace.category, chosenPlace.district].filter(Boolean).join(' · ');
       if (meta) lines.push(escapeHtml(meta));
       if (chosenPlace.address) lines.push(escapeHtml(chosenPlace.address));
-      if (guestMessage) lines.push('', `Сообщение: <i>${escapeHtml(guestMessage)}</i>`);
+      if (guestMessage) lines.push('', `Message: <i>${escapeHtml(guestMessage)}</i>`);
       if (chosenPlace.maps_url) {
-        lines.push('', `<a href="${escapeHtml(chosenPlace.maps_url)}">Открыть в Картах</a>`);
+        lines.push('', `<a href="${escapeHtml(chosenPlace.maps_url)}">Open in Maps</a>`);
       }
       void envelope;
       await send(host.telegram_id, lines.join('\n'));

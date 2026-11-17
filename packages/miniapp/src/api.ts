@@ -35,7 +35,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const error = body as { error?: string; message?: string } | null;
-    throw new ApiError(error?.message ?? 'Не получилось', error?.error ?? 'unknown');
+    throw new ApiError(error?.message ?? 'Something went wrong', error?.error ?? 'unknown');
   }
   return body as T;
 }
@@ -50,6 +50,7 @@ function query(filters: PlaceFilters): string {
 }
 
 export const api = {
+  tags: () => request<{ tags: string[] }>('/api/tags'),
   photoStyle: () => request<HalftoneSettings>('/api/photo-style'),
   savePhotoStyle: (settings: HalftoneSettings) => request<HalftoneSettings>('/api/photo-style', { method: 'PUT', body: JSON.stringify(settings) }),
   photoSource: (url: string) => request<{ source_url: string; settings: HalftoneSettings }>(`/api/photos/source?photo_url=${encodeURIComponent(url)}`),
@@ -77,10 +78,11 @@ export const api = {
     placeIds: string[],
     hostNote: string | null,
     placeNotes?: Record<string, string | null>,
+    placeCaptions?: Record<string, string>,
   ) =>
     request<CreateEnvelopeResponse>('/api/envelopes', {
       method: 'POST',
-      body: JSON.stringify({ place_ids: placeIds, host_note: hostNote, place_notes: placeNotes }),
+      body: JSON.stringify({ place_ids: placeIds, host_note: hostNote, place_notes: placeNotes, place_captions: placeCaptions }),
     }),
 
   envelopes: () => request<{ envelopes: EnvelopeSummary[] }>('/api/envelopes'),

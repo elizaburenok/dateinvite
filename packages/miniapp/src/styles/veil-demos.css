@@ -1,0 +1,19 @@
+.veil-lab { background: #f3f3f4; color: #4c4c52; }
+.veil-lab .surface-lab__header { flex-wrap: wrap; }
+.veil--graphite { --veil-fill: 247 248 250; --veil-text: #303238; --veil-alpha: .68; }
+.veil--white { --veil-fill: 45 51 55; --veil-text: #fff; --veil-alpha: .68; }
+.veil--plum { --veil-fill: 250 237 246; --veil-text: #452d3e; --veil-alpha: .72; }
+.veil-lab [class*="veil--"] .home__photo-card .glass-button {
+  color: var(--veil-text);
+  border-color: rgb(255 255 255 / .55);
+  box-shadow: 0 3px 10px rgb(45 45 55 / .08);
+}
+.veil-lab [class*="veil--"] .home__photo-card .glass-button::before {
+  background: rgb(var(--veil-fill) / var(--veil-alpha));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.veil-lab [class*="veil--"] .home__photo-card .glass-button::after {
+  box-shadow: inset 0 1px 3px rgb(255 255 255 / .25), inset 0 -1px 4px rgb(65 60 70 / .06);
+}
+.veil-lab [class*="veil--"] .glass-button__label { text-shadow: none; }

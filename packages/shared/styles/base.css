@@ -44,6 +44,7 @@ button {
   cursor: pointer;
   background: none;
   border: none;
+  font-weight: var(--w-semibold);
 }
 
 a {
@@ -78,9 +79,9 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--s-2);
+  gap: var(--invite-space-8);
   min-height: 3rem;
-  padding: 0 var(--s-5);
+  padding: 0 var(--invite-space-24);
   border-radius: var(--r-pill);
   font-weight: var(--w-semibold);
   transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
@@ -116,7 +117,7 @@ a {
 
 .field {
   width: 100%;
-  padding: var(--s-3) var(--s-4);
+  padding: var(--invite-space-12) var(--invite-space-16);
   background: var(--c-surface);
   border: 1px solid var(--c-hairline);
   border-radius: var(--r-md);

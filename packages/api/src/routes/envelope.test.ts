@@ -23,10 +23,9 @@ async function createEnvelope(placeIds: string[], hostNote: string | null = 'К�
   });
 }
 
-describe('лимит 3–5 мест на уровне API (§12)', () => {
-  it('отклоняет конверт из двух мест', async () => {
-    const ids = seedPlaces(ctx.db, HOST_TG, 2);
-    const res = await createEnvelope(ids);
+describe('лимит 1–5 мест на уровне API (§12)', () => {
+  it('отклоняет пустой конверт', async () => {
+    const res = await createEnvelope([]);
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toBe('invalid_place_count');
   });
@@ -38,8 +37,8 @@ describe('лимит 3–5 мест на уровне API (§12)', () => {
     expect(res.json().error).toBe('invalid_place_count');
   });
 
-  it('принимает 3, 4 и 5 мест', async () => {
-    for (const count of [3, 4, 5]) {
+  it('принимает от одного до пяти мест', async () => {
+    for (const count of [1, 2, 3, 4, 5]) {
       const ids = seedPlaces(ctx.db, HOST_TG, count);
       const res = await createEnvelope(ids);
       expect(res.statusCode, `для ${count} мест`).toBe(201);
@@ -311,5 +310,36 @@ describe('авторизация хоста', () => {
       headers: authHeader(999),
     });
     expect(res.json().places).toEqual([]);
+  });
+});
+
+describe('подписи карточек конверта', () => {
+  it('сохраняет подпись для гостя отдельно от названия места в библиотеке', async () => {
+    const ids = seedPlaces(ctx.db, HOST_TG, 2);
+    const original = ctx.db.prepare('SELECT name FROM places WHERE id = ?').get(ids[0]!) as { name: string };
+    const created = await ctx.app.inject({
+      method: 'POST', url: '/api/envelopes', headers: authHeader(HOST_TG),
+      payload: { place_ids: ids, host_note: null, place_captions: { [ids[0]!]: '  Кофе с тобой ☕  ' } },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(ctx.db.prepare('SELECT name FROM places WHERE id = ?').get(ids[0]!)).toEqual(original);
+    ctx.db.prepare('UPDATE places SET name = ? WHERE id = ?').run('Другое название', ids[0]!);
+    const opened = await ctx.app.inject({ method: 'GET', url: `/api/invite/${created.json().token}` });
+    expect(opened.statusCode).toBe(200);
+    const places = opened.json().places;
+    expect(places[0].name).toBe('Кофе с тобой ☕');
+    const unchanged = ctx.db.prepare('SELECT name FROM places WHERE id = ?').get(ids[1]!) as { name: string };
+    expect(places[1].name).toBe(unchanged.name);
+  });
+
+  it('отклоняет пустую и слишком длинную подпись', async () => {
+    const ids = seedPlaces(ctx.db, HOST_TG, 1);
+    for (const caption of ['   ', 'я'.repeat(201)]) {
+      const result = await ctx.app.inject({
+        method: 'POST', url: '/api/envelopes', headers: authHeader(HOST_TG),
+        payload: { place_ids: ids, host_note: null, place_captions: { [ids[0]!]: caption } },
+      });
+      expect(result.statusCode).toBe(400);
+    }
   });
 });

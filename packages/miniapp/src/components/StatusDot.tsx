@@ -1,11 +1,11 @@
 import type { EnvelopeStatus } from '@invite/shared';
 
 const LABELS: Record<EnvelopeStatus, string> = {
-  draft: 'черновик',
-  sent: 'отправлено',
-  opened: 'посмотрели',
-  answered: 'ответили',
-  expired: 'истекло',
+  draft: 'draft',
+  sent: 'sent',
+  opened: 'opened',
+  answered: 'answered',
+  expired: 'expired',
 };
 
 export function StatusDot({ status }: { status: EnvelopeStatus }) {

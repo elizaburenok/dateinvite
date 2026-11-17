@@ -74,7 +74,7 @@ export async function inviteRoutes(app: FastifyInstance, deps: InviteRoutesDeps)
     if (!parsed.success) {
       return reply.code(400).send({
         error: 'invalid_body',
-        message: 'Ожидается { chosen_place_id, message }',
+        message: 'Expected { chosen_place_id, message }',
       });
     }
 

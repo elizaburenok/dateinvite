@@ -14,10 +14,15 @@
     "dev:api": "npm run dev -w @invite/api",
     "dev:miniapp": "npm run dev -w @invite/miniapp",
     "dev:guest": "npm run dev -w @invite/guest",
-    "test": "npm run build -w @invite/shared && npm run test -w @invite/api",
-    "typecheck": "tsc -b packages/shared packages/api packages/miniapp packages/guest"
+    "test": "npm run build -w @invite/shared && npm run test -w @invite/api && npm run test -w @invite/miniapp && npm run test -w @invite/guest",
+    "typecheck": "tsc -b packages/shared packages/api packages/miniapp packages/guest",
+    "tokens:generate": "node packages/shared/design/generate-tokens.mjs",
+    "tokens:check": "node packages/shared/design/generate-tokens.mjs --check && node packages/shared/design/check-spacing.mjs"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "postcss": "^8.5.26"
   }
 }

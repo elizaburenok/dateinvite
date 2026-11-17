@@ -14,9 +14,9 @@ export type LoadState =
 async function readError(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as { message?: string };
-    return body.message ?? 'Что-то пошло не так';
+    return body.message ?? 'Something went wrong';
   } catch {
-    return 'Что-то пошло не так';
+    return 'Something went wrong';
   }
 }
 
@@ -27,7 +27,7 @@ export async function fetchInvite(token: string): Promise<LoadState> {
     if (!response.ok) return { kind: 'error', message: await readError(response) };
     return { kind: 'ready', invite: (await response.json()) as InviteResponse };
   } catch {
-    return { kind: 'error', message: 'Нет связи с интернетом' };
+    return { kind: 'error', message: 'No internet connection' };
   }
 }
 
@@ -52,5 +52,9 @@ export function tokenFromLocation(pathname = window.location.pathname): string |
   const segments = pathname.split('/').filter(Boolean);
   const last = segments[segments.length - 1];
   if (!last || last === 'i' || last.includes('.')) return null;
-  return decodeURIComponent(last);
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return null;
+  }
 }

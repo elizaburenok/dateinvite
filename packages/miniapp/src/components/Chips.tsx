@@ -1,3 +1,4 @@
+import { Button } from './Button.js';
 interface ChipsProps {
   options: string[];
   value: string | undefined;
@@ -10,22 +11,22 @@ export function Chips({ options, value, emptyLabel, onChange }: ChipsProps) {
   if (options.length === 0) return null;
   return (
     <div className="chips" role="group" aria-label={emptyLabel}>
-      <button
+      <Button
         type="button"
         className={`chip${value === undefined ? ' chip--on' : ''}`}
         onClick={() => onChange(undefined)}
       >
         {emptyLabel}
-      </button>
+      </Button>
       {options.map((option) => (
-        <button
+        <Button
           key={option}
           type="button"
           className={`chip${value === option ? ' chip--on' : ''}`}
           onClick={() => onChange(value === option ? undefined : option)}
         >
           {option}
-        </button>
+        </Button>
       ))}
     </div>
   );

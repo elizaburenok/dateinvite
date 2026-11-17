@@ -19,7 +19,7 @@
   flex-direction: column;
   align-items: flex-start;
   /* Подрезанная посадка: подпись, строка и «Send» стоят теснее (было 10px). */
-  gap: 6px;
+  gap: var(--invite-space-6);
   /*
    * Шрифт заметки — Inter Tight (та же гарнитура, что у названия/адреса на карточке
    * места, --font-card): подпись, текст ответа и «Send» набраны единым шрифтом с
@@ -38,11 +38,11 @@
      (нижний отступ шапки в фокусе, .page[data-picking] .hero в invite.css):
      карточка сидит в одинаковом воздухе сверху и снизу. Пока поля нет, весь этот
      блок свёрнут в ноль (см. .note:not(.note--open) ниже), и верхний зазор тоже. */
-  margin: var(--s-4) auto 0;
+  margin: var(--invite-space-16) auto 0;
   /* Подрезанные поля: верх 10, бока 14, низ 12 (было 12/16/16). Панель стала
      ниже и уже пустует по краям, но подпись «Add note» и первая строка ответа
      всё равно с воздухом от кромки. */
-  padding: 10px 14px 12px;
+  padding: var(--invite-space-10) var(--invite-space-14) var(--invite-space-12);
   /* Радиус крупнее макетных 24px: суперэллипс входит в поворот раньше и отпускает
      позже, поэтому при том же числе угол читается острее круглого. 32px под
      подрезанную посадку (было 36) — угол держит мягкую капсульную форму. */
@@ -166,7 +166,7 @@
 .place-note {
   /* Насколько плашка утоплена под карточку. На столько же её верх заходит за
      нижнюю кромку карточки, и на столько же ниже него (плюс 16px) встаёт текст. */
-  --note-tuck: 28px;
+  --note-tuck: var(--invite-space-28);
   position: relative;
   /* Ниже барабана по слою: в фокусе карточка (wheel z-index, wheel.css) кроет
      утопленный верх плашки. Плашка идёт в разметке позже барабана и без явного
@@ -179,14 +179,14 @@
   max-height: 0;
   /* Бока держат текст в постоянном отступе; верх и низ свёрнуты, пока плашка
      закрыта (разворачивает их .place-note--open). */
-  padding: 0 22px;
+  padding: 0 var(--invite-space-22);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   /* Плашка по центру под карточкой (margin auto), а её содержимое — сабтайтл и
      текст — прижато к левому краю. */
   align-items: flex-start;
-  gap: 2px;
+  gap: var(--invite-space-2);
   text-align: left;
   /* Полупрозрачное молочное стекло, легче поля ответа: плашка пассивная и не
      должна спорить с карточкой над ней. Верхний блик изнутри и мягкая тень —
@@ -241,10 +241,10 @@
    держит сам текст. */
 .place-note--open {
   margin-top: calc(var(--note-tuck) * -1);
-  padding-top: calc(var(--note-tuck) + 10px);
+  padding-top: calc(var(--note-tuck) + var(--invite-space-10));
   /* Базовый низ — воздух под текстом на шаге набора ответа, когда кнопки уже нет.
      Пока кнопка показана, .place-note--reserve добирает снизу место под неё. */
-  padding-bottom: 20px;
+  padding-bottom: var(--invite-space-20);
   max-height: 20rem;
   opacity: 1;
   transform: translateY(0);
@@ -258,13 +258,13 @@
    кнопки над кромкой (~22px) = 40px. Нижняя половина кнопки висит уже за плашкой
    (см. bottom у .go). */
 .place-note--reserve {
-  padding-bottom: 40px;
+  padding-bottom: var(--invite-space-40);
 }
 
 /* Без заметки текста нет — отодвигать содержимое от нижней кромки карточки на 16px
    не нужно, плашка садится компактным подносом под одну кнопку. */
 .place-note--noteless {
-  padding-top: calc(var(--note-tuck) + 12px);
+  padding-top: calc(var(--note-tuck) + var(--invite-space-12));
 }
 
 /* --- Кнопка подтверждения выбора ------------------------------------------- */
@@ -289,7 +289,7 @@
   left: 22px;
   /* Отрицательный — кнопка свисает нижней половиной за нижнюю кромку плашки. */
   bottom: -24px;
-  padding: 13px 20px 14px;
+  padding: var(--invite-space-14) var(--invite-space-20) var(--invite-space-14);
   border: none;
   border-radius: 44px;
   corner-shape: squircle;
@@ -379,7 +379,7 @@
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
-  margin-top: var(--s-4);
+  margin-top: var(--invite-space-16);
   max-height: 32rem;
 }
 
@@ -458,7 +458,7 @@
   display: inline-block;
   width: 2px;
   height: 1.05em;
-  margin-left: 1px;
+  margin-left: var(--invite-space-2);
   border-radius: 1px;
   vertical-align: -0.16em;
   /* Тем же графитом, что текст примера и настоящая каретка поля (--c-answer):
@@ -570,8 +570,8 @@
     align-items: center;
     text-align: center;
     /* Воздух по краям листа плюс безопасная зона у нижней кромки телефона. */
-    padding: 22px 20px calc(18px + env(safe-area-inset-bottom));
-    gap: 14px;
+    padding: var(--invite-space-22) var(--invite-space-20) calc(var(--invite-space-18) + env(safe-area-inset-bottom));
+    gap: var(--invite-space-14);
     /* Лист вне потока — сворачивать в высоту нечего; верхний зазор ни к чему. */
     margin: 0;
     max-height: none;
@@ -584,7 +584,7 @@
      кромка дёргались бы отдельным от сдвига движением. */
   .note:not(.note--open) {
     max-height: none;
-    padding: 22px 20px calc(18px + env(safe-area-inset-bottom));
+    padding: var(--invite-space-22) var(--invite-space-20) calc(var(--invite-space-18) + env(safe-area-inset-bottom));
     border-top-width: 1px;
     border-bottom-width: 1px;
     overflow: visible;

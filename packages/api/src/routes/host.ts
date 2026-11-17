@@ -34,6 +34,7 @@ import { passthroughLocale, type Locale } from '../locale/index.js';
 import { PhotoStore } from '../resolver/photos.js';
 import { getPhotoStyle } from '../domain/photoStyle.js';
 import { localPhotoUrl } from './photos.js';
+import { listTags } from '../domain/tags.js';
 
 export interface HostRoutesDeps {
   db: Db;
@@ -90,11 +91,15 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
     return reply.send(user);
   });
 
+  app.get('/api/tags', async (request, reply) => {
+    return reply.send({ tags: listTags(db, hostUser(request).id) });
+  });
+
   app.get('/api/places', async (request, reply) => {
     const user = hostUser(request);
     const filters = placeFiltersSchema.safeParse(request.query);
     if (!filters.success) {
-      return reply.code(400).send({ error: 'invalid_filters', message: 'Некорректные фильтры' });
+      return reply.code(400).send({ error: 'invalid_filters', message: 'Invalid filters' });
     }
     const places = listPlaces(db, user.id, filters.data).map(withPublicPhoto);
     return reply.send({ places, facets: getFacets(db, user.id) });
@@ -103,7 +108,7 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
   app.get<{ Params: { id: string } }>('/api/places/:id', async (request, reply) => {
     const user = hostUser(request);
     const row = getPlaceRow(db, user.id, request.params.id);
-    if (!row) throw notFound('Место не найдено');
+    if (!row) throw notFound('Place not found');
     return reply.send({
       ...withPublicPhoto(rowToPlace(row)),
       candidates: listCandidates(db, row.id),
@@ -116,9 +121,9 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
     if (!parsed.success) {
       return reply
         .code(400)
-        .send({ error: 'invalid_body', message: 'Проверьте поля места', issues: parsed.error.issues });
+        .send({ error: 'invalid_body', message: 'Check the place fields', issues: parsed.error.issues });
     }
-    // Правило «сохранённые места по-английски» не знает исключений: место, набранное
+    // Правило «сохранённые places по-английски» не знает исключений: место, набранное
     // руками по-русски, переводится так же, как пришедшее из поста. Латиница проходит
     // насквозь — переводить нечего, и хост увидит ровно то, что напечатал.
     const english = await locale.place({
@@ -146,7 +151,7 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
     if (!parsed.success) {
       return reply
         .code(400)
-        .send({ error: 'invalid_body', message: 'Проверьте поля места', issues: parsed.error.issues });
+        .send({ error: 'invalid_body', message: 'Check the place fields', issues: parsed.error.issues });
     }
 
     const { confirm_candidate_id, ...patch } = parsed.data;
@@ -154,14 +159,14 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
 
     if (confirm_candidate_id) {
       const confirmed = confirmCandidate(db, user.id, request.params.id, confirm_candidate_id);
-      if (!confirmed) throw notFound('Место или кандидат не найдены');
+      if (!confirmed) throw notFound('Place or candidate not found');
     }
 
     const hasPatch = Object.keys(patch).length > 0;
     const row = hasPatch
       ? updatePlace(db, user.id, request.params.id, patch)
       : getPlaceRow(db, user.id, request.params.id);
-    if (!row) throw notFound('Место не найдено');
+    if (!row) throw notFound('Place not found');
 
     return reply.send({
       ...withPublicPhoto(rowToPlace(row)),
@@ -171,7 +176,7 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
 
   app.delete<{ Params: { id: string } }>('/api/places/:id', async (request, reply) => {
     const user = hostUser(request);
-    if (!softDeletePlace(db, user.id, request.params.id)) throw notFound('Место не найдено');
+    if (!softDeletePlace(db, user.id, request.params.id)) throw notFound('Place not found');
     return reply.code(204).send();
   });
 
@@ -179,16 +184,16 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
     const user = hostUser(request);
     const parsed = createEnvelopeSchema.safeParse(request.body);
     if (!parsed.success) {
-      // Сообщение схемы уже человеческое («Нужно минимум 3 места») — отдаём его как есть.
+      // Сообщение схемы уже человеческое («Добавьте хотя бы одно место») — отдаём его как есть.
       const first = parsed.error.issues[0];
-      throw badRequest('invalid_place_count', first?.message ?? 'Некорректный конверт');
+      throw badRequest('invalid_place_count', first?.message ?? 'Invalid envelope');
     }
     // Materialize old local originals too, so every future selection uses the paper style.
     // Validate the whole selection before rendering photos.
     const selected = parsed.data.place_ids.map((id) => getPlaceRow(db, user.id, id));
-    if (new Set(parsed.data.place_ids).size !== parsed.data.place_ids.length) throw badRequest('duplicate_places', 'В конверте не может быть одного и того же места дважды');
-    if (selected.some((row) => !row)) throw badRequest('unknown_place', 'Некоторые места не найдены в вашей библиотеке');
-    if (selected.some((row) => row!.enrichment_status !== 'resolved')) throw badRequest('unconfirmed_place', 'Сначала подтвердите места');
+    if (new Set(parsed.data.place_ids).size !== parsed.data.place_ids.length) throw badRequest('duplicate_places', 'The same place cannot appear twice in an envelope');
+    if (selected.some((row) => !row)) throw badRequest('unknown_place', 'Some places were not found in your library');
+    if (selected.some((row) => row!.enrichment_status !== 'resolved')) throw badRequest('unconfirmed_place', 'Confirm the places first');
     const placePhotos: Record<string, string[]> = {};
     for (const row of selected) {
       const place = rowToPlace(row!);
@@ -199,6 +204,7 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
       placeIds: parsed.data.place_ids,
       hostNote: parsed.data.host_note,
       placeNotes: parsed.data.place_notes,
+      placeCaptions: parsed.data.place_captions,
       placePhotos,
       ttlDays: deps.envelopeTtlDays,
     });
@@ -229,7 +235,7 @@ export async function hostRoutes(app: FastifyInstance, deps: HostRoutesDeps): Pr
         answer: answer
           ? {
               chosen_place_id: answer.chosen_place_id,
-              chosen_place_name: chosen?.name ?? 'Удалённое место',
+              chosen_place_name: chosen?.name ?? 'Deleted place',
               guest_message: answer.guest_message,
               answered_at: answer.answered_at,
             }

@@ -1,0 +1,35 @@
+body { background: #eeede9; color: #454640; font-family: 'Inter Tight', sans-serif; }
+.motion-lab { display: flex; justify-content: center; align-items: flex-start; gap: var(--invite-space-64); padding: var(--invite-space-40) var(--invite-space-24); }
+.motion-lab aside { width: 390px; }
+.motion-lab aside > span { font-size: 11px; letter-spacing: .15em; }
+.motion-lab h1 { font-size: 38px; line-height: 1.1; margin: var(--invite-space-20) 0; }
+.motion-lab p { font-size: 16px; line-height: 1.5; margin: 0 0 var(--invite-space-24); }
+.motion-options { display: grid; gap: var(--invite-space-10); }
+.motion-options button { text-align: left; padding: var(--invite-space-16); border: 1px solid #d7d7d0; border-radius: 16px; background: #f6f6f2; color: inherit; }
+.motion-options button[aria-pressed=true] { border-color: #737e66; background: #e1e6d9; }
+.motion-options button:disabled { cursor: default; }
+.motion-options b,.motion-options span { display: block; }
+.motion-options span { margin-top: var(--invite-space-6); font-size: 14px; line-height: 1.4; }
+.motion-speed { display: flex; align-items: center; gap: var(--invite-space-8); margin: var(--invite-space-20) 0; }
+.motion-replay { padding: var(--invite-space-14) var(--invite-space-20); border-radius: 24px; color: white; background: #515b48; border: 0; }
+.motion-phone { flex: none; position: relative; width: 375px; height: 740px; overflow: hidden; border-radius: 32px; background: #f7f7f7; box-shadow: 0 18px 60px #383b3820; }
+.motion-home h2 { margin: var(--invite-space-12) var(--invite-space-14); font-size: 28px; letter-spacing: -.07em; }
+.motion-photo { position: absolute; inset: 60px 6px 14px; border-radius: 24px; background-size: cover; background-position: center; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: var(--invite-space-16); padding: var(--invite-space-12); }
+.motion-source,.motion-envelope { border: .5px solid #fdfbefbF; background: #c5c5c54d; backdrop-filter: blur(15px); color: white; border-radius: 22px; box-shadow: inset 1px 1px 4px #f5f5ea38; }
+.motion-source { display: grid; gap: var(--invite-space-4); padding: var(--invite-space-8) var(--invite-space-16); font-size: 16px; }
+.motion-source img { width: 86px; height: 70px; object-fit: cover; border-radius: 8px; border-top: 8px solid #ea82b5; transform: rotate(-2deg); }
+.motion-envelope { width: 100%; text-align: center; padding: var(--invite-space-18) 0; font-weight: 600; }
+.motion-overlay { position: absolute; inset: 0; z-index: 2; }
+.motion-overlay[hidden] { display: none; }
+.motion-close { position: absolute; right: var(--invite-space-14); top: var(--invite-space-12); width: 32px; height: 32px; border: 0; border-radius: 50%; background: #e9e9e7; color: #555; font-size: 26px; z-index: 3; }
+.motion-panel { position: absolute; inset: 58px 8px 0; border-radius: 24px 24px 0 0; background: #f7f7f7; box-shadow: 0 -10px 40px -10px #53514720; transform-origin: bottom left; overflow: hidden; }
+.motion-content { height: 100%; overflow: auto; padding: 0 var(--invite-space-20) var(--invite-space-24); }
+.motion-grip { display: flex; align-items: center; justify-content: center; width: 100%; height: 26px; background: transparent; border: 0; touch-action: none; cursor: grab; }
+.motion-grip span { width: 36px; height: 4px; border-radius: 4px; background: #c4c4be; }
+.motion-content h3 { font-size: 20px; margin: var(--invite-space-8) 0 var(--invite-space-20); }
+.motion-content ul { display: grid; gap: var(--invite-space-24); padding: 0; margin: 0; list-style: none; }
+.motion-content li { display: flex; align-items: center; gap: var(--invite-space-14); }
+.motion-content li img { width: 64px; height: 48px; object-fit: cover; border-radius: 8px; }
+.motion-content li b { font-size: 17px; font-weight: 500; }
+.motion-content li span { display: block; font-size: 14px; margin-top: var(--invite-space-4); }
+@media(max-width: 850px) { .motion-lab { flex-direction: column; align-items: center; gap: var(--invite-space-28); padding: var(--invite-space-20) var(--invite-space-12); } .motion-lab aside { width: min(100%,390px); } .motion-phone { width: min(375px,100%); } }

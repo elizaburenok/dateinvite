@@ -1,6 +1,6 @@
 .invitation-intro {
-  --intro-paper: #fdfdde;
-  --intro-ink: #4e4e4e;
+  --intro-paper: var(--invite-bg-primary);
+  --intro-ink: var(--invite-primitive-primary);
   position: fixed;
   inset: 0;
   z-index: 10;
@@ -28,7 +28,7 @@
 }
 
 .invitation-intro__line { display: flex; white-space: nowrap; }
-.invitation-intro__line--card { align-items: center; height: 1.111111em; gap: 0.15em; }
+.invitation-intro__line--card { align-items: center; height: 1.111111em; gap: var(--invite-space-8); }
 
 .invitation-intro__card {
   position: relative;
@@ -63,13 +63,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: var(--invite-space-8);
   margin: 0;
-  padding: 12px 20px;
+  padding: var(--invite-space-12) var(--invite-space-20);
   font-size: 13px;
   line-height: 1.2;
   letter-spacing: 0.01em;
-  color: rgb(78 78 78 / 65%);
+  color: color-mix(in srgb, var(--invite-primitive-primary) 65%, transparent);
   animation: invitation-hint-appear 700ms ease 900ms both;
 }
 

@@ -3,7 +3,7 @@
   --r-card: 12px;
   --r-card-inner: 12px;
   --corner-card: round;
-  --wheel-caption-fill: #4e4e4e;
+  --wheel-caption-fill: var(--invite-primitive-primary);
 }
 
 /* Titles now sit below the photo, so the old scrim for text on the photo and
@@ -46,7 +46,7 @@
 .wheel__caption {
   position: absolute;
   z-index: 6;
-  top: 91%;
+  top: calc(91% + var(--invite-space-4));
   left: 50%;
   width: max-content;
   max-width: none;
@@ -64,12 +64,16 @@
 }
 
 .wheel__caption canvas {
+  position: absolute;
+  top: calc(-1 * var(--invite-space-24));
+  left: 50%;
+  transform: translateX(-50%);
   display: block;
-  margin-top: -24px;
+  margin: 0;
   height: auto;
   overflow: visible;
   font-family: var(--font-card);
-  font-size: 32px;
+  font-size: 24px;
   font-weight: var(--w-medium);
   letter-spacing: -0.02em;
 }
@@ -77,10 +81,13 @@
 @media (prefers-reduced-motion: reduce) {
   .wheel__visual { transition: none; }
   .wheel__caption { transition: none; transform: translateX(-50%); }
-  .wheel .wheel__drum { gap: 120px; }
+  .wheel .wheel__drum { gap: var(--invite-space-120); }
   .wheel .wheel__item { aspect-ratio: auto; }
   .wheel__content { height: auto; }
   .wheel__visual { aspect-ratio: var(--card-ratio); height: auto; }
   .wheel__card { aspect-ratio: var(--card-ratio); height: auto; }
   .wheel__caption { position: relative; top: auto; margin-top: -4%; }
 }
+
+/* Photo borders on the token-bound card list (Figma 832:366). */
+.wheel .card { outline: 2px solid var(--invite-border-01); outline-offset: -2px; }

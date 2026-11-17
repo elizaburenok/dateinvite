@@ -1,0 +1,98 @@
+.home__photo-card {
+  position: absolute;
+  isolation: isolate;
+  top: calc(var(--invite-space-60) + var(--invite-space-2));
+  right: var(--invite-space-4);
+  bottom: calc(var(--invite-space-22) + env(safe-area-inset-bottom));
+  left: var(--invite-space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: var(--invite-space-16);
+  padding: var(--invite-space-10) var(--invite-space-12);
+  overflow: hidden;
+  border: 1px solid var(--invite-border-01);
+  border-radius: 24px;
+  box-shadow: 0 8px 37px 2px rgb(83 81 71 / .1),
+    -8px -8px 12.976px 6.488px rgb(136 133 119 / .06);
+}
+
+.home__photo {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+}
+
+.home__photo .thumb {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+.home__photo::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / .2), rgb(161 148 148 / .03));
+  content: '';
+}
+
+.home__saved-places.glass-button.glass-button--frost {
+  --glass-surface: rgb(146 146 146 / .58);
+  flex-direction: column;
+  gap: var(--invite-space-4);
+  padding: var(--invite-space-8) var(--invite-space-20) var(--invite-space-8) var(--invite-space-16);
+  overflow: hidden;
+  border: 0;
+  border-radius: 22px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  letter-spacing: 0;
+}
+
+.home__saved-stack {
+  position: relative;
+  display: block;
+  width: 86px;
+  height: 72px;
+}
+
+.home__saved-stack .home__library-stack {
+  top: 0;
+  right: 0;
+  transform: scale(.896);
+  transform-origin: top right;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .home__saved-places:hover .home__library-back,
+  .home__saved-places:hover .home__library-front {
+    transform-origin: 50% 100%;
+  }
+
+  .home__saved-places:hover .home__library-back {
+    animation: library-fan-back 2.4s linear -.48s 1;
+  }
+
+  .home__saved-places:hover .home__library-front {
+    animation: library-fan-front 2.4s linear -.48s 1;
+  }
+
+  .home__saved-places:hover .home__library-stack-title {
+    animation: library-fan-label 2.4s linear -.48s 1;
+  }
+}
+
+.home__photo-card .home__invitation-action.invite-button {
+  width: 100%;
+  padding: var(--invite-space-10) var(--invite-space-18);
+  border: 0;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}

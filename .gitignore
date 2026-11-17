@@ -28,3 +28,6 @@ packages/guest/prototypes/drum/drum-standalone.html
 # выгрузки тяжёлые (обои — шесть мегабайт) и импортировать их из пакета всё
 # равно нельзя — папка вне packages/guest.
 /src/
+
+# Standalone preview output
+feed-preview-dist/

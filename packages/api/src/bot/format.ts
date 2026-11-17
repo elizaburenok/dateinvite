@@ -16,7 +16,7 @@ export function placeCard(place: PlaceRow): string {
   if (meta) lines.push(escapeHtml(meta));
   if (place.address) lines.push(escapeHtml(place.address));
   if (place.note) lines.push(`\n<i>${escapeHtml(place.note)}</i>`);
-  if (place.maps_url) lines.push(`\n<a href="${escapeHtml(place.maps_url)}">Открыть в Картах</a>`);
+  if (place.maps_url) lines.push(`\n<a href="${escapeHtml(place.maps_url)}">Open in Maps</a>`);
 
   return lines.join('\n');
 }

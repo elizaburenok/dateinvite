@@ -22,29 +22,29 @@ export async function photoRoutes(app: FastifyInstance, deps: { db: Db; botToken
   app.get('/api/photo-style', async (request) => getPhotoStyle(deps.db, hostUser(request).id));
   app.put('/api/photo-style', async (request) => {
     const parsed = halftoneSettingsSchema.safeParse(request.body);
-    if (!parsed.success) throw badRequest('invalid_style', 'Проверьте настройки растра');
+    if (!parsed.success) throw badRequest('invalid_style', 'Check the halftone settings');
     savePhotoStyle(deps.db, hostUser(request).id, parsed.data);
     return parsed.data;
   });
   app.addContentTypeParser(['image/jpeg', 'image/png', 'image/webp'], { parseAs: 'buffer', bodyLimit: MAX_PHOTO_BYTES }, (_request, body, done) => done(null, body));
   app.post('/api/photos', { bodyLimit: MAX_PHOTO_BYTES }, async (request, reply) => {
-    if (!Buffer.isBuffer(request.body)) throw badRequest('invalid_photo', 'Выберите JPEG, PNG или WebP');
+    if (!Buffer.isBuffer(request.body)) throw badRequest('invalid_photo', 'Choose a JPEG, PNG, or WebP image');
     try {
       return reply.code(201).send({ source_url: await store.saveOriginal(request.body) });
     } catch {
-      throw badRequest('invalid_photo', 'Не удалось прочитать фото. Нужен JPEG, PNG или WebP до 10 МБ и 40 мегапикселей.');
+      throw badRequest('invalid_photo', 'Could not read the photo. Choose a JPEG, PNG, or WebP image under 10 MB and 40 megapixels.');
     }
   });
   app.get('/api/photos/source', async (request) => {
     const parsed = z.object({ photo_url: z.string().max(500) }).safeParse(request.query);
-    if (!parsed.success) throw badRequest('invalid_photo', 'Не выбрана фотография');
+    if (!parsed.success) throw badRequest('invalid_photo', 'No photo selected');
     try { return await store.source(localPhotoUrl(parsed.data.photo_url, deps.publicBaseUrl)); }
-    catch { throw badRequest('invalid_photo', 'Оригинал недоступен. Загрузите фотографию с устройства.'); }
+    catch { throw badRequest('invalid_photo', 'Original unavailable. Upload a photo from your device.'); }
   });
   app.post('/api/photos/render', async (request) => {
     const parsed = z.object({ photo_url: z.string().max(500), settings: halftoneSettingsSchema }).safeParse(request.body);
-    if (!parsed.success) throw badRequest('invalid_photo', 'Проверьте фотографию и настройки');
+    if (!parsed.success) throw badRequest('invalid_photo', 'Check the photo and settings');
     try { return { photo_url: await store.render(localPhotoUrl(parsed.data.photo_url, deps.publicBaseUrl), parsed.data.settings) }; }
-    catch { throw badRequest('invalid_photo', 'Не удалось обработать фотографию. Попробуйте загрузить её заново.'); }
+    catch { throw badRequest('invalid_photo', 'Could not process the photo. Try uploading it again.'); }
   });
 }
