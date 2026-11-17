@@ -32,7 +32,7 @@ export function makeRequireHost({ db, botToken }: HostAuthDeps) {
       // Без токена бота подпись проверить нечем — молча пускать нельзя.
       await reply.code(503).send({
         error: 'bot_not_configured',
-        message: 'Сервер запущен без BOT_TOKEN, авторизация хоста недоступна',
+        message: 'Host authentication is unavailable because BOT_TOKEN is not configured',
       });
       return;
     }
@@ -41,13 +41,13 @@ export function makeRequireHost({ db, botToken }: HostAuthDeps) {
     if (!initData) {
       await reply
         .code(401)
-        .send({ error: 'unauthorized', message: 'Нет заголовка Authorization: tma <initData>' });
+        .send({ error: 'unauthorized', message: 'Missing Authorization: tma <initData> header' });
       return;
     }
 
     const result = validateInitData(initData, botToken);
     if (!result.ok) {
-      await reply.code(401).send({ error: result.reason, message: 'initData не прошла проверку' });
+      await reply.code(401).send({ error: result.reason, message: 'initData verification failed' });
       return;
     }
 

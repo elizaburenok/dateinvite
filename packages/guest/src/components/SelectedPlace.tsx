@@ -13,7 +13,7 @@ export function SelectedPlace({ place, sending, onBack }: SelectedPlaceProps) {
   return (
     <section className="selected-place" aria-label={place.name}>
       <button type="button" className="selected-place__back" onClick={onBack}
-        disabled={sending} aria-label="Вернуться ко всем местам">
+        disabled={sending} aria-label="Back to all places">
         <img src={backCircleUrl} width="44" height="44" alt="" aria-hidden="true" />
       </button>
       <SelectedPlaceHeading name={place.name} address={place.address || place.district} />

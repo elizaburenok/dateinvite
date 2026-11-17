@@ -1,3 +1,4 @@
+import { PRIMARY_GRADIENT, SPACING } from '@invite/shared/design-tokens';
 import { useLayoutEffect, useRef } from 'react';
 
 /** Composite the outline and glyphs before the wheel applies perspective;
@@ -16,11 +17,11 @@ export function WheelCaption({ name, visible }: { name: string; visible: boolean
       const style = getComputedStyle(canvas);
       const token = (name: string) => style.getPropertyValue(name).trim();
       const font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      // Preserve the established line breaks while rendering captions at 32px.
+      // Preserve the established line breaks while rendering captions at 24px.
       ctx.font = `${style.fontWeight} 44px ${style.fontFamily}`;
       ctx.letterSpacing = '-0.88px';
       ctx.textAlign = 'left';
-      const padding = 24;
+      const padding = SPACING[24];
       const slotWidth = canvas.parentElement?.parentElement?.clientWidth ?? 0;
       if (slotWidth <= 0) return;
       // Wrap rather than scaling all titles down to fit the longest name.
@@ -48,14 +49,19 @@ export function WheelCaption({ name, visible }: { name: string; visible: boolean
       const ascent = Math.max(...metrics.map((m) => m.actualBoundingBoxAscent));
       const descent = Math.max(...metrics.map((m) => m.actualBoundingBoxDescent));
       const width = Math.ceil(Math.max(...metrics.map((m) => Math.max(m.width, m.actualBoundingBoxRight) + Math.max(0, m.actualBoundingBoxLeft))) + padding * 2);
-      // Keep the established caption size and spacing.
-      const lineHeight = 30;
-      const height = Math.ceil(ascent + descent + (lines.length - 1) * lineHeight + padding * 2);
+      // Layout uses the text line box; the canvas bleed only protects effects.
+      const lineHeight = 24;
+      const leading = (lineHeight - ascent - descent) / 2;
+      const height = lines.length * lineHeight + padding * 2;
       const ratio = window.devicePixelRatio || 1;
       canvas.width = Math.ceil(width * ratio);
       canvas.height = Math.ceil(height * ratio);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
+      if (canvas.parentElement) {
+        canvas.parentElement.style.width = `${width - padding * 2}px`;
+        canvas.parentElement.style.height = `${lines.length * lineHeight}px`;
+      }
       ctx.scale(ratio, ratio);
       ctx.font = font;
       ctx.letterSpacing = style.letterSpacing;
@@ -75,9 +81,9 @@ export function WheelCaption({ name, visible }: { name: string; visible: boolean
       mask.textAlign = 'center';
       mask.lineJoin = 'round';
       mask.lineWidth = 16;
-      mask.strokeStyle = 'rgb(0 0 0 / 23%)';
+      mask.strokeStyle = `rgb(0 0 0 / ${token(PRIMARY_GRADIENT.opacityVariable)})`;
       lines.forEach((text, i) => {
-        const y = padding + ascent + i * lineHeight;
+        const y = padding + leading + ascent + i * lineHeight;
         mask.strokeText(text, width / 2, y);
         mask.fillText(text, width / 2, y);
       });
@@ -104,15 +110,18 @@ export function WheelCaption({ name, visible }: { name: string; visible: boolean
 
       // Figma draws an 8px outside gradient stroke at 23% opacity.
       const gradient = ctx.createLinearGradient(0, height, width, 0);
-      gradient.addColorStop(0.27885, 'rgb(252 237 153 / 23%)');
-      gradient.addColorStop(0.63462, 'rgb(255 215 176 / 23%)');
-      gradient.addColorStop(1, 'rgb(249 177 179 / 23%)');
+      PRIMARY_GRADIENT.stops.forEach((stop) => {
+        gradient.addColorStop(stop.offset, token(stop.cssVariable));
+      });
+      ctx.save();
+      ctx.globalAlpha = Number(token(PRIMARY_GRADIENT.opacityVariable));
       ctx.strokeStyle = gradient;
       // Canvas centres strokes: 16px gives an 8px outside outline.
       ctx.lineWidth = 16;
-      lines.forEach((text, i) => ctx.strokeText(text, width / 2, padding + ascent + i * lineHeight));
+      lines.forEach((text, i) => ctx.strokeText(text, width / 2, padding + leading + ascent + i * lineHeight));
+      ctx.restore();
       ctx.fillStyle = token('--wheel-caption-fill');
-      lines.forEach((text, i) => ctx.fillText(text, width / 2, padding + ascent + i * lineHeight));
+      lines.forEach((text, i) => ctx.fillText(text, width / 2, padding + leading + ascent + i * lineHeight));
     };
     draw();
     void document.fonts.ready.then(draw);

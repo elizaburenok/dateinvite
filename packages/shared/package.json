@@ -16,10 +16,16 @@
     "./constants": {
       "types": "./dist/constants.d.ts",
       "default": "./dist/constants.js"
+    },
+    "./styles/figma-tokens.css": "./styles/figma-tokens.css",
+    "./styles/figma-spacing.css": "./styles/figma-spacing.css",
+    "./design-tokens": {
+      "types": "./dist/design-tokens.d.ts",
+      "default": "./dist/design-tokens.js"
     }
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "node design/generate-tokens.mjs && tsc -b",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {

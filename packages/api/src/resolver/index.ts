@@ -166,7 +166,7 @@ export async function resolvePlace(
         status: 'needs_confirmation',
         draft: await english({
           draft: {
-            name: link.textHint ?? slugToQuery(link.slug) ?? 'Место без названия',
+            name: link.textHint ?? slugToQuery(link.slug) ?? 'Unnamed place',
             address: '',
             district: null,
             category: null,
@@ -209,7 +209,7 @@ export async function resolvePlace(
         };
       }
     }
-    return { status: 'failed', reason: 'Из этой ссылки не удалось достать место' };
+    return { status: 'failed', reason: 'Could not identify a place from this link' };
   }
 
   // 2. Telegram отдал venue: название и адрес пришли от платформы, догадываться не нужно.
@@ -244,7 +244,7 @@ export async function resolvePlace(
       status: 'needs_confirmation',
       draft: await english({
         draft: {
-          name: 'Место без названия',
+          name: 'Unnamed place',
           address: '',
           district: null,
           category: null,
@@ -378,7 +378,7 @@ export async function resolvePlace(
   let hints = buildHints();
   // Ни адреса, ни намёка на название — гадать не по чему.
   if (hints.length === 0 && !address) {
-    return { status: 'failed', reason: 'В тексте не нашлось названия места' };
+    return { status: 'failed', reason: 'Could not find a place name in the text' };
   }
 
   let all = await collect(hints);
@@ -392,7 +392,7 @@ export async function resolvePlace(
   }
 
   if (all.length === 0 || hints.length === 0) {
-    return { status: 'failed', reason: 'Не нашли на карте ничего похожего' };
+    return { status: 'failed', reason: 'Could not find a matching place on the map' };
   }
 
   return {

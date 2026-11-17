@@ -1,5 +1,7 @@
+import { Button } from './Button.js';
 import { useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { categoryLabel } from '@invite/shared';
 
 interface FilterMenuProps {
   label: string;
@@ -24,11 +26,11 @@ export function FilterMenu({ label, options, value, onChange }: FilterMenuProps)
 
   return (
     <div className="filter-menu">
-      <button type="button" className={`filter-menu__trigger${value ? ' filter-menu__trigger--active' : ''}`}
-        aria-haspopup="dialog" aria-label={`${label}: ${value ?? 'все'}`}
+      <Button type="button" className={`filter-menu__trigger${value ? ' filter-menu__trigger--active' : ''}`}
+        aria-haspopup="dialog" aria-label={`${label}: ${value ? categoryLabel(value) : 'all'}`}
         onClick={(event) => open(event.currentTarget)}>
-        <span>{value ?? label}</span>
-      </button>
+        <span>{value ? categoryLabel(value) : label}</span>
+      </Button>
       <dialog ref={dialogRef} className="filter-menu__panel" aria-label={label}
         style={{ '--filter-left': `${position.left}px`, '--filter-top': `${position.top}px` } as CSSProperties}
         onClick={(event) => {
@@ -41,10 +43,10 @@ export function FilterMenu({ label, options, value, onChange }: FilterMenuProps)
         </div>
         <div className="filter-menu__options">
           {[undefined, ...options].map((option) => (
-            <button type="button" key={option ?? '__all'} className="filter-menu__option"
+            <Button type="button" key={option ?? '__all'} className="filter-menu__option"
               aria-pressed={value === option} onClick={() => choose(option)}>
-              <span>{option ?? 'Все'}</span><span aria-hidden="true">{value === option ? '✓' : ''}</span>
-            </button>
+              <span>{option ? categoryLabel(option) : 'All'}</span><span aria-hidden="true">{value === option ? '✓' : ''}</span>
+            </Button>
           ))}
         </div>
       </dialog>

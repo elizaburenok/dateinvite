@@ -1,3 +1,4 @@
+import { Button } from '../components/Button.js';
 import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_HALFTONE, MAX_PHOTO_BYTES, type HalftoneSettings, type PlaceWithCandidates } from '@invite/shared';
 import { api } from '../api.js';
@@ -29,8 +30,14 @@ export function PhotoEditor({ place, sampleUrl, onSaved, onClose }: Props) {
 
   useEffect(() => {
     closeButton.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     operation.current = new AbortController();
-    return () => { operation.current.abort(); loadVersion.current++; };
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      operation.current.abort();
+      loadVersion.current++;
+    };
   }, []);
 
   const selectedUrl = place?.photos[photoIndex] ?? sampleUrl;
@@ -52,7 +59,7 @@ export function PhotoEditor({ place, sampleUrl, onSaved, onClose }: Props) {
           if (place && selectedUrl.includes('.halftone-')) setSettings(saved.settings);
         }
       } catch (err) {
-        if (version === loadVersion.current) setError(err instanceof Error ? err.message : 'Не удалось загрузить фотографию');
+        if (version === loadVersion.current) setError(err instanceof Error ? err.message : 'Could not load photo');
       } finally { if (version === loadVersion.current) setLoading(false); }
     })();
     return () => { loadVersion.current++; };
@@ -87,7 +94,7 @@ export function PhotoEditor({ place, sampleUrl, onSaved, onClose }: Props) {
     const version = ++loadVersion.current;
     setError(''); setNotice('');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > MAX_PHOTO_BYTES) {
-      setError('Выберите JPEG, PNG или WebP до 10 МБ'); return;
+      setError('Choose a JPEG, PNG, or WebP image under 10 MB'); return;
     }
     setLoading(true);
     const url = URL.createObjectURL(file);
@@ -97,7 +104,7 @@ export function PhotoEditor({ place, sampleUrl, onSaved, onClose }: Props) {
       setSource({ image, url, file });
     } catch (err) {
       URL.revokeObjectURL(url);
-      if (version === loadVersion.current) setError(err instanceof Error ? err.message : 'Файл повреждён');
+      if (version === loadVersion.current) setError(err instanceof Error ? err.message : 'File is damaged');
     } finally { if (version === loadVersion.current) setLoading(false); }
   }
 
@@ -106,7 +113,7 @@ export function PhotoEditor({ place, sampleUrl, onSaved, onClose }: Props) {
   }
   async function run(action: () => Promise<void>) {
     setBusy(true); setError(''); setNotice('');
-    try { await action(); } catch (err) { setError(err instanceof Error ? err.message : 'Не получилось сохранить'); }
+    try { await action(); } catch (err) { setError(err instanceof Error ? err.message : 'Could not save'); }
     finally { setBusy(false); }
   }
   async function exportPng() {
@@ -117,7 +124,7 @@ export function PhotoEditor({ place, sampleUrl, onSaved, onClose }: Props) {
     const anchor = document.createElement('a');
     anchor.href = url; anchor.download = 'paper-halftone.png'; anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    setNotice(`PNG готов: ${canvas.width} × ${canvas.height} px`);
+    setNotice(`PNG ready: ${canvas.width} × ${canvas.height} px`);
   }
   async function apply() {
     if (!source || !place) return;
@@ -130,14 +137,14 @@ export function PhotoEditor({ place, sampleUrl, onSaved, onClose }: Props) {
   }
 
   const sliders = [
-    ['cellSize', 'Размер ячейки', 3, 24, 1, 'px'],
-    ['dotScale', 'Размер точек', 0.3, 1.5, 0.05, '×'],
-    ['contrast', 'Контраст', -50, 50, 1, ''],
-    ['brightness', 'Яркость', -50, 50, 1, ''],
+    ['cellSize', 'Cell size', 3, 24, 1, 'px'],
+    ['dotScale', 'Dot size', 0.3, 1.5, 0.05, '×'],
+    ['contrast', 'Contrast', -50, 50, 1, ''],
+    ['brightness', 'Brightness', -50, 50, 1, ''],
   ] as const;
 
   return (
-    <div className="sheet photo-editor" role="dialog" aria-modal="true" aria-label="Точечная графика"
+    <div className="sheet photo-editor" role="dialog" aria-modal="true" aria-label="Halftone"
       onKeyDown={(event) => {
         if (event.key === 'Escape' && !busy) { event.stopPropagation(); onClose(); }
         if (event.key !== 'Tab') return;
@@ -148,50 +155,50 @@ export function PhotoEditor({ place, sampleUrl, onSaved, onClose }: Props) {
         if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
       }}>
       <div className="sheet__head">
-        <button ref={closeButton} className="sheet__close" type="button" aria-label="Закрыть редактор" disabled={busy} onClick={onClose}>←</button>
-        <span className="sheet__title">Точечная графика</span>
+        <Button iconOnly size="small" ref={closeButton} className="sheet__close" type="button" aria-label="Close editor" disabled={busy} onClick={onClose}>←</Button>
+        <span className="sheet__title">Halftone</span>
       </div>
       <div className="sheet__body photo-editor__body">
         <section className="photo-editor__image">
           <div className="photo-editor__preview" aria-busy={loading || rendering}>
-            {source && (original || preview) ? <img src={original ? source.url : preview} alt={original ? 'Исходная фотография' : 'Фотография в точечной графике'} /> : <p>{loading ? 'Загружаем…' : 'Выберите фотографию для предпросмотра'}</p>}
+            {source && (original || preview) ? <img src={original ? source.url : preview} alt={original ? 'Original photo' : 'Halftone photo'} /> : <p>{loading ? 'Loading…' : 'Choose a photo to preview'}</p>}
           </div>
           <div className="photo-editor__caption">
-            <span>{source ? `${source.image.naturalWidth} × ${source.image.naturalHeight} px` : 'JPEG, PNG, WebP · до 10 МБ'}</span>
-            <span role="status">{rendering && source ? 'Обрабатываем…' : 'Мягкий растр на бумаге'}</span>
+            <span>{source ? `${source.image.naturalWidth} × ${source.image.naturalHeight} px` : 'JPEG, PNG, WebP · up to 10 MB'}</span>
+            <span role="status">{rendering && source ? 'Processing…' : 'Soft halftone on paper'}</span>
           </div>
           <div className="photo-editor__actions">
-            <button type="button" className="btn" disabled={busy || loading} onClick={() => fileInput.current?.click()}>Загрузить фото</button>
-            <button type="button" className="btn" disabled={!source} aria-pressed={original} onClick={() => setOriginal(!original)}>{original ? 'Показать растр' : 'Показать оригинал'}</button>
+            <Button type="button" className="btn" disabled={busy || loading} onClick={() => fileInput.current?.click()}>Upload photo</Button>
+            <Button type="button" className="btn" disabled={!source} aria-pressed={original} onClick={() => setOriginal(!original)}>{original ? 'Show halftone' : 'Show original'}</Button>
           </div>
-          <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Загрузить фотографию" hidden onChange={(event) => { void chooseFile(event.target.files?.[0]); event.target.value = ''; }} />
-          {place && place.photos.length > 1 && <label className="photo-editor__select">Фотография<select disabled={busy || loading} value={photoIndex} onChange={(event) => setPhotoIndex(Number(event.target.value))}>{place.photos.map((_, i) => <option key={i} value={i}>Фото {i + 1}</option>)}</select></label>}
+          <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload photo" hidden onChange={(event) => { void chooseFile(event.target.files?.[0]); event.target.value = ''; }} />
+          {place && place.photos.length > 1 && <label className="photo-editor__select">Photo<select disabled={busy || loading} value={photoIndex} onChange={(event) => setPhotoIndex(Number(event.target.value))}>{place.photos.map((_, i) => <option key={i} value={i}>Photo {i + 1}</option>)}</select></label>}
         </section>
-        <section className="photo-editor__controls" aria-label="Настройки растра">
+        <section className="photo-editor__controls" aria-label="Halftone settings">
           <fieldset disabled={busy || loading}>
-            <legend>Растр</legend>
+            <legend>Halftone</legend>
             <div className="photo-editor__modes">
-              <button type="button" aria-pressed={settings.rasterStyle === 'grid'} onClick={() => change('rasterStyle', 'grid')}>Ровная сетка</button>
-              <button type="button" aria-pressed={settings.rasterStyle === 'scatter'} onClick={() => change('rasterStyle', 'scatter')}>Рассеянный</button>
+              <Button type="button" aria-pressed={settings.rasterStyle === 'grid'} onClick={() => change('rasterStyle', 'grid')}>Even grid</Button>
+              <Button type="button" aria-pressed={settings.rasterStyle === 'scatter'} onClick={() => change('rasterStyle', 'scatter')}>Scattered</Button>
             </div>
             {sliders.map(([key, label, min, max, step, suffix]) => <label className="photo-editor__slider" key={key}><span>{label}<output>{settings[key]}{suffix}</output></span><input type="range" min={min} max={max} step={step} value={settings[key]} onChange={(event) => change(key, Number(event.target.value))} /></label>)}
             <div className="photo-editor__colors">
-              <label>Фон<input type="color" value={settings.paperColor} onChange={(event) => change('paperColor', event.target.value)} /></label>
-              <label>Точки<input type="color" value={settings.dotColor} onChange={(event) => change('dotColor', event.target.value)} /></label>
+              <label>Background<input type="color" value={settings.paperColor} onChange={(event) => change('paperColor', event.target.value)} /></label>
+              <label>Dots<input type="color" value={settings.dotColor} onChange={(event) => change('dotColor', event.target.value)} /></label>
             </div>
-            <label className="photo-editor__toggle"><input type="checkbox" checked={settings.paperGrain} onChange={(event) => change('paperGrain', event.target.checked)} />Бумажная текстура</label>
-            {settings.paperGrain && <label className="photo-editor__slider"><span>Интенсивность текстуры<output>{settings.grainOpacity}</output></span><input type="range" min="0" max="40" value={settings.grainOpacity} onChange={(event) => change('grainOpacity', Number(event.target.value))} /></label>}
-            <button type="button" className="btn btn--ghost" onClick={() => { setSettings({ ...DEFAULT_HALFTONE }); setNotice(''); }}>Сбросить настройки</button>
+            <label className="photo-editor__toggle"><input type="checkbox" checked={settings.paperGrain} onChange={(event) => change('paperGrain', event.target.checked)} />Paper texture</label>
+            {settings.paperGrain && <label className="photo-editor__slider"><span>Texture intensity<output>{settings.grainOpacity}</output></span><input type="range" min="0" max="40" value={settings.grainOpacity} onChange={(event) => change('grainOpacity', Number(event.target.value))} /></label>}
+            <Button type="button" className="btn btn--ghost" onClick={() => { setSettings({ ...DEFAULT_HALFTONE }); setNotice(''); }}>Reset settings</Button>
           </fieldset>
-          <p className="hint">Новые фотографии из бота обрабатываются автоматически. Оригиналы сохраняются.</p>
-          <button className="btn" type="button" disabled={busy || loading} onClick={() => void run(async () => { await api.savePhotoStyle(settings); setNotice('Стиль сохранён для всех новых фотографий'); })}>Использовать для новых фото</button>
+          <p className="hint">New photos from the bot are processed automatically. Originals are preserved.</p>
+          <Button className="btn" type="button" disabled={busy || loading} onClick={() => void run(async () => { await api.savePhotoStyle(settings); setNotice('Style saved for all new photos'); })}>Use for new photos</Button>
           {error && <p className="error" role="alert">{error}</p>}
           {notice && <p className="photo-editor__notice" role="status">{notice}</p>}
         </section>
       </div>
       <div className="sheet__foot">
-        <button className="btn" type="button" disabled={!source || busy || loading || rendering} onClick={() => void run(exportPng)}>{busy ? 'Сохраняем…' : 'Скачать PNG'}</button>
-        {place && <button className="btn btn--primary" type="button" disabled={!source || busy || loading || rendering} onClick={() => void run(apply)}>Применить к месту</button>}
+        <Button className="btn" type="button" disabled={!source || busy || loading || rendering} onClick={() => void run(exportPng)}>{busy ? 'Saving…' : 'Download PNG'}</Button>
+        {place && <Button className="btn btn--primary" type="button" disabled={!source || busy || loading || rendering} onClick={() => void run(apply)}>Apply to place</Button>}
       </div>
     </div>
   );

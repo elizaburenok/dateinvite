@@ -42,9 +42,10 @@ export function PlaceCard({ place, selected, readOnly, onSelect }: PlaceCardProp
         alt={place.name}
         seed={place.id}
         category={place.category}
+        pinkOnHover={!readOnly && !selected}
       />
 
-      {/* Заметка хоста временно снята с карточки — её новую подачу собираем
+      {/* Note хоста временно снята с карточки — её новую подачу собираем
           отдельно. Сам текст (place.note) остаётся в данных ответа. */}
 
       <div className="card__body">
@@ -62,7 +63,7 @@ export function PlaceCard({ place, selected, readOnly, onSelect }: PlaceCardProp
           onClick={() => onSelect(place.id)}
         >
           <span className="visually-hidden">
-            {selected ? `${place.name} — выбрано` : `Выбрать ${place.name}`}
+            {selected ? `${place.name} — selected` : `Choose ${place.name}`}
           </span>
         </button>
       )}

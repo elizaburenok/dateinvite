@@ -1,0 +1,22 @@
+[
+  {
+    "output": "packages/miniapp/src/assets/home/create-envelope-title.svg",
+    "template": "svg/home-title.svg"
+  },
+  {
+    "output": "packages/miniapp/src/assets/places-feed/close-halo.svg",
+    "template": "svg/close-halo.svg"
+  },
+  {
+    "output": "packages/miniapp/src/assets/places-feed/close-cross.svg",
+    "template": "svg/close-cross.svg"
+  },
+  {
+    "output": "packages/guest/src/assets/selected-send.svg",
+    "template": "svg/selected-send.svg"
+  },
+  {
+    "output": "packages/guest/src/assets/back-circle.svg",
+    "template": "svg/back-circle.svg"
+  }
+]

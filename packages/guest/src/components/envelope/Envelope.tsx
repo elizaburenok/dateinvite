@@ -80,7 +80,7 @@ export function Envelope({ state, onOpen }: EnvelopeProps) {
             <span className="envelope__seal">
               <img className="envelope__stamp" src={stampUrl} alt="" aria-hidden="true" />
             </span>
-            <span className="visually-hidden">Открыть конверт</span>
+            <span className="visually-hidden">Open envelope</span>
           </button>
         </div>
       </div>

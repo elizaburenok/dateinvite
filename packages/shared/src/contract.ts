@@ -132,7 +132,7 @@ export const createEnvelopeSchema = z
   .object({
     place_ids: z
       .array(z.string())
-      .min(ENVELOPE_MIN_PLACES, `Нужно минимум ${ENVELOPE_MIN_PLACES} места`)
+      .min(ENVELOPE_MIN_PLACES, `Добавьте хотя бы одно место`)
       .max(ENVELOPE_MAX_PLACES, `Не больше ${ENVELOPE_MAX_PLACES} мест`),
     host_note: z.string().max(500).nullable().default(null),
     /**
@@ -141,6 +141,7 @@ export const createEnvelopeSchema = z
      * Ключа для места может не быть вовсе: тогда конверт наследует текущую
      * заметку места (обратная совместимость с клиентами, что их не шлют).
      */
+    place_captions: z.record(z.string(), z.string().trim().min(1).max(200)).optional(),
     place_notes: z.record(z.string(), z.string().max(500).nullable()).optional(),
   })
   .strict();

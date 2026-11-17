@@ -66,14 +66,14 @@ export function App() {
   if (state.kind === 'not_found') {
     return (
       <Message
-        title="Такого приглашения нет"
-        text="Возможно, ссылку скопировали не полностью. Попросите отправить её ещё раз."
+        title="Invitation not found"
+        text="The link may be incomplete. Ask the sender to share it again."
       />
     );
   }
 
   if (state.kind === 'error') {
-    return <Message title="Не открылось" text={state.message} />;
+    return <Message title="Could not open" text={state.message} />;
   }
 
   return (
@@ -87,7 +87,7 @@ export function App() {
       />
       {demo && (
         <button type="button" className="dev-reset" onClick={resetScenario}>
-          Начать сначала
+          Start over
         </button>
       )}
     </>

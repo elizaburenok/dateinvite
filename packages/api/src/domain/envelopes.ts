@@ -51,11 +51,12 @@ export interface CreateEnvelopeInput {
   hostNote: string | null;
   ttlDays: number;
   /**
-   * Заметки к местам этого конверта по id места. Ключ есть → берём его значение
+   * Заметки к placesм этого конверта по id places. Ключ есть → берём его значение
    * (пустое/пробелы → null, «без заметки»); ключа нет → место наследует свою
    * текущую заметку из библиотеки. undefined всей карты — заметки не присылали,
    * наследуют все (обратная совместимость).
    */
+  placeCaptions?: Record<string, string>;
   placeNotes?: Record<string, string | null>;
   /** Materialized photos for this invitation, independent of later library edits. */
   placePhotos?: Record<string, string[]>;
@@ -64,14 +65,14 @@ export interface CreateEnvelopeInput {
 export function createEnvelope(db: Db, input: CreateEnvelopeInput): EnvelopeRow {
   const unique = [...new Set(input.placeIds)];
   if (unique.length !== input.placeIds.length) {
-    throw badRequest('duplicate_places', 'В конверте не может быть одного и того же места дважды');
+    throw badRequest('duplicate_places', 'The same place cannot appear twice in an envelope');
   }
-  // Дублируем проверку схемы намеренно: лимит 3–5 обязан держаться на уровне API,
+  // Дублируем проверку схемы намеренно: лимит 1–5 обязан держаться на уровне API,
   // даже если конверт создаётся не из Mini App (приёмочный критерий §12).
   if (unique.length < ENVELOPE_MIN_PLACES || unique.length > ENVELOPE_MAX_PLACES) {
     throw badRequest(
       'invalid_place_count',
-      `В конверте должно быть от ${ENVELOPE_MIN_PLACES} до ${ENVELOPE_MAX_PLACES} мест, получено ${unique.length}`,
+      `An envelope must contain ${ENVELOPE_MIN_PLACES}–${ENVELOPE_MAX_PLACES} places; received ${unique.length}`,
     );
   }
 
@@ -84,13 +85,13 @@ export function createEnvelope(db: Db, input: CreateEnvelopeInput): EnvelopeRow 
     .all(...unique, input.ownerId);
 
   if (rows.length !== unique.length) {
-    throw badRequest('unknown_place', 'Некоторые места не найдены в вашей библиотеке');
+    throw badRequest('unknown_place', 'Some places were not found in your library');
   }
   const unconfirmed = rows.find((r) => r.enrichment_status !== 'resolved');
   if (unconfirmed) {
     throw badRequest(
       'unconfirmed_place',
-      `Место «${unconfirmed.name}» ещё не подтверждено — подтвердите его перед отправкой`,
+      `Confirm “${unconfirmed.name}” before sending the envelope`,
     );
   }
 
@@ -119,11 +120,11 @@ export function createEnvelope(db: Db, input: CreateEnvelopeInput): EnvelopeRow 
              @opened_at, @answered_at, @expires_at)`,
   );
   const insertLink = db.prepare(
-    'INSERT INTO envelope_places (envelope_id, place_id, position, note, photos) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO envelope_places (envelope_id, place_id, position, note, photos, caption) VALUES (?, ?, ?, ?, ?, ?)',
   );
 
-  // Заметку места конверт снимает копией — из присланной карты, а нет ключа —
-  // из текущей заметки самого места. Пустую строку сводим к null: «без заметки».
+  // Заметку places конверт снимает копией — из присланной карты, а нет ключа —
+  // из текущей заметки самого places. Пустую строку сводим к null: «без заметки».
   const rowById = new Map(rows.map((row) => [row.id, row]));
   const noteFor = (placeId: string): string | null => {
     const sent = input.placeNotes;
@@ -139,7 +140,8 @@ export function createEnvelope(db: Db, input: CreateEnvelopeInput): EnvelopeRow 
     insertEnvelope.run(envelope);
     // Порядок берём из запроса хоста, а не из порядка строк в БД.
     unique.forEach((placeId, index) => insertLink.run(envelope.id, placeId, index, noteFor(placeId),
-      input.placePhotos?.[placeId] ? JSON.stringify(input.placePhotos[placeId]) : rowById.get(placeId)!.photos));
+      input.placePhotos?.[placeId] ? JSON.stringify(input.placePhotos[placeId]) : rowById.get(placeId)!.photos,
+      input.placeCaptions?.[placeId]?.trim() || null));
   })();
 
   return envelope;
@@ -162,10 +164,10 @@ export function envelopePlaceRows(db: Db, envelopeId: string): PlaceRow[] {
     .prepare<[string], PlaceRow>(
       // `ep.note AS note` идёт после `p.*` намеренно: в better-sqlite3 при
       // одноимённых колонках побеждает последняя, поэтому note в строке — это
-      // снимок заметки для этого конверта, а не живое поле места. Так весь
+      // снимок заметки для этого конверта, а не живое поле places. Так весь
       // низлежащий код (toInviteResponse, сводка «Мои конверты») читает заметку
       // конверта, не меняя сигнатур.
-      `SELECT p.*, ep.note AS note, COALESCE(ep.photos, p.photos) AS photos FROM envelope_places ep
+      `SELECT p.*, COALESCE(ep.caption, p.name) AS name, ep.note AS note, COALESCE(ep.photos, p.photos) AS photos FROM envelope_places ep
        JOIN places p ON p.id = ep.place_id
        WHERE ep.envelope_id = ?
        ORDER BY ep.position`,
@@ -212,7 +214,7 @@ export function recordAnswer(
   if (existing) return { answer: existing, created: false };
 
   if (effectiveStatus(envelope) === 'expired') {
-    throw gone('envelope_expired', 'Срок действия приглашения истёк');
+    throw gone('envelope_expired', 'This invitation has expired');
   }
 
   const belongs = db
@@ -221,7 +223,7 @@ export function recordAnswer(
     )
     .get(envelope.id, chosenPlaceId);
   if (!belongs || belongs.count === 0) {
-    throw badRequest('unknown_place', 'Выбранного места нет в этом приглашении');
+    throw badRequest('unknown_place', 'The selected place is not in this invitation');
   }
 
   const answer: AnswerRow = {
@@ -249,12 +251,12 @@ export function recordAnswer(
 
 export function requireEnvelopeByToken(db: Db, token: string): EnvelopeRow {
   const envelope = getEnvelopeByToken(db, token);
-  if (!envelope) throw notFound('Приглашение не найдено');
+  if (!envelope) throw notFound('Invitation not found');
   return envelope;
 }
 
 /**
- * Адрес для гостя без города в конце. Гость и все места — в одном городе, поэтому
+ * Адрес для гостя без города в конце. Гость и все places — в одном городе, поэтому
  * «…, Москва» в каждой карточке лишь повторяется; на экране нужна только улица с
  * домом. Город добавляется резолвером последним сегментом (см. shortAddress), так
  * что срезаем всё после последней запятой. Адрес без запятой (одинокая улица или

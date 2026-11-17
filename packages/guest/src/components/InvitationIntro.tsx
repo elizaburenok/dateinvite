@@ -114,17 +114,17 @@ export function InvitationIntro({ onReveal, onFinish }: InvitationIntroProps) {
   return (
     <section className="invitation-intro" data-phase={phase} aria-label="Your invitation">
       <h1 className="invitation-intro__headline">
-        <span className="invitation-intro__line">I’ve gathered some</span>
+        <span className="invitation-intro__line">I picked out</span>
         <span className="invitation-intro__line invitation-intro__line--card">
           <span>places</span>
           <span ref={cardRef} className="invitation-intro__card" aria-hidden="true">
             <img src={pinkCardUrl} alt="" draggable={false} />
           </span>
-          <span>for you</span>
+          <span>for you to choose</span>
         </span>
       </h1>
       <p className="invitation-intro__hint">
-        <span>Scroll to explore</span><span className="invitation-intro__arrow" aria-hidden="true">↓</span>
+        <span>Browse and choose</span><span className="invitation-intro__arrow" aria-hidden="true">↓</span>
       </p>
       {phase !== 'idle' && (
         <div ref={surfaceRef} className="invitation-intro__surface" aria-hidden="true">

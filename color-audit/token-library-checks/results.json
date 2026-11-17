@@ -1,0 +1,117 @@
+{
+  "colorChecks": [
+    {
+      "selector": ".home",
+      "property": "backgroundColor",
+      "token": "Bg/Primary",
+      "value": "rgb(253, 253, 222)"
+    },
+    {
+      "selector": ".home__library-copy",
+      "property": "color",
+      "token": "Primitive/Primary",
+      "value": "rgb(78, 78, 78)"
+    },
+    {
+      "selector": ".home__library",
+      "property": "backgroundColor",
+      "token": "Container/Modal",
+      "value": "rgba(249, 250, 238, 0.5)"
+    },
+    {
+      "selector": ".home__library",
+      "property": "borderTopColor",
+      "token": "Border/02",
+      "value": "rgba(253, 251, 239, 0.76)"
+    },
+    {
+      "selector": ".home__library-back",
+      "property": "backgroundColor",
+      "token": "Color/Pink",
+      "value": "rgb(234, 130, 181)"
+    },
+    {
+      "selector": ".places-feed",
+      "property": "backgroundColor",
+      "token": "Bg/Primary",
+      "value": "rgb(253, 253, 222)"
+    },
+    {
+      "selector": ".places-feed__window",
+      "property": "backgroundColor",
+      "token": "Container/Modal",
+      "value": "rgba(249, 250, 238, 0.5)"
+    },
+    {
+      "selector": ".places-feed__action",
+      "property": "color",
+      "token": "Primitive/Primary",
+      "value": "rgb(78, 78, 78)"
+    },
+    {
+      "selector": ".invitation-intro",
+      "property": "backgroundColor",
+      "token": "Bg/Primary",
+      "value": "rgb(253, 253, 222)"
+    },
+    {
+      "selector": ".invitation-intro",
+      "property": "color",
+      "token": "Primitive/Primary",
+      "value": "rgb(78, 78, 78)"
+    },
+    {
+      "selector": ".wheel .card",
+      "property": "outlineColor",
+      "token": "Border/01",
+      "value": "rgba(255, 245, 192, 0.38)"
+    },
+    {
+      "selector": ".selected-place",
+      "property": "color",
+      "token": "Primitive/Primary",
+      "value": "rgb(78, 78, 78)"
+    },
+    {
+      "selector": ".page[data-picking] .note",
+      "property": "backgroundColor",
+      "token": "Container/Neutral",
+      "value": "rgb(244, 244, 218)"
+    },
+    {
+      "selector": ".selected-place__photo",
+      "property": "borderTopColor",
+      "token": "Border/01",
+      "value": "rgba(255, 245, 192, 0.38)"
+    },
+    {
+      "selector": ".selected-place__caption",
+      "property": "borderTopColor",
+      "token": "Border/02",
+      "value": "rgba(253, 251, 239, 0.76)"
+    },
+    {
+      "selector": ".places-feed",
+      "property": "backgroundColor",
+      "token": "Bg/Primary",
+      "value": "rgb(253, 253, 222)"
+    }
+  ],
+  "gradientStops": [
+    {
+      "color": "rgb(252, 237, 153)",
+      "offset": "0.278846"
+    },
+    {
+      "color": "rgb(255, 215, 176)",
+      "offset": "0.634615"
+    },
+    {
+      "color": "rgb(249, 177, 179)",
+      "offset": "1"
+    }
+  ],
+  "canvasReactive": true,
+  "guestFlow": true,
+  "pageErrors": []
+}

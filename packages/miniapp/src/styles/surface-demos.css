@@ -1,0 +1,47 @@
+.surface-lab { color-scheme: light; background: #f5f3ee; color: #55524c; min-height: 100vh; padding: var(--invite-space-40); font-family: 'Inter Tight', sans-serif; }
+.surface-lab__header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--invite-space-32); max-width: 1240px; margin: 0 auto var(--invite-space-40); }
+.surface-lab__eyebrow { font-size: 13px; margin: 0 0 var(--invite-space-20); }
+.surface-lab h1 { font-size: clamp(30px, 4vw, 48px); font-weight: 500; letter-spacing: -.04em; line-height: 1.05; margin: 0 0 var(--invite-space-20); }
+.surface-lab__header p:last-child { max-width: 560px; line-height: 1.5; margin: 0; }
+.surface-lab__toggle, .surface-lab__choose { background: #fffdf8; color: #55524c; border: 1px solid #dcd7ce; border-radius: 16px; padding: var(--invite-space-12) var(--invite-space-18); font: inherit; cursor: pointer; }
+.surface-lab__toggle { flex-shrink: 0; }
+.surface-lab button:focus-visible { outline: 2px solid #947b60; outline-offset: 3px; }
+.surface-lab__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--invite-space-28); max-width: 1240px; margin: 0 auto; }
+.surface-lab__caption { display: flex; align-items: baseline; gap: var(--invite-space-12); margin-bottom: var(--invite-space-16); }
+.surface-lab__caption span { font-size: 12px; color: #898176; }
+.surface-lab h2 { font-size: 23px; font-weight: 500; letter-spacing: -.02em; margin: 0; }
+.surface-lab__screen { overflow: hidden; border-radius: 28px; border: 1px solid #e5e0d7; }
+.surface-lab__screen .home { min-height: 700px; height: 700px; }
+.surface-lab__detail { font-size: 14px; font-weight: 600; margin: var(--invite-space-20) 0 var(--invite-space-8); }
+.surface-lab__description { font-size: 15px; line-height: 1.5; min-height: 68px; margin: 0 0 var(--invite-space-16); }
+.surface-lab__choose { width: 100%; }
+.surface-lab__choose[aria-pressed=true] { background: #e9e3d7; border-color: #beb2a0; }
+.surface-lab footer { max-width: 760px; margin: var(--invite-space-48) auto 0; line-height: 1.6; text-align: center; }
+
+/* All experiments are scoped to this separate demo page. */
+.surface-lab__screen[class*="surface--"] .home__photo-card .glass-button { color: #56534d; border: 1px solid rgb(255 251 240 / .5); box-shadow: 0 4px 12px rgb(66 54 35 / .08); font-weight: 500; letter-spacing: -.02em; }
+.surface-lab__screen[class*="surface--"] .glass-button::after { box-shadow: none; }
+.surface-lab__screen[class*="surface--"] .home__invitation-action { font-weight: 600; }
+.surface--mist .home__photo-card .glass-button::before { background: rgb(255 249 233 / .78); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.surface-lab__screen.surface--mist .home__photo-card .glass-button {
+  color: #4e4840;
+  border-color: rgb(255 253 245 / .7);
+  box-shadow: 0 5px 14px rgb(88 70 43 / .14), 0 1px 3px rgb(88 70 43 / .08);
+}
+.surface--mist .home__photo-card .glass-button::after {
+  box-shadow: inset 0 2px 5px rgb(255 255 249 / .85),
+    inset 3px 0 12px rgb(255 253 243 / .45),
+    inset -3px 0 12px rgb(255 253 243 / .45),
+    inset 0 -3px 8px rgb(154 134 101 / .18);
+}
+.surface--mist .glass-button__label { text-shadow: none; }
+.surface--milk .home__photo-card .glass-button::before { background: rgb(249 245 235 / .96); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.surface--milk .home__photo-card .glass-button { border-color: #f9f5eb; box-shadow: 0 3px 8px rgb(66 54 35 / .1); }
+.surface--veil .home__photo-card .glass-button::before { background: rgb(250 246 235 / .53); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+.surface--veil .home__photo-card .glass-button { border-color: rgb(255 250 238 / .65); box-shadow: none; }
+@media (max-width: 1000px) {
+  .surface-lab { padding: var(--invite-space-24); }
+  .surface-lab__header { align-items: flex-start; flex-direction: column; }
+  .surface-lab__grid { grid-template-columns: 1fr; max-width: 420px; gap: var(--invite-space-40); }
+  .surface-lab__description { min-height: 0; }
+}

@@ -1,13 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePrefersReducedMotion } from './envelope/usePrefersReducedMotion.js';
 import sendUrl from '../assets/selected-send.svg';
+import { isDemo } from '../demo/fixture.js';
 
 /** The design's prompt leads the existing rotating reply examples. */
-const EXAMPLES = ['Let’s go there', 'Sounds awesome! See you at 7pm', "Can't wait — can I bring a friend?"];
+const EXAMPLES = ['Let’s go there!', 'Sounds great! See you at seven', 'Looking forward to it. Can I bring a friend?'];
 
 interface NoteComposerProps {
   value: string;
-  /** Панель появляется вместе с выбором места: до него отправлять нечего. */
+  /** Панель появляется вместе с выбором places: до него отправлять нечего. */
   open: boolean;
   sending: boolean;
   error: string | null;
@@ -30,6 +31,8 @@ export function NoteComposer({
   const reducedMotion = usePrefersReducedMotion();
 
   const [focused, setFocused] = useState(false);
+  const [pressedStyle, setPressedStyle] = useState<'design' | 'warm' | 'rose' | 'ink'>('design');
+  const showPressedDemo = isDemo() && new URLSearchParams(window.location.search).has('pressedDemo');
   // Что сейчас «напечатано» в примере. Пустая строка — поле выглядит пустым.
   const [ghost, setGhost] = useState('');
 
@@ -125,8 +128,30 @@ export function NoteComposer({
   }, [showExample, reducedMotion]);
 
   return (
+    <>
+    {showPressedDemo && open && (
+      <div className="note-pressed-demo" role="group" aria-label="Field outline options">
+        {([
+          ['design', 'Design'],
+          ['warm', '#F2F2C3'],
+          ['rose', 'Pink'],
+          ['ink', 'Graphite'],
+        ] as const).map(([style, label]) => (
+          <button
+            key={style}
+            type="button"
+            aria-pressed={pressedStyle === style}
+            onClick={() => {
+              setPressedStyle(style);
+              field.current?.focus();
+            }}
+          >{label}</button>
+        ))}
+      </div>
+    )}
     <form
       className={`note${open ? ' note--open' : ''}`}
+      data-pressed-style={pressedStyle}
       inert={!open}
       aria-hidden={!open || undefined}
       onSubmit={(event) => {
@@ -179,11 +204,12 @@ export function NoteComposer({
       </div>
 
       <button type="submit" className="note__send" disabled={sending}
-        aria-label={sending ? 'Sending…' : 'Sent'} aria-busy={sending}>
+        aria-label={sending ? 'Sending…' : 'Send reply'} aria-busy={sending}>
         <img src={sendUrl} width="24" height="24" alt="" aria-hidden="true" />
       </button>
 
       {error && <p className="note__error" role="alert">{error}</p>}
     </form>
+    </>
   );
 }

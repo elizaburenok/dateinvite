@@ -1,38 +1,55 @@
+import { Button } from './components/Button.js';
 import { useCallback, useEffect, useState } from 'react';
-import { ENVELOPE_MAX_PLACES } from '@invite/shared/constants';
 import type { EnvelopeSummary, PlacesResponse, PlaceWithCandidates } from '@invite/shared';
 import { api, ApiError } from './api.js';
-import { Library } from './screens/Library.js';
+import { PlacesFeed } from './screens/PlacesFeed.js';
 import { PlaceDetail } from './screens/PlaceDetail.js';
-import { AddPlace } from './screens/AddPlace.js';
-import { ComposeDrawer, PlaceNoteEditor } from './screens/Compose.js';
+import { EnvelopePreview } from './screens/EnvelopePreview.js';
 import { Envelopes } from './screens/Envelopes.js';
+import { Home } from './screens/Home.js';
 import { PhotoEditor } from './screens/PhotoEditor.js';
+import { AddPlace } from './screens/AddPlace.js';
+import { togglePlace } from './lib/places.js';
 import { haptic } from './telegram.js';
 
-type View = 'library' | 'envelopes';
+type View = 'home' | 'envelopes';
+type FeedEntry = 'create' | 'library';
+
+function withPlaces(current: PlacesResponse, places: PlaceWithCandidates[]): PlacesResponse {
+  return {
+    ...current,
+    places,
+    facets: {
+      districts: [...new Set(places.flatMap((place) => place.district ? [place.district] : []))].sort(),
+      categories: [...new Set(places.flatMap((place) => place.category ? [place.category] : []))].sort(),
+      tags: [...new Set(places.flatMap((place) => place.tags))].sort(),
+      needs_confirmation_count: places.filter((place) => place.enrichment_status === 'needs_confirmation').length,
+    },
+  };
+}
 
 export function App() {
-  const [view, setView] = useState<View>('library');
+  const [view, setView] = useState<View>('home');
+  const [feedEntry, setFeedEntry] = useState<FeedEntry | null>(null);
   const [places, setPlaces] = useState<PlacesResponse | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
   const [envelopes, setEnvelopes] = useState<EnvelopeSummary[]>([]);
   const [openPlace, setOpenPlace] = useState<PlaceWithCandidates | null>(null);
-  // Открыт лист ручного добавления места.
-  const [adding, setAdding] = useState(false);
-  const [editingPhotoStyle, setEditingPhotoStyle] = useState(false);
+  const [addingPlace, setAddingPlace] = useState(false);
   const [composing, setComposing] = useState(false);
+  const [editingPhotoStyle, setEditingPhotoStyle] = useState(false);
+  const [envelopesError, setEnvelopesError] = useState<string | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
-  // Заметки к местам этого конверта по id места. Набираются на фазе выбора,
-  // в библиотеку (place.note) не пишутся — снимок делает бэкенд при сборке.
   const [notes, setNotes] = useState<Record<string, string>>({});
-  // Место, чей лист заметки открыт поверх выбора. null — лист закрыт.
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [hostNote, setHostNote] = useState('');
+  const [captions, setCaptions] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadPlaces = useCallback(async () => {
-    const data = await api.places();
+    const [data, library] = await Promise.all([api.places(), api.tags()]);
     setPlaces(data);
+    setTags(library.tags);
     return data;
   }, []);
 
@@ -48,10 +65,10 @@ export function App() {
       } catch (err) {
         setError(
           err instanceof ApiError && err.code === 'unauthorized'
-            ? 'Откройте библиотеку через бота — так Telegram подтвердит, что это вы.'
+            ? 'Open the library through the bot so Telegram can verify your identity.'
             : err instanceof ApiError
               ? err.message
-              : 'Не удалось загрузить библиотеку',
+              : 'Could not load the library',
         );
       } finally {
         setLoading(false);
@@ -59,148 +76,141 @@ export function App() {
     })();
   }, [loadPlaces, loadEnvelopes]);
 
-  const startCompose = () => {
-    setComposing(true);
-    setSelection([]);
+  const openFeed = (entry: FeedEntry) => {
+    setFeedEntry(entry);
     setNotes({});
-    setEditingId(null);
+    setCaptions({});
+    setHostNote('');
+    setComposing(false);
+    setSelection([]);
+  };
+
+  const closeFeed = useCallback(() => {
+    setFeedEntry(null);
+    setComposing(false);
+    setSelection([]);
+  }, []);
+
+  const openEnvelopes = () => {
+    setView('envelopes');
+    setEnvelopesError(null);
+    void loadEnvelopes().catch(() => setEnvelopesError('Could not refresh envelopes. Please try again.'));
+  };
+
+  const continueCompose = () => {
+    if (selection.length === 0) return;
+    setComposing(true);
   };
 
   const cancelCompose = () => {
     setComposing(false);
-    setSelection([]);
-    setNotes({});
-    setEditingId(null);
   };
 
-  // Тап по месту в режиме сборки — открыть его лист заметки (добавить/поправить),
-  // а не молча переключить выбор: заметку пишем в момент выбора места.
+  // В режиме выбора фото отмечается одним нажатием; повторное нажатие снимает выбор.
   const pickPlace = (place: PlaceWithCandidates) => {
     haptic('tap');
-    setEditingId(place.id);
-  };
-
-  const editingPlace = editingId
-    ? (places?.places.find((place) => place.id === editingId) ?? null)
-    : null;
-
-  const saveNote = (id: string, note: string) => {
-    setNotes((prev) => ({ ...prev, [id]: note }));
-    setSelection((current) =>
-      current.includes(id)
-        ? current
-        : // Сверх лимита не набираем — но кнопка «Добавить» там уже заблокирована.
-          current.length >= ENVELOPE_MAX_PLACES
-          ? current
-          : [...current, id],
-    );
-    haptic('success');
-    setEditingId(null);
-  };
-
-  const removeFromEnvelope = (id: string) => {
-    setSelection((current) => current.filter((item) => item !== id));
-    setNotes((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-    setEditingId(null);
+    setSelection((current) => togglePlace(current, place));
   };
 
   if (loading) {
-    return <div className="boot">Загружаем библиотеку…</div>;
+    return <div className="boot">Loading library…</div>;
   }
 
   if (error || !places) {
     return (
       <div className="boot boot--error">
-        <p>{error ?? 'Библиотека недоступна'}</p>
+        <p>{error ?? 'Library unavailable'}</p>
       </div>
     );
   }
 
   return (
     <div className={`app${composing ? ' app--composing' : ''}`}>
-      {view === 'envelopes' && (
-        <div className="screen">
-          <button type="button" className="btn" onClick={() => setView('library')}>
-            ← К местам
-          </button>
+      {view === 'home' && (
+        <div inert={Boolean(feedEntry) || composing || editingPhotoStyle}>
+          <Home
+            latestPlace={places.places[0] ?? null}
+            previousPlace={places.places[1] ?? null}
+            onCreateEnvelope={() => openFeed('create')}
+            onOpenLibrary={() => openFeed('library')}
+          />
         </div>
       )}
 
-      {view === 'library' ? (
-        <Library
-          data={places}
+      {view === 'envelopes' && (
+        <div className="screen">
+          <Button type="button" className="btn" onClick={() => setView('home')}>
+            ← Home
+          </Button>
+        </div>
+      )}
+
+      {view === 'envelopes' && <>
+        {envelopesError && <div className="screen" role="alert"><p>{envelopesError}</p>
+          <Button className="btn" onClick={openEnvelopes}>Retry</Button></div>}
+        <Envelopes envelopes={envelopes} />
+      </>}
+
+      {view === 'home' && feedEntry && (
+        <PlacesFeed
+          entry={feedEntry}
+          places={places.places}
+          suspended={Boolean(openPlace) || addingPlace || composing}
           selection={selection}
-          composing={composing}
+          onClose={closeFeed}
+          onNext={continueCompose}
+          onAddPlace={() => setAddingPlace(true)}
           onOpenPlace={setOpenPlace}
           onPickPlace={pickPlace}
-          onAddPlace={() => setAdding(true)}
-          onPhotoStyle={() => setEditingPhotoStyle(true)}
         />
-      ) : (
-        <Envelopes envelopes={envelopes} />
       )}
 
-      {view === 'library' && !composing && (
-        <button type="button" className="btn btn--primary fab" onClick={startCompose}>
-          Собрать конверт
-        </button>
-      )}
-
-      {composing && !editingPlace && (
-        <ComposeDrawer
+      {composing && (
+        <EnvelopePreview
           chosen={selection
             .map((id) => places.places.find((place) => place.id === id))
             .filter((place): place is PlaceWithCandidates => Boolean(place))}
-          notes={notes}
+          notes={notes} hostNote={hostNote} captions={captions}
+          onCaptionChange={(id, caption) => setCaptions(current => ({ ...current, [id]: caption }))}
           onCancel={cancelCompose}
           onDone={() => {
-            cancelCompose();
-            void loadEnvelopes();
-            setView('envelopes');
+            closeFeed();
+            openEnvelopes();
           }}
         />
       )}
 
-      {composing && editingPlace && (
-        <PlaceNoteEditor
-          key={editingPlace.id}
-          place={editingPlace}
-          initialNote={notes[editingPlace.id] ?? editingPlace.note ?? ''}
-          picked={selection.includes(editingPlace.id)}
-          atCapacity={selection.length >= ENVELOPE_MAX_PLACES}
-          onSave={(note) => saveNote(editingPlace.id, note)}
-          onRemove={() => removeFromEnvelope(editingPlace.id)}
-          onClose={() => setEditingId(null)}
-        />
-      )}
-
-      {adding && (
+      {addingPlace && (
         <AddPlace
-          availableTags={places.facets.tags}
-          onClose={() => setAdding(false)}
-          onCreated={() => {
-            void loadPlaces();
+          availableTags={tags}
+          onClose={() => setAddingPlace(false)}
+          onCreated={(created) => {
+            setTags((current) => [...new Set([...current, ...created.tags])]);
+            setPlaces((current) => current && withPlaces(current, [created, ...current.places]));
           }}
         />
       )}
 
-      {editingPhotoStyle && <PhotoEditor sampleUrl={places.places.find((place) => place.photo_url)?.photo_url} onClose={() => setEditingPhotoStyle(false)} />}
+      {editingPhotoStyle && <PhotoEditor
+        sampleUrl={places.places.find((place) => place.photo_url)?.photo_url}
+        onClose={() => setEditingPhotoStyle(false)} />}
 
       {openPlace && (
         <PlaceDetail
+          key={openPlace.id}
           place={openPlace}
+          availableTags={tags}
           onClose={() => setOpenPlace(null)}
           onSaved={(updated) => {
+            setTags((current) => [...new Set([...current, ...updated.tags])]);
             setOpenPlace(updated);
-            void loadPlaces();
+            setPlaces((current) => current && withPlaces(current,
+              current.places.map((place) => place.id === updated.id ? updated : place)));
           }}
           onDeleted={(id) => {
             setSelection((current) => current.filter((item) => item !== id));
-            void loadPlaces();
+            setPlaces((current) => current && withPlaces(current,
+              current.places.filter((place) => place.id !== id)));
           }}
         />
       )}

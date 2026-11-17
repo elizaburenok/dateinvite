@@ -2,16 +2,16 @@ import type { EnvelopeSummary } from '@invite/shared';
 import { StatusDot } from '../components/StatusDot.js';
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
 }
 
-/** Мои конверты (§10.4): статус и, для отвеченных, что именно выбрал гость. */
+/** Envelope status and the guest's choice, when available. */
 export function Envelopes({ envelopes }: { envelopes: EnvelopeSummary[] }) {
   if (envelopes.length === 0) {
     return (
       <div className="screen">
         <p className="empty">
-          Конвертов пока нет. Отметьте 3–5 мест в библиотеке и соберите первый.
+          No envelopes yet. Select 3–5 places from your library to create one.
         </p>
       </div>
     );
@@ -36,7 +36,7 @@ export function Envelopes({ envelopes }: { envelopes: EnvelopeSummary[] }) {
 
               {envelope.answer ? (
                 <p className="envelope__answer">
-                  Выбрали <b>{envelope.answer.chosen_place_name}</b>
+                  Chose <b>{envelope.answer.chosen_place_name}</b>
                   {envelope.answer.guest_message ? ` — «${envelope.answer.guest_message}»` : ''}
                 </p>
               ) : (

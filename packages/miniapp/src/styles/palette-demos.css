@@ -1,0 +1,26 @@
+.palette-lab { background: #f2f2f3; color: #505055; }
+.palette-lab .surface-lab__toggle,
+.palette-lab .surface-lab__choose { background: #fcfcfd; color: #505055; border-color: #d9d9de; }
+.palette-lab .surface-lab__choose[aria-pressed=true] { background: #e8e3e9; border-color: #b8aabb; }
+.palette-lab .surface-lab__screen { border-color: #dedee2; }
+.palette--porcelain { --palette-surface: 244 245 247; --palette-ink: #42464d; --palette-shadow: 92 100 115; --palette-light: 255 255 255; }
+.palette--quartz { --palette-surface: 249 234 242; --palette-ink: #59434f; --palette-shadow: 139 97 122; --palette-light: 255 250 255; }
+.palette--sage { --palette-surface: 231 242 236; --palette-ink: #3c5149; --palette-shadow: 85 122 105; --palette-light: 248 255 251; }
+.palette-lab [class*="palette--"] .home__photo-card { border-color: rgb(var(--palette-light) / .38); }
+.palette-lab [class*="palette--"] .home__photo-card .glass-button {
+  color: var(--palette-ink);
+  border-color: rgb(var(--palette-light) / .7);
+  box-shadow: 0 5px 14px rgb(var(--palette-shadow) / .14), 0 1px 3px rgb(var(--palette-shadow) / .08);
+}
+.palette-lab [class*="palette--"] .home__photo-card .glass-button::before {
+  background: rgb(var(--palette-surface) / .78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.palette-lab [class*="palette--"] .home__photo-card .home__saved-places::before { background: rgb(var(--palette-surface) / .86); }
+.palette-lab [class*="palette--"] .home__photo-card .glass-button::after {
+  box-shadow: inset 0 2px 5px rgb(var(--palette-light) / .85),
+    inset 3px 0 12px rgb(var(--palette-light) / .45),
+    inset -3px 0 12px rgb(var(--palette-light) / .45),
+    inset 0 -3px 8px rgb(var(--palette-shadow) / .18);
+}

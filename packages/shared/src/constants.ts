@@ -6,8 +6,8 @@
  * бы в бандл Mini App весь zod (≈90 КБ) ради двух целых чисел.
  */
 
-/** Конверт строго на 3–5 мест — §4, приёмочный критерий §12. */
-export const ENVELOPE_MIN_PLACES = 3;
+/** Конверт содержит от одного до пяти мест. */
+export const ENVELOPE_MIN_PLACES = 1;
 export const ENVELOPE_MAX_PLACES = 5;
 
 /**

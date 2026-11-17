@@ -9,6 +9,7 @@ import type {
 } from '@invite/shared';
 import type { Db } from '../db/index.js';
 import { nowIso, uuid } from '../lib/ids.js';
+import { rememberTags } from './tags.js';
 
 export interface PlaceRow {
   id: string;
@@ -184,6 +185,7 @@ export function insertPlace(db: Db, input: NewPlace, candidates: NewCandidate[] 
   );
 
   db.transaction(() => {
+    row.tags = JSON.stringify(rememberTags(db, row.owner_id, input.tags ?? []));
     insertRow.run(row);
     candidates.forEach((candidate, index) => {
       insertCandidate.run({
@@ -255,7 +257,7 @@ export function listPlaces(db: Db, ownerId: string, filters: PlaceFilters = {}):
   if (filters.tag) {
     // tags — JSON-массив; json_each разворачивает его в строки, EXISTS даёт точное совпадение
     // вместо LIKE, который спутал бы «кофе» и «кофейня».
-    where.push('EXISTS (SELECT 1 FROM json_each(places.tags) WHERE json_each.value = ?)');
+    where.push('EXISTS (SELECT 1 FROM json_each(places.tags) WHERE lower_utf8(trim(json_each.value)) = lower_utf8(trim(?)))');
     params.push(filters.tag);
   }
 
@@ -363,14 +365,17 @@ export function updatePlace(db: Db, ownerId: string, placeId: string, patch: Pla
     ...(patch.maps_url !== undefined ? { maps_url: patch.maps_url } : {}),
   };
 
-  db.prepare(
+  db.transaction(() => {
+    if (patch.tags !== undefined) next.tags = JSON.stringify(rememberTags(db, ownerId, patch.tags));
+    db.prepare(
     `UPDATE places SET name = @name, address = @address, district = @district, category = @category,
                        name_ru = @name_ru, address_ru = @address_ru, district_ru = @district_ru,
                        photos = @photos, photo_url = @photo_url, lat = @lat, lng = @lng,
                        maps_url = @maps_url, note = @note, tags = @tags,
                        enrichment_status = @enrichment_status
      WHERE id = @id`,
-  ).run(next);
+    ).run(next);
+  })();
 
   return next;
 }

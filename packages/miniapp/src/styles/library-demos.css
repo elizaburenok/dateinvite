@@ -1,0 +1,57 @@
+:root { color-scheme: light; }
+body { background: var(--invite-bg-library); color: var(--invite-primitive-primary); font-family: var(--font-card); }
+.library-demos { max-width: 1240px; margin: 0 auto; padding: var(--invite-space-32) var(--invite-space-20); }
+.library-demos > header > span, .library-demo header > span { font-size: 12px; color: #947480; letter-spacing: .06em; }
+.library-demos > header h1 { font-size: 36px; font-weight: 500; margin: var(--invite-space-12) 0; }
+.library-demos p { line-height: 1.5; }
+.library-demos__controls { display: flex; flex-wrap: wrap; gap: var(--invite-space-12); margin: var(--invite-space-24) 0; }
+.library-demos__controls button, .library-demos__controls label, .library-demo__repeat { background: #fff; border: 1px solid #e9e5e7; border-radius: 24px; padding: var(--invite-space-12) var(--invite-space-20); }
+.library-demos__controls select { margin-left: var(--invite-space-8); font: inherit; border: 0; background: transparent; }
+.library-demos__grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: var(--invite-space-24); }
+.library-demo { min-width: 0; }
+.library-demo header { min-height: 138px; padding: var(--invite-space-8) 0 var(--invite-space-20); }
+.library-demo h2 { font-size: 24px; font-weight: 500; margin: var(--invite-space-8) 0; }
+.library-demo header p { font-size: 14px; }
+.library-demo__phone { position: relative; isolation: isolate; height: 700px; border: 1px solid #e9e5e7; border-radius: 30px; overflow: hidden; background: var(--invite-bg-library); }
+.library-demo__phone .home { min-height: 700px; height: 700px; }
+.library-demo__phone .home__hero { top: 150px; }
+.library-demo__overlay { position: absolute; inset: 0; z-index: 5; }
+.library-demo__overlay[hidden] { display: none; }
+.library-demo__overlay .places-feed__window { left: 8px; top: var(--invite-space-58); bottom: 12px; width: calc(100% - 16px); transform: none; }
+.library-demo__overlay .places-feed__close { right: 16px; top: 10px; }
+.library-demo__overlay .places-feed__list { width: calc(100cqw - 16px); }
+.library-demo__phone { container-type: inline-size; }
+.library-demo__repeat { width: 100%; margin-top: var(--invite-space-16); }
+.library-demo__notice { position: absolute; bottom: 88px; left: 20px; right: 20px; border-radius: 16px; padding: var(--invite-space-16); background: #fff; box-shadow: 0 4px 20px #0001; font-size: 14px; }
+.library-demos button { cursor: pointer; }
+@media(max-width: 1000px) { .library-demos__grid { grid-template-columns: 1fr; max-width: 375px; margin: 0 auto; } .library-demo header { min-height: 0; } }
+
+/* Keep the list geometry fixed while only the empty surface springs open. */
+.library-demo__phone[data-variant="0"] .places-feed__window {
+  overflow: visible;
+  box-shadow: none;
+}
+.library-demo__phone[data-variant="0"] .places-feed__window::before,
+.library-demo__phone[data-variant="0"] .places-feed__window::after {
+  content: none;
+}
+.library-demo__surface.home__library {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  transform: none;
+  transition: none;
+  pointer-events: none;
+  z-index: -1;
+}
+.library-demo__phone[data-variant="0"] .places-feed__list {
+  border-radius: inherit;
+}
+
+.library-demo__phone--growth .library-demo__surface { transform-origin: center; will-change: transform; }
+.library-demo__phone--growth .places-feed__list { transform-origin: 50% 75%; }
+.library-demos__previous { margin-bottom: var(--invite-space-16); }

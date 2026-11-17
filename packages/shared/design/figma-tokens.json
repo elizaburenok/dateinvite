@@ -1,0 +1,501 @@
+{
+  "fileKey": "DoN18tOC8qla0R8XMEsCEZ",
+  "pageId": "832:348",
+  "mode": "Mobile",
+  "variables": [
+    {
+      "id": "VariableID:490:39",
+      "name": "color/wallpaper",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.9098039269447327,
+          "g": 0.95686274766922,
+          "b": 0.8470588326454163,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-color-wallpaper)"
+      }
+    },
+    {
+      "id": "VariableID:490:40",
+      "name": "color/ink",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.12941177189350128,
+          "g": 0.10980392247438431,
+          "b": 0.08627451211214066,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-color-ink)"
+      }
+    },
+    {
+      "id": "VariableID:490:41",
+      "name": "color/ink-soft",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.43529412150382996,
+          "g": 0.3960784375667572,
+          "b": 0.3450980484485626,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-color-ink-soft)"
+      }
+    },
+    {
+      "id": "VariableID:490:42",
+      "name": "color/ink-faint",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.6313725709915161,
+          "g": 0.5882353186607361,
+          "b": 0.5411764979362488,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-color-ink-faint)"
+      }
+    },
+    {
+      "id": "VariableID:490:43",
+      "name": "color/frame-ink",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 1,
+          "g": 0.9607843160629272,
+          "b": 0.7529411911964417,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-color-frame-ink)"
+      }
+    },
+    {
+      "id": "VariableID:490:44",
+      "name": "color/glass",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 1,
+          "g": 1,
+          "b": 1,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-color-glass)"
+      }
+    },
+    {
+      "id": "VariableID:832:327",
+      "name": "Primitive/Primary",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.3040302097797394,
+          "g": 0.3040302097797394,
+          "b": 0.3040302097797394,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "SHAPE_FILL",
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-primitive-primary)"
+      }
+    },
+    {
+      "id": "VariableID:832:329",
+      "name": "Container/Default",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.9768012166023254,
+          "g": 0.979172945022583,
+          "b": 0.928180456161499,
+          "a": 0.4000000059604645
+        }
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-container-default)"
+      }
+    },
+    {
+      "id": "VariableID:832:330",
+      "name": "Container/Neutral",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.9560359120368958,
+          "g": 0.9560359120368958,
+          "b": 0.8552758097648621,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-container-neutral)"
+      }
+    },
+    {
+      "id": "VariableID:832:331",
+      "name": "Bg/Primary",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.9921568632125854,
+          "g": 0.9921568632125854,
+          "b": 0.8705882430076599,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-bg-primary)"
+      }
+    },
+    {
+      "id": "VariableID:832:332",
+      "name": "Border/01",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 1,
+          "g": 0.9607843160629272,
+          "b": 0.7529411911964417,
+          "a": 0.3799999952316284
+        }
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-border-01)"
+      }
+    },
+    {
+      "id": "VariableID:832:343",
+      "name": "Container/Modal",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.9771565198898315,
+          "g": 0.9792292714118958,
+          "b": 0.9346703886985779,
+          "a": 0.5
+        }
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-container-modal)"
+      }
+    },
+    {
+      "id": "VariableID:832:344",
+      "name": "Border/02",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.99169921875,
+          "g": 0.9824146032333374,
+          "b": 0.9360129833221436,
+          "a": 0.7599999904632568
+        }
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-border-02)"
+      }
+    },
+    {
+      "id": "VariableID:832:345",
+      "name": "Primitive/Inverse",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 1,
+          "g": 1,
+          "b": 1,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "SHAPE_FILL",
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-primitive-inverse)"
+      }
+    },
+    {
+      "id": "VariableID:832:346",
+      "name": "Color/Pink",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.9164663553237915,
+          "g": 0.5093678832054138,
+          "b": 0.708763062953949,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-color-pink)"
+      }
+    },
+    {
+      "id": "VariableID:832:347",
+      "name": "Primitive/Secondary",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.5911207795143127,
+          "g": 0.5907521843910217,
+          "b": 0.583749532699585,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "SHAPE_FILL",
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-primitive-secondary)"
+      }
+    },
+    {
+      "id": "VariableID:846:129",
+      "name": "Gradient/Primary/Start",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.9882352948188782,
+          "g": 0.929411768913269,
+          "b": 0.6000000238418579,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "SHAPE_FILL",
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-gradient-primary-start)"
+      }
+    },
+    {
+      "id": "VariableID:846:130",
+      "name": "Gradient/Primary/Middle",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 1,
+          "g": 0.8421245217323303,
+          "b": 0.690016508102417,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "SHAPE_FILL",
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-gradient-primary-middle)"
+      }
+    },
+    {
+      "id": "VariableID:846:131",
+      "name": "Gradient/Primary/End",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.9770883321762085,
+          "g": 0.6950157284736633,
+          "b": 0.7033557295799255,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "SHAPE_FILL",
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-gradient-primary-end)"
+      }
+    },
+    {
+      "id": "VariableID:884:147",
+      "name": "Bg/Library",
+      "type": "COLOR",
+      "collectionId": "VariableCollectionId:490:38",
+      "valuesByMode": {
+        "490:0": {
+          "r": 0.9725490196078431,
+          "g": 0.9725490196078431,
+          "b": 0.9725490196078431,
+          "a": 1
+        }
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "codeSyntax": {
+        "WEB": "var(--invite-bg-library)"
+      }
+    }
+  ],
+  "paintStyles": [
+    {
+      "id": "S:9a2a8bd33e97742d49e7e12615c503953e9281f3,",
+      "name": "Gradient/Primary",
+      "paints": [
+        {
+          "type": "GRADIENT_LINEAR",
+          "visible": true,
+          "opacity": 0.23000000417232513,
+          "blendMode": "NORMAL",
+          "gradientStops": [
+            {
+              "color": {
+                "r": 0.9882352948188782,
+                "g": 0.929411768913269,
+                "b": 0.6000000238418579,
+                "a": 1
+              },
+              "position": 0.2788461446762085,
+              "boundVariables": {
+                "color": {
+                  "type": "VARIABLE_ALIAS",
+                  "id": "VariableID:846:129"
+                }
+              }
+            },
+            {
+              "color": {
+                "r": 1,
+                "g": 0.8421245217323303,
+                "b": 0.690016508102417,
+                "a": 1
+              },
+              "position": 0.6346153616905212,
+              "boundVariables": {
+                "color": {
+                  "type": "VARIABLE_ALIAS",
+                  "id": "VariableID:846:130"
+                }
+              }
+            },
+            {
+              "color": {
+                "r": 0.9770883321762085,
+                "g": 0.6950157284736633,
+                "b": 0.7033557295799255,
+                "a": 1
+              },
+              "position": 1,
+              "boundVariables": {
+                "color": {
+                  "type": "VARIABLE_ALIAS",
+                  "id": "VariableID:846:131"
+                }
+              }
+            }
+          ],
+          "gradientTransform": [
+            [
+              0.7425974011421204,
+              -0.3366004228591919,
+              0.32847586274147034
+            ],
+            [
+              32.57106399536133,
+              1.10987389087677,
+              -18.092899322509766
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

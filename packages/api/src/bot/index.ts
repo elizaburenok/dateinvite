@@ -25,7 +25,7 @@ export interface BotDeps {
   nominatim: NominatimClient;
   photoStore: PhotoStore;
   miniAppUrl: string;
-  /** Перевод места на английский при сохранении. Без него место ляжет как есть. */
+  /** Перевод places на английский при сохранении. Без него место ляжет как есть. */
   locale?: Locale;
   /** LLM-разбор поста для ветки «только текст» без адреса. Без него — эвристика. */
   analyzer?: PostAnalyzer;
@@ -62,7 +62,7 @@ export function extractUrls(message: Message): string[] {
 }
 
 /**
- * Текст, который человек сам обернул в ссылку, почти всегда и есть название места:
+ * Текст, который человек сам обернул в ссылку, почти всегда и есть название places:
  * «завтраки в [Баски & Монегаски]». Сигнал не слабее кавычек, и раньше он терялся —
  * резолвер брал первое слово с заглавной и получал «Красота» вместо названия.
  */
@@ -134,7 +134,7 @@ export function mergeAlbum(messages: Message[]): Message {
  */
 function libraryKeyboard(miniAppUrl: string): InlineKeyboard | undefined {
   if (!miniAppUrl.startsWith('https://')) return undefined;
-  return new InlineKeyboard().webApp('Открыть библиотеку', miniAppUrl);
+  return new InlineKeyboard().webApp('Open library', miniAppUrl);
 }
 
 /**
@@ -144,13 +144,13 @@ function libraryKeyboard(miniAppUrl: string): InlineKeyboard | undefined {
  */
 function libraryInvite(miniAppUrl: string): { text: string; keyboard?: InlineKeyboard } {
   const keyboard = libraryKeyboard(miniAppUrl);
-  if (keyboard) return { text: 'Библиотека и сборка конвертов — здесь:', keyboard };
+  if (keyboard) return { text: 'Open your library and create envelopes here:', keyboard };
   return {
     text:
-      'Библиотека открывается кнопкой, но Telegram показывает её только по https, ' +
-      `а приложение сейчас запущено по адресу ${escapeHtml(miniAppUrl)}.\n\n` +
-      'Пока смотрите библиотеку в браузере по этому адресу. ' +
-      'После переезда на сервер кнопка появится здесь сама.',
+      'Telegram shows the library button only with HTTPS, ' +
+      `and the app is currently running at ${escapeHtml(miniAppUrl)}.\n\n` +
+      'For now, open the library at this address in your browser. ' +
+      'The button will appear here when the app is hosted over HTTPS.',
   };
 }
 
@@ -171,11 +171,11 @@ export function createBot(deps: BotDeps): Bot {
     currentUser(ctx);
     await ctx.reply(
       [
-        'Привет! Я собираю ваши места и превращаю их в приглашения.',
+        'Hi! I collect your favorite places and turn them into invitations.',
         '',
-        '• Перешлите мне пост про место или пришлите ссылку с Яндекс.Карт — я сохраню его в библиотеку.',
-        '• Можно просто отправить геометку.',
-        '• Когда мест наберётся, соберите конверт на 3–5 мест и отправьте другу одной ссылкой.',
+        '• Forward me a post about a place or send a Yandex Maps link. I’ll save it to your library.',
+        '• You can also send a location pin.',
+        '• Once you have a few places, create an envelope with 3–5 places and send one link to a friend.',
       ].join('\n'),
       { reply_markup: libraryKeyboard(deps.miniAppUrl) },
     );
@@ -198,13 +198,13 @@ export function createBot(deps: BotDeps): Bot {
     if (!city) {
       await ctx.reply(
         user.city
-          ? `Сейчас ищу места в городе: ${user.city}. Сменить — /city Санкт-Петербург`
-          : 'Укажите город, чтобы я точнее искал места: /city Москва',
+          ? `I’m searching for places in ${user.city}. To change it: /city London`
+          : 'Set your city for more accurate place search: /city London',
       );
       return;
     }
     deps.db.prepare('UPDATE users SET city = ? WHERE id = ?').run(city, user.id);
-    await ctx.reply(`Запомнил: ищу места в городе ${city}.`);
+    await ctx.reply(`Got it. I’ll search for places in ${city}.`);
   });
 
   /**
@@ -251,11 +251,11 @@ export function createBot(deps: BotDeps): Bot {
       Boolean(input.text?.trim());
 
     if (!hasSignal) {
-      await ctx.reply('Пришлите пост, ссылку с Карт или геометку — и я сохраню место.');
+      await ctx.reply('Send a post, a Maps link, or a location pin, and I’ll save the place.');
       return;
     }
 
-    const thinking = await ctx.reply('Ищу место…');
+    const thinking = await ctx.reply('Looking for the place…');
 
     let result;
     try {
@@ -269,7 +269,7 @@ export function createBot(deps: BotDeps): Bot {
       await ctx.api.editMessageText(
         ctx.chat.id,
         thinking.message_id,
-        'Не получилось разобрать это место — сервис карт не ответил. Попробуйте ещё раз или добавьте место вручную в библиотеке.',
+        'I couldn’t identify this place because the maps service did not respond. Try again or add it manually in the library.',
       );
       return;
     }
@@ -279,7 +279,7 @@ export function createBot(deps: BotDeps): Bot {
       await ctx.api.editMessageText(
         ctx.chat.id,
         thinking.message_id,
-        `Не понял, о каком месте речь. ${escapeHtml(result.reason)}.\nМожно добавить место руками в библиотеке.`,
+        `I couldn’t tell which place you mean. ${escapeHtml(result.reason)}.\nYou can add the place manually in the library.`,
         { parse_mode: 'HTML', reply_markup: libraryKeyboard(deps.miniAppUrl) },
       );
       return;
@@ -302,7 +302,7 @@ export function createBot(deps: BotDeps): Bot {
           );
         }
       } catch {
-        // Место без фото полезнее, чем отсутствие места.
+        // Place без фото полезнее, чем отсутствие places.
       }
     }
 
@@ -345,7 +345,7 @@ export function createBot(deps: BotDeps): Bot {
       await ctx.api.editMessageText(
         ctx.chat.id,
         thinking.message_id,
-        `✅ Сохранил в библиотеку.\n\n${placeCard(place)}`,
+        `✅ Saved to your library.\n\n${placeCard(place)}`,
         { parse_mode: 'HTML', reply_markup: libraryKeyboard(deps.miniAppUrl) },
       );
       return;
@@ -355,19 +355,19 @@ export function createBot(deps: BotDeps): Bot {
     const stored = listCandidates(deps.db, place.id);
     const keyboard = new InlineKeyboard();
     if (stored.length === 1) {
-      keyboard.text('Сохранить', `pick:${place.id}:0`).row();
+      keyboard.text('Save', `pick:${place.id}:0`).row();
     } else {
       stored.forEach((candidate, index) => {
         keyboard.text(`${index + 1}. ${candidate.name}`, `pick:${place.id}:${index}`).row();
       });
     }
-    keyboard.text('Ничего не подошло', `drop:${place.id}`);
+    keyboard.text('None of these', `drop:${place.id}`);
 
     // Одна и та же улица есть в разных городах. Пока хост не сказал свой,
     // варианты будут разъезжаться по стране — подсказываем это прямо здесь.
     const cityHint = user.city
       ? []
-      : ['', 'Подскажите свой город командой /city — так я буду реже путать города.'];
+      : ['', 'Tell me your city with /city so I can find more accurate matches.'];
 
     const single = stored.length === 1 ? stored[0]! : null;
 
@@ -375,7 +375,7 @@ export function createBot(deps: BotDeps): Bot {
       single
         ? [
             // Одна строка с номером «1.» выглядела бы как выбор без выбора.
-            'Нашёл вот это. Сохранить?',
+            'I found this place. Save it?',
             '',
             `<b>${escapeHtml(single.name)}</b>`,
             escapeHtml([single.address, single.district].filter(Boolean).join(' · ')),
@@ -383,17 +383,17 @@ export function createBot(deps: BotDeps): Bot {
           ].join('\n')
         : stored.length > 0
           ? [
-              'Похоже, речь про одно из этих мест. Какое?',
+              'It looks like one of these places. Which one?',
               '',
               ...stored.map((c, i) => escapeHtml(candidateLine(i, c.name, c.address))),
               ...cityHint,
             ].join('\n')
         : [
-            'Сохранил точку, но названия не нашлось.',
+            'I saved the location but could not find its name.',
             '',
             placeCard(place),
             '',
-            'Откройте библиотеку и допишите название.',
+            'Open the library and add a name.',
           ].join('\n');
 
     await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, body, {
@@ -417,7 +417,7 @@ export function createBot(deps: BotDeps): Bot {
 
     if (!place || !candidate) {
       await ctx.answerCallbackQuery({
-        text: 'Это сообщение устарело — перешлите пост ещё раз',
+        text: 'This message has expired. Forward the post again.',
         show_alert: true,
       });
       await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
@@ -427,15 +427,15 @@ export function createBot(deps: BotDeps): Bot {
     const confirmed = confirmCandidate(deps.db, user.id, placeId, candidate.id);
     if (!confirmed) {
       await ctx.answerCallbackQuery({
-        text: 'Это сообщение устарело — перешлите пост ещё раз',
+        text: 'This message has expired. Forward the post again.',
         show_alert: true,
       });
       await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
       return;
     }
 
-    await ctx.answerCallbackQuery({ text: 'Сохранил' });
-    await ctx.editMessageText(`✅ Сохранил в библиотеку.\n\n${placeCard(confirmed)}`, {
+    await ctx.answerCallbackQuery({ text: 'Saved' });
+    await ctx.editMessageText(`✅ Saved to your library.\n\n${placeCard(confirmed)}`, {
       parse_mode: 'HTML',
       reply_markup: libraryKeyboard(deps.miniAppUrl),
     });
@@ -457,9 +457,9 @@ export function createBot(deps: BotDeps): Bot {
       }
     }
 
-    await ctx.answerCallbackQuery({ text: 'Убрал' });
+    await ctx.answerCallbackQuery({ text: 'Removed' });
     await ctx.editMessageText(
-      'Хорошо, не сохраняю. Можно добавить место вручную в библиотеке.',
+      'Okay, I won’t save it. You can add the place manually in the library.',
       { reply_markup: libraryKeyboard(deps.miniAppUrl) },
     );
   });
@@ -473,11 +473,11 @@ export function createBot(deps: BotDeps): Bot {
 
 export async function configureBotCommands(bot: Bot, miniAppUrl: string): Promise<void> {
   await bot.api.setMyCommands([
-    { command: 'library', description: 'Открыть библиотеку мест' },
-    { command: 'city', description: 'Указать город для поиска' },
-    { command: 'start', description: 'Как это работает' },
+    { command: 'library', description: 'Open place library' },
+    { command: 'city', description: 'Set search city' },
+    { command: 'start', description: 'How it works' },
   ]);
   await bot.api.setChatMenuButton({
-    menu_button: { type: 'web_app', text: 'Библиотека', web_app: { url: miniAppUrl } },
+    menu_button: { type: 'web_app', text: 'Library', web_app: { url: miniAppUrl } },
   });
 }

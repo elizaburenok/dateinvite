@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AnswerResponse, InviteResponse } from '@invite/shared';
 import { AnswerError } from './api.js';
-import resultUrl from './assets/result.svg';
 import { LensFilter } from './components/LensFilter.js';
 import { NoteComposer } from './components/NoteComposer.js';
 import { SelectedPlace } from './components/SelectedPlace.js';
@@ -36,7 +35,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
 
   const [selected, setSelected] = useState<string | null>(invite.answer?.chosen_place_id ?? null);
   const selectedPlace = invite.places.find((place) => place.id === selected);
-  // Заметка необязательна: пустую отправка превращает в null. Готовые фразы,
+  // Note необязательна: пустую отправка превращает в null. Готовые фразы,
   // которыми она набирается в один тап, живут в самом поле (NoteComposer).
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -105,7 +104,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
       onUpdate({ ...invite, status: 'answered', answer });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setError(err instanceof AnswerError ? err.message : 'Не получилось отправить ответ');
+      setError(err instanceof AnswerError ? err.message : 'Could not send your reply');
     } finally {
       setSending(false);
     }
@@ -115,18 +114,11 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
     return (
       <main className="page">
         <header className="done">
-          {/* Ответная надпись «Looks good. Can't wait to see you» живёт здесь, а
-              не в момент выбора: пока место только выбрано и заметка ещё пишется,
-              ответить хосту нечем — ответ появляется, когда он отправлен. Та же
-              рисованная надпись, что и вопрос в шапке (assets/result.svg). */}
-          <img
-            className="done__lettering"
-            src={resultUrl}
-            alt="Looks good. Can't wait to see you"
-          />
+          {/* Ответная надпись появляется после отправки выбора и заметки. */}
+          <h1 className="done__lettering">Great choice!<br />See you soon</h1>
         </header>
 
-        <p className="attribution">Данные о местах — © участники OpenStreetMap</p>
+        <p className="attribution">Place data © OpenStreetMap contributors</p>
       </main>
     );
   }
@@ -142,7 +134,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
   // своей очереди задержкой (--pile-lead в invite.css), а не этим признаком.
   const bare = entry === 'pile' && state === 'sealed';
 
-  // Просмотр места сразу открывает ответ; выбор подтверждается его отправкой.
+  // Просмотр places сразу открывает ответ; выбор подтверждается его отправкой.
   const picking = selected !== null && !readOnly;
 
   return (
@@ -162,8 +154,8 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
         {bare && (!new URLSearchParams(window.location.search).get('caption') ||
           new URLSearchParams(window.location.search).get('caption') === 'top-left-text') && (
           <div className="page-invitation">
-            <p className="page-invitation__lead">I’d like to meet<br />with you</p>
-            <p className="page-invitation__detail">This invitation has some places to choose from</p>
+            <p className="page-invitation__lead">I’d love to<br />meet up</p>
+            <p className="page-invitation__detail">There are a few places to choose from</p>
           </div>
         )}
 
@@ -217,7 +209,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
             />
           )}
 
-        {/* Sent отправляет ответ и подтверждает выбранное место одним действием. */}
+        {/* Отправка ответа подтверждает выбранное место одним действием. */}
           {!readOnly && (
             <NoteComposer
               value={message}
@@ -230,7 +222,7 @@ export function InvitePage({ invite, entry, onSubmit, onUpdate }: InvitePageProp
           )}
         </section>
 
-        <p className="attribution">Данные о местах — © участники OpenStreetMap</p>
+        <p className="attribution">Place data © OpenStreetMap contributors</p>
 
       </main>
     {introVisible && <InvitationIntro onReveal={revealCard} onFinish={finishCard} />}

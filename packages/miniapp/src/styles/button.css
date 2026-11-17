@@ -1,0 +1,133 @@
+/* Shared action geometry; content cards and rows keep their own layout. */
+.invite-button.invite-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 56px;
+  min-height: 56px;
+  padding-block: 0;
+  font-size: 16px;
+  font-weight: var(--w-semibold);
+}
+
+.invite-button.invite-button--small {
+  height: 32px;
+  min-height: 32px;
+}
+
+.invite-button.invite-button--icon {
+  width: 56px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.invite-button.invite-button--icon.invite-button--small { width: 32px; }
+
+.glass-button {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--invite-space-20);
+  border: .3px solid var(--invite-border-02);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--invite-primitive-primary);
+  font-family: var(--font-card);
+  font-size: 16px;
+  font-weight: var(--w-semibold);
+  line-height: 20px;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  box-shadow: 0 5px 14px rgb(88 70 43 / .14),
+    0 1px 3px rgb(88 70 43 / .08);
+  transition: transform 220ms ease;
+}
+
+.glass-button::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(255 249 233 / .78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  content: '';
+}
+
+.glass-button::after {
+  position: absolute;
+  z-index: 0;
+  inset: -.15px;
+  border-radius: inherit;
+  box-shadow: inset 0 2px 5px rgb(255 255 249 / .85),
+    inset 3px 0 12px rgb(255 253 243 / .45),
+    inset -3px 0 12px rgb(255 253 243 / .45),
+    inset 0 -3px 8px rgb(154 134 101 / .18);
+  pointer-events: none;
+  content: '';
+}
+
+.glass-button__label {
+  position: relative;
+  z-index: 1;
+}
+
+.glass-button:hover { transform: translateY(-2px); }
+.glass-button:active { transform: scale(.98); }
+.glass-button:disabled { opacity: .5; cursor: not-allowed; }
+
+
+.glass-button.glass-button--frost {
+  border: 0;
+  color: var(--invite-primitive-inverse);
+  box-shadow: 0 6px 20px rgb(240 240 239 / .36),
+    0 9px 20px rgb(172 172 172 / .09);
+}
+
+.glass-button.glass-button--frost::before {
+  background: var(--glass-surface, rgb(197 197 197 / .3));
+  transition: background 180ms ease;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+}
+
+.glass-button.glass-button--frost::after {
+  inset: 0;
+  padding: calc(var(--invite-space-2) / 2);
+  background: linear-gradient(180deg,
+    rgb(253 251 239 / .12) 0%,
+    rgb(253 251 239 / .76) 28%,
+    rgb(253 251 239 / .76) 72%,
+    rgb(253 251 239 / .12) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  box-shadow: none;
+}
+
+
+.glass-button.glass-button--frost {
+  border-radius: 24px;
+}
+
+.glass-button.glass-button--frost:hover,
+.glass-button.glass-button--frost:active { transform: none; }
+
+@media (hover: hover) {
+  .glass-button--frost:not(.home__saved-places):not(:disabled):hover::before {
+    background: var(--glass-surface-hover, rgb(215 215 215 / .4));
+  }
+}
+
+.glass-button--frost:not(.home__saved-places):not(:disabled):active::before {
+  background: var(--glass-surface-pressed, rgb(175 175 175 / .42));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-button.glass-button--frost,
+  .glass-button--frost::before { transition: none; }
+}
