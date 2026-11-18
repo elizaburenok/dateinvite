@@ -1643,7 +1643,7 @@ body:has(.home) {
   height: 32px;
   border-radius: 50%;
   color: var(--invite-primitive-primary);
-  background: color-mix(in srgb, var(--invite-primitive-primary) 5%, transparent);
+  background: var(--invite-control-checkbox-empty);
 }
 
 .places-feed__check svg {
@@ -1662,12 +1662,15 @@ body:has(.home) {
 }
 
 .places-feed__create-action.glass-button.glass-button--frost {
+  --glass-surface: rgb(234 234 234 / .97);
+  --glass-surface-hover: rgb(234 234 234 / .98);
+  --glass-surface-pressed: rgb(220 220 220 / .98);
   width: 216px;
   border-radius: 22px;
   padding-left: var(--invite-space-24);
   padding-right: var(--invite-space-22);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1953,9 +1956,9 @@ body:has(.home) {
   background: color-mix(in srgb, var(--invite-bg-library) 78%, transparent);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
-  box-shadow: 0 -24px 72px -20px rgb(83 81 71 / .09),
-    8px 0 22px -14px rgb(83 81 71 / .13),
-    -8px 0 22px -14px rgb(83 81 71 / .13);
+  box-shadow: 0 -16px 44px -20px rgb(83 81 71 / .07),
+    6px 0 18px -14px rgb(83 81 71 / .06),
+    -6px 0 18px -14px rgb(83 81 71 / .06);
 }
 .places-feed--library-motion .places-feed__window::before,
 .places-feed--library-motion .places-feed__window::after {
@@ -2056,6 +2059,10 @@ body:has(.home) {
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: translateY(-1.5px) rotate(45deg);
+  transition: transform 180ms ease;
+}
+.places-feed__tag-select-wrap[aria-expanded="true"] .places-feed__tag-chevron {
+  transform: translateY(1.5px) rotate(225deg);
 }
 .places-feed__tag-options {
   position: absolute;
@@ -2065,11 +2072,12 @@ body:has(.home) {
   max-height: min(320px, 50dvh);
   padding: var(--invite-space-8);
   overflow-y: auto;
-  border: 1px solid var(--invite-border-02);
+  border: 1px solid rgb(255 255 255 / .82);
   border-radius: 22px;
   background: #e7e7e7;
   color: var(--invite-primitive-primary);
-  box-shadow: 0 9px 20px rgb(172 172 172 / .18);
+  box-shadow: 0 9px 20px rgb(172 172 172 / .12),
+    inset 0 0 0 1px rgb(255 255 255 / .2);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   animation: places-feed-tag-open 280ms cubic-bezier(.22, 1, .36, 1) both;
@@ -2095,15 +2103,19 @@ body:has(.home) {
   text-align: left;
   overflow-wrap: anywhere;
 }
-.places-feed__tag-option:hover {
+.places-feed__tag-option:hover,
+.places-feed__tag-option:focus-visible {
   background: rgb(197 197 197 / .3);
+}
+.places-feed__tag-option:focus-visible,
+.places-feed__tag-select-wrap:focus-visible {
+  outline: none;
+}
+.places-feed__tag-select-wrap:focus-visible {
+  --glass-surface: rgb(197 197 197 / .4);
 }
 .places-feed__tag-select-wrap--active.glass-button.glass-button--frost {
   font-weight: 600;
-}
-.places-feed__tag-select-wrap:focus-visible {
-  outline: 2px solid var(--invite-color-pink);
-  outline-offset: var(--invite-space-2);
 }
 .places-feed__tag-select-wrap:disabled { cursor: default; }
 .home__library-sheet .home__library-first {

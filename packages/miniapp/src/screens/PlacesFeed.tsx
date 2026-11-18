@@ -1,5 +1,5 @@
 import { LibrarySheetHeading } from '../components/LibrarySheetHeading.js';
-import { useLibrarySheetMotion } from '../hooks/useLibrarySheetMotion.js';
+import { usePlacesSheetMotion } from '../hooks/usePlacesSheetMotion.js';
 import { Button } from '../components/Button.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PlaceWithCandidates } from '@invite/shared';
@@ -64,7 +64,7 @@ export function PlacesFeed({
     document.addEventListener('pointerdown', closeOutside);
     return () => document.removeEventListener('pointerdown', closeOutside);
   }, [tagMenuOpen]);
-  const closeSheet = useLibrarySheetMotion(dialogRef, true, onClose, library ? 190 : 150);
+  const closeSheet = usePlacesSheetMotion(dialogRef, onClose);
   const selecting = entry === 'create';
   const placeCount = `${selection.length} ${selection.length === 1 ? 'place' : 'places'}`;
   // Touch uses native momentum; wheel input follows a bounded scroll target.
@@ -193,7 +193,7 @@ export function PlacesFeed({
               aria-label={`Filter places by tag: ${activeTags.length} selected`}
               aria-expanded={tagMenuOpen} aria-controls="places-feed-tag-options"
               disabled={availableTags.length === 0} onClick={() => setTagMenuOpen(open => !open)}>
-              <span aria-hidden="true">{activeTags.length ? `Tag (${activeTags.length})` : 'Tag'}</span>
+              <span aria-hidden="true">{activeTags.length ? `${activeTags.length} selected` : 'Tag'}</span>
               <span className="places-feed__tag-chevron" aria-hidden="true" />
             </button>
             {tagMenuOpen && <div id="places-feed-tag-options" className="places-feed__tag-options" aria-label="Tags">

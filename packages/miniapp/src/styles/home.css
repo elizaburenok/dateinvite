@@ -13,9 +13,15 @@
   padding: var(--invite-space-10) var(--invite-space-12);
   overflow: hidden;
   border: 1px solid var(--invite-border-01);
-  border-radius: 24px;
+  border-radius: var(--r-card);
+  corner-shape: var(--corner-card);
   box-shadow: 0 8px 37px 2px rgb(83 81 71 / .1),
     -8px -8px 12.976px 6.488px rgb(136 133 119 / .06);
+}
+
+/* Match the visual size of the squircle when corner-shape is unavailable. */
+@supports not (corner-shape: squircle) {
+  .home__photo-card { border-radius: 30px; }
 }
 
 .home__photo {
@@ -95,4 +101,14 @@
   font-size: 16px;
   font-weight: 600;
   letter-spacing: .01em;
+}
+
+/* The glass rim is softer on the sides and slightly wider above and below. */
+.home__photo-card .home__invitation-action.glass-button--frost::after {
+  padding: calc(var(--invite-space-2) * .75) calc(var(--invite-space-2) / 2);
+  background: linear-gradient(180deg,
+    rgb(253 251 239 / .3) 0%,
+    rgb(253 251 239 / .56) 28%,
+    rgb(253 251 239 / .56) 72%,
+    rgb(253 251 239 / .3) 100%);
 }
