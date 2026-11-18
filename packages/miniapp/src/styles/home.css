@@ -102,3 +102,13 @@
   font-weight: 600;
   letter-spacing: .01em;
 }
+
+/* The glass rim is softer on the sides and slightly wider above and below. */
+.home__photo-card .home__invitation-action.glass-button--frost::after {
+  padding: var(--invite-space-2) calc(var(--invite-space-2) / 2);
+  background: linear-gradient(180deg,
+    rgb(253 251 239 / .3) 0%,
+    rgb(253 251 239 / .56) 28%,
+    rgb(253 251 239 / .56) 72%,
+    rgb(253 251 239 / .3) 100%);
+}
