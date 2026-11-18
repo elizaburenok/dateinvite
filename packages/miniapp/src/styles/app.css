@@ -1662,15 +1662,15 @@ body:has(.home) {
 }
 
 .places-feed__create-action.glass-button.glass-button--frost {
-  --glass-surface: rgb(229 229 229 / .9);
-  --glass-surface-hover: rgb(229 229 229 / .95);
-  --glass-surface-pressed: rgb(215 215 215 / .96);
+  --glass-surface: rgb(234 234 234 / .97);
+  --glass-surface-hover: rgb(234 234 234 / .98);
+  --glass-surface-pressed: rgb(220 220 220 / .98);
   width: 216px;
   border-radius: 22px;
   padding-left: var(--invite-space-24);
   padding-right: var(--invite-space-22);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 
 @media (prefers-reduced-motion: no-preference) {
