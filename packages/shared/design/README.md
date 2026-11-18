@@ -18,6 +18,7 @@
 | Container/Default | `--invite-container-default` | Плашка заметки о месте |
 | Container/Neutral | `--invite-container-neutral` | Поле ответа, круглая кнопка закрытия |
 | Container/Modal | `--invite-container-modal` | Library, контейнер списка мест |
+| Семантический контрол | `--invite-control-checkbox-empty` | Пустой чекбокс в списке мест; 10% Primitive/Primary, задан в `styles/tokens.css` |
 | Border/01 | `--invite-border-01` | Фотографии и карточки |
 | Border/02 | `--invite-border-02` | Стеклянные контейнеры, поле ответа |
 | Color/Pink | `--invite-color-pink` | Розовая карточка, выделение |
