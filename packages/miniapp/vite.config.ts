@@ -12,6 +12,7 @@ export default defineConfig({
         envelopeTitleDemos: fileURLToPath(new URL('./envelope-title-demos.html', import.meta.url)),
         pickedMotion: fileURLToPath(new URL('./picked-motion.html', import.meta.url)),
         sheetMotion: fileURLToPath(new URL('./sheet-motion.html', import.meta.url)),
+        recollectSheetDemo: fileURLToPath(new URL('./recollect-sheet-demo.html', import.meta.url)),
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         libraryGrowthDemos: fileURLToPath(new URL('./library-growth-demos.html', import.meta.url)),
         checkboxOptions: fileURLToPath(new URL('./checkbox-options.html', import.meta.url)),
