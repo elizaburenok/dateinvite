@@ -1,29 +1,15 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
 
-function growLibrarySheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: () => void) {
-  const source = document.querySelector<HTMLElement>('.home__saved-places');
-  if (!source) return null;
-  const compact = panel.querySelector<HTMLElement>('.places-feed__motion-compact');
-  const content = Array.from(panel.children).filter(child => child !== compact) as HTMLElement[];
+function showLibrarySheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: () => void) {
+  const content = Array.from(panel.children) as HTMLElement[];
   const closeButton = dialog.querySelector<HTMLButtonElement>('.places-feed__close');
   const rows = Array.from(panel.querySelectorAll<HTMLElement>('.places-feed__list li'));
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const duration = (ms: number) => reduced ? 1 : ms;
   const animations: Animation[] = [];
-  const originalStyle = panel.style.cssText;
-  const originalVisibility = source.style.visibility;
   let disposed = false;
   let closing = false;
 
-  const box = (rect: DOMRect) => ({
-    left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`,
-  });
-  const setBox = (rect: DOMRect) => {
-    Object.assign(panel.style, box(rect));
-    panel.style.right = 'auto';
-    panel.style.bottom = 'auto';
-    panel.style.transform = 'none';
-  };
   const animate = (element: Element, frames: Keyframe[], ms: number, delay = 0) => {
     const animation = element.animate(frames, {
       duration: duration(ms), delay: reduced ? 0 : delay,
@@ -33,83 +19,89 @@ function growLibrarySheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: (
     return animation;
   };
   const finishAll = (items: Animation[]) => Promise.all(items.map(item => item.finished.catch(() => {})));
-  const start = source.getBoundingClientRect();
-  const end = panel.getBoundingClientRect();
-  setBox(start);
-  source.style.visibility = 'hidden';
   panel.inert = true;
   if (closeButton) closeButton.disabled = true;
-  const shape = animate(panel, [
-    { ...box(start), borderRadius: '24px', offset: 0, easing: 'cubic-bezier(.3,0,.2,1)' },
-    { ...box(new DOMRect(end.left, end.top - 8, end.width, end.height + 8)), borderRadius: '30px 30px 0 0', offset: .83, easing: 'cubic-bezier(.18,0,.45,1)' },
-    { ...box(end), borderRadius: '24px 24px 0 0', offset: 1 },
-  ], 1300);
+  const surface = animate(panel, [
+    { opacity: 0, transform: 'translate(-50%, 18px) scale(.985)' },
+    { opacity: 1, transform: 'translate(-50%, 0) scale(1)' },
+  ], 420);
   const opening = [
-    shape,
-    animate(dialog, [{ opacity: 0 }, { opacity: 1 }], 1040),
-    ...(compact ? [animate(compact, [{ opacity: 1 }, { opacity: 0 }], 320, 240)] : []),
+    surface,
+    animate(dialog, [{ opacity: 0 }, { opacity: 1 }], 420),
     ...content.map(element => animate(element,
-      [{ opacity: 0, transform: 'translateY(18px)' }, { opacity: 1, transform: 'translateY(0)' }], 620, 580)),
+      [{ opacity: 0, transform: 'translateY(18px)' }, { opacity: 1, transform: 'translateY(0)' }], 620, 180)),
     ...rows.map((row, index) => animate(row,
-      [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'translateY(0)' }], 580, 700 + Math.min(index, 4) * 84)),
+      [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'translateY(0)' }], 580, 320 + Math.min(index, 4) * 84)),
     ...(closeButton ? [animate(closeButton,
-      [{ opacity: 0, transform: 'scale(.8)' }, { opacity: 1, transform: 'scale(1)' }], 520, 740)] : []),
+      [{ opacity: 0, transform: 'scale(.8)' }, { opacity: 1, transform: 'scale(1)' }], 320, 180)] : []),
   ];
+  void surface.finished.then(() => {
+    if (disposed || closing) return;
+    panel.inert = false;
+    if (closeButton) closeButton.disabled = false;
+  }).catch(() => {});
   void finishAll(opening).then(() => {
     if (disposed || closing) return;
     animations.forEach(animation => animation.cancel());
-    panel.style.cssText = originalStyle;
-    panel.inert = false;
-    if (closeButton) closeButton.disabled = false;
     dialog.classList.add('places-feed--motion-open');
   });
 
   const close = () => {
     if (closing || disposed) return;
     closing = true;
-    const current = panel.getBoundingClientRect();
+    const panelStyle = getComputedStyle(panel);
+    const currentPanelOpacity = panelStyle.opacity;
+    const currentPanelTransform = panelStyle.transform;
     const currentDialogOpacity = getComputedStyle(dialog).opacity;
-    const currentCompactOpacity = compact ? getComputedStyle(compact).opacity : '0';
-    const currentContent = content.map(element => getComputedStyle(element).opacity);
+    const currentContent = content.map(element => ({
+      opacity: getComputedStyle(element).opacity,
+      transform: getComputedStyle(element).transform,
+    }));
     const currentCloseOpacity = closeButton ? getComputedStyle(closeButton).opacity : '0';
-    setBox(current);
+    const list = panel.querySelector<HTMLElement>('.places-feed__list');
+    const listRect = list?.getBoundingClientRect();
+    const visibleRows = listRect ? rows.filter(row => {
+      const rect = row.getBoundingClientRect();
+      return rect.bottom > listRect.top && rect.top < listRect.bottom;
+    }) : [];
+    const currentRows = visibleRows.map(row => ({
+      opacity: getComputedStyle(row).opacity,
+      transform: getComputedStyle(row).transform,
+    }));
+    const panelDelay = Math.max(260, Math.min(visibleRows.length - 1, 8) * 42 + 80);
+    panel.style.opacity = currentPanelOpacity;
+    panel.style.transform = currentPanelTransform;
     animations.forEach(animation => animation.cancel());
     animations.length = 0;
     panel.inert = true;
     if (closeButton) closeButton.disabled = true;
     const fades = [
+      ...visibleRows.map((row, index) => animate(row,
+        [{ opacity: currentRows[index]!.opacity, transform: currentRows[index]!.transform },
+          { opacity: 0, transform: 'translateY(14px)' }], 220, Math.min(visibleRows.length - 1 - index, 8) * 42)),
       ...content.map((element, index) => animate(element,
-        [{ opacity: currentContent[index] }, { opacity: 0 }], 260)),
+        [{ opacity: currentContent[index]!.opacity, transform: currentContent[index]!.transform },
+          { opacity: 0, transform: 'translateY(18px)' }], 260,
+        element.classList.contains('places-feed__list') ? panelDelay - 100 : 120)),
       ...(closeButton ? [animate(closeButton,
-        [{ opacity: currentCloseOpacity }, { opacity: 0 }], 260)] : []),
+        [{ opacity: currentCloseOpacity }, { opacity: 0 }], 160)] : []),
+      animate(panel,
+        [{ opacity: currentPanelOpacity, transform: currentPanelTransform },
+          { opacity: 0, transform: 'translate(-50%, 12px) scale(.985)' }], 240, panelDelay),
+      animate(dialog, [{ opacity: currentDialogOpacity }, { opacity: 0 }], 240, panelDelay),
     ];
-    void finishAll(fades).then(() => {
-      if (disposed) return;
-      const target = source.getBoundingClientRect();
-      const morph = animate(panel, [
-        { ...box(current), borderRadius: '24px 24px 0 0' },
-        { ...box(target), borderRadius: '24px' },
-      ], 860);
-      const rest = [
-        animate(dialog, [{ opacity: currentDialogOpacity }, { opacity: 0 }], 860),
-        ...(compact ? [animate(compact,
-          [{ opacity: currentCompactOpacity }, { opacity: 1 }], 300, 400)] : []),
-      ];
-      void finishAll([morph, ...rest]).then(() => { if (!disposed) onClose(); });
-    });
+    void finishAll(fades).then(() => { if (!disposed) onClose(); });
   };
   const cleanup = () => {
     disposed = true;
     animations.forEach(animation => animation.cancel());
-    panel.style.cssText = originalStyle;
     panel.inert = false;
-    source.style.visibility = originalVisibility;
     if (closeButton) closeButton.disabled = false;
   };
   return { close, cleanup };
 }
 
-/** Grow the library from its home card; keep the create flow's existing motion. */
+/** Show the library in place; keep the create flow's existing motion. */
 export function useLibrarySheetMotion(dialogRef: RefObject<HTMLDivElement | null>, enabled: boolean, onClose: () => void, openingDuration = 240) {
   const closeRef = useRef<(() => void) | null>(null);
   const onCloseRef = useRef(onClose);
@@ -121,11 +113,9 @@ export function useLibrarySheetMotion(dialogRef: RefObject<HTMLDivElement | null
     const panel = dialog?.querySelector<HTMLElement>('.places-feed__window');
     if (!dialog || !panel) return;
     if (dialog.classList.contains('places-feed--library')) {
-      const motion = growLibrarySheet(dialog, panel, () => onCloseRef.current());
-      if (motion) {
-        closeRef.current = motion.close;
-        return () => { motion.cleanup(); closeRef.current = null; };
-      }
+      const motion = showLibrarySheet(dialog, panel, () => onCloseRef.current());
+      closeRef.current = motion.close;
+      return () => { motion.cleanup(); closeRef.current = null; };
     }
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const animations: Animation[] = [];

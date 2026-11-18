@@ -179,7 +179,6 @@ export function PlacesFeed({
       </Button>
 
       <div className="places-feed__window">
-        {library && <span className="places-feed__motion-compact" aria-hidden="true">My places</span>}
         {library ? <LibrarySheetHeading /> : null}
         {library && (
           <div className="places-feed__tags" ref={tagMenuRef} onKeyDown={(event) => {

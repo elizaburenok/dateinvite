@@ -2138,18 +2138,6 @@ body:has(.home) {
   background: color-mix(in srgb, var(--invite-bg-library) 78%, transparent);
   box-shadow: 0 -10px 40px -10px rgb(83 81 71 / .12);
 }
-.places-feed__motion-compact {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  display: grid;
-  place-items: center;
-  opacity: 0;
-  color: var(--invite-primitive-primary);
-  font-size: 18px;
-  font-weight: 600;
-  pointer-events: none;
-}
 .places-feed--library-motion .places-feed__list {
   padding-top: 0;
   border-radius: 0;
