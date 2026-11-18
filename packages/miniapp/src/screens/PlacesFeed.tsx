@@ -1,5 +1,5 @@
 import { LibrarySheetHeading } from '../components/LibrarySheetHeading.js';
-import { useLibrarySheetMotion } from '../hooks/useLibrarySheetMotion.js';
+import { usePlacesSheetMotion } from '../hooks/usePlacesSheetMotion.js';
 import { Button } from '../components/Button.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PlaceWithCandidates } from '@invite/shared';
@@ -64,7 +64,7 @@ export function PlacesFeed({
     document.addEventListener('pointerdown', closeOutside);
     return () => document.removeEventListener('pointerdown', closeOutside);
   }, [tagMenuOpen]);
-  const closeSheet = useLibrarySheetMotion(dialogRef, true, onClose, library ? 190 : 150);
+  const closeSheet = usePlacesSheetMotion(dialogRef, onClose);
   const selecting = entry === 'create';
   const placeCount = `${selection.length} ${selection.length === 1 ? 'place' : 'places'}`;
   // Touch uses native momentum; wheel input follows a bounded scroll target.

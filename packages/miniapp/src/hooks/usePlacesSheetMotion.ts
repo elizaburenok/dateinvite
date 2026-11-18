@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
 
-function showLibrarySheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: () => void) {
+function showPlacesSheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: () => void) {
   const content = Array.from(panel.children) as HTMLElement[];
   const closeButton = dialog.querySelector<HTMLButtonElement>('.places-feed__close');
   const rows = Array.from(panel.querySelectorAll<HTMLElement>('.places-feed__list li'));
@@ -49,18 +49,20 @@ function showLibrarySheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: (
   const close = () => {
     if (closing || disposed) return;
     closing = true;
+    const closingContent = Array.from(panel.children) as HTMLElement[];
+    const closingRows = Array.from(panel.querySelectorAll<HTMLElement>('.places-feed__list li'));
     const panelStyle = getComputedStyle(panel);
     const currentPanelOpacity = panelStyle.opacity;
     const currentPanelTransform = panelStyle.transform;
     const currentDialogOpacity = getComputedStyle(dialog).opacity;
-    const currentContent = content.map(element => ({
+    const currentContent = closingContent.map(element => ({
       opacity: getComputedStyle(element).opacity,
       transform: getComputedStyle(element).transform,
     }));
     const currentCloseOpacity = closeButton ? getComputedStyle(closeButton).opacity : '0';
     const list = panel.querySelector<HTMLElement>('.places-feed__list');
     const listRect = list?.getBoundingClientRect();
-    const visibleRows = listRect ? rows.filter(row => {
+    const visibleRows = listRect ? closingRows.filter(row => {
       const rect = row.getBoundingClientRect();
       return rect.bottom > listRect.top && rect.top < listRect.bottom;
     }) : [];
@@ -79,7 +81,7 @@ function showLibrarySheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: (
       ...visibleRows.map((row, index) => animate(row,
         [{ opacity: currentRows[index]!.opacity, transform: currentRows[index]!.transform },
           { opacity: 0, transform: 'translateY(14px)' }], 220, Math.min(visibleRows.length - 1 - index, 8) * 42)),
-      ...content.map((element, index) => animate(element,
+      ...closingContent.map((element, index) => animate(element,
         [{ opacity: currentContent[index]!.opacity, transform: currentContent[index]!.transform },
           { opacity: 0, transform: 'translateY(18px)' }], 260,
         element.classList.contains('places-feed__list') ? panelDelay - 100 : 120)),
@@ -101,74 +103,20 @@ function showLibrarySheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: (
   return { close, cleanup };
 }
 
-/** Show the library in place; keep the create flow's existing motion. */
-export function useLibrarySheetMotion(dialogRef: RefObject<HTMLDivElement | null>, enabled: boolean, onClose: () => void, openingDuration = 240) {
+/** Both place-list entry points share the same in-place entrance and exit. */
+export function usePlacesSheetMotion(dialogRef: RefObject<HTMLDivElement | null>, onClose: () => void) {
   const closeRef = useRef<(() => void) | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useLayoutEffect(() => {
-    if (!enabled) return;
     const dialog = dialogRef.current;
     const panel = dialog?.querySelector<HTMLElement>('.places-feed__window');
     if (!dialog || !panel) return;
-    if (dialog.classList.contains('places-feed--library')) {
-      const motion = showLibrarySheet(dialog, panel, () => onCloseRef.current());
-      closeRef.current = motion.close;
-      return () => { motion.cleanup(); closeRef.current = null; };
-    }
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const animations: Animation[] = [];
-    let disposed = false;
-    let closing = false;
-    const animate = (element: Element, frames: Keyframe[], duration: number, easing = 'cubic-bezier(.3,0,.65,1)') => {
-      const animation = element.animate(frames, {
-        duration: reduced ? 1 : duration, easing, fill: 'both',
-      });
-      animations.push(animation);
-      return animation;
-    };
-    const settleDuration = 100;
-    const settleStart = openingDuration / (openingDuration + settleDuration);
-    const settlePeak = settleStart + (1 - settleStart) * .4;
-    const opening = animate(panel, [
-      { offset: 0, opacity: 0, transform: 'translate(-50%, 14px)', easing: 'cubic-bezier(.32,.08,.72,.78)' },
-      { offset: settleStart, opacity: 1, transform: 'translate(-50%, 0)', easing: 'cubic-bezier(.33,0,.67,1)' },
-      { offset: settlePeak, opacity: 1, transform: 'translate(-50%, -3px)', easing: 'cubic-bezier(.22,0,.32,1)' },
-      { offset: 1, opacity: 1, transform: 'translate(-50%, 0)' },
-    ], openingDuration + settleDuration);
-    const backdropOpening = animate(dialog, [{ opacity: 0 }, { opacity: 1 }], openingDuration, 'cubic-bezier(.32,.08,.72,.78)');
-    void backdropOpening.finished.then(() => {
-      if (!disposed && !closing) dialog.classList.add('places-feed--motion-open');
-    }).catch(() => {});
-    void opening.finished.then(() => {
-      if (disposed || closing) return;
-      opening.cancel();
-      backdropOpening.cancel();
-    }).catch(() => {});
-
-    closeRef.current = () => {
-      if (closing) return;
-      closing = true;
-      const style = getComputedStyle(panel);
-      const panelOpacity = style.opacity;
-      const panelTransform = style.transform;
-      const dialogOpacity = getComputedStyle(dialog).opacity;
-      opening.cancel();
-      backdropOpening.cancel();
-      const collapse = animate(panel, [
-        { opacity: panelOpacity, transform: panelTransform },
-        { opacity: 0, transform: 'translate(-50%, 10px)' },
-      ], 100);
-      animate(dialog, [{ opacity: dialogOpacity }, { opacity: 0 }], 100);
-      void collapse.finished.then(() => { if (!disposed) onCloseRef.current(); }).catch(() => {});
-    };
-    return () => {
-      disposed = true;
-      animations.forEach(animation => animation.cancel());
-      closeRef.current = null;
-    };
-  }, [dialogRef, enabled, openingDuration]);
+    const motion = showPlacesSheet(dialog, panel, () => onCloseRef.current());
+    closeRef.current = motion.close;
+    return () => { motion.cleanup(); closeRef.current = null; };
+  }, [dialogRef]);
 
   return () => closeRef.current ? closeRef.current() : onCloseRef.current();
 }
