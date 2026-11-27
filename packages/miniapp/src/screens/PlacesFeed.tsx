@@ -12,6 +12,10 @@ import closeCross from '../assets/places-feed/close-cross.svg';
 
 type FeedEntry = 'create' | 'library';
 
+const nextGlow = new URLSearchParams(window.location.search).get('nextGlow') === 'shade'
+  ? 'shade'
+  : 'light';
+
 interface PlacesFeedProps {
   entry: FeedEntry;
   places: PlaceWithCandidates[];
@@ -249,7 +253,7 @@ export function PlacesFeed({
           </GlassButton>
         )}
         {selecting && selection.length > 0 && (
-          <GlassButton className="places-feed__create-action glass-button--frost" onClick={onNext}
+          <GlassButton className={`places-feed__create-action places-feed__create-action--${nextGlow} glass-button--frost`} onClick={onNext}
             aria-label={`Next, places added: ${selection.length}`}>
             <span className="places-feed__added">{placeCount}</span>
             <span className={`places-feed__picked-stack${selection.length === 1 ? ' places-feed__picked-stack--single' : ''}`} aria-hidden="true">

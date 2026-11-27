@@ -1515,6 +1515,12 @@ body:has(.home) {
   padding-block: var(--invite-space-2);
 }
 
+@media (hover: hover) {
+  .places-feed--library .places-feed__row:hover {
+    background: color-mix(in srgb, var(--invite-container-neutral) 50%, transparent);
+  }
+}
+
 .places-feed__thumbnail {
   position: relative;
   display: grid;
@@ -1671,6 +1677,16 @@ body:has(.home) {
   padding-right: var(--invite-space-22);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+}
+
+.places-feed__create-action--light.glass-button.glass-button--frost {
+  box-shadow: 0 0 28px 9px rgb(255 255 255 / .78),
+    0 10px 28px rgb(231 230 227 / .5);
+}
+
+.places-feed__create-action--shade.glass-button.glass-button--frost {
+  box-shadow: 0 0 24px 7px rgb(220 218 215 / .5),
+    0 10px 28px rgb(116 112 108 / .22);
 }
 
 @media (prefers-reduced-motion: no-preference) {

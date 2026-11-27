@@ -195,6 +195,26 @@
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .envelope-preview__scrim--editor {
+    animation: caption-editor-backdrop-in 220ms ease-out both;
+  }
+
+  .envelope-preview__share--editor {
+    animation: caption-editor-panel-in 300ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+}
+
+@keyframes caption-editor-backdrop-in {
+  from { opacity: 0; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+}
+
+@keyframes caption-editor-panel-in {
+  from { opacity: 0; transform: translateY(var(--invite-space-16)) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 .envelope-preview__share--editor .envelope-preview__share-actions { justify-content: flex-end; }
 .envelope-preview__share--editor .envelope-preview__share-actions > button { flex: 0 0 auto; }
 .envelope-preview__caption-field { width: 100%; }
