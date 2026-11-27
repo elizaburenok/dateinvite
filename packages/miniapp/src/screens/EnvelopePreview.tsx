@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { GuestPlace, PlaceWithCandidates } from '@invite/shared';
 import { ENVELOPE_MAX_PLACES, ENVELOPE_MIN_PLACES } from '@invite/shared/constants';
 import { CardWheel } from '../../../guest/src/components/envelope/CardWheel.js';
@@ -64,9 +64,9 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 
   useEffect(() => {
     if (reducedMotion) { setReady(true); return; }
-    const timer = setTimeout(() => setReady(true), 420);
+    const timer = setTimeout(() => setReady(true), 360 + (Math.min(chosen.length, 4) + 1) * 75);
     return () => clearTimeout(timer);
-  }, [reducedMotion]);
+  }, [reducedMotion, chosen.length]);
 
   useEffect(() => {
     if (sharing) sharePanel.current?.focus({ preventScroll: true });
@@ -140,6 +140,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
   return <div ref={panel} className="envelope-preview" role="dialog" aria-modal="true"
     aria-label="Envelope preview" tabIndex={-1} data-ready={ready || undefined}
     data-place-count={chosen.length} data-wheel-page data-send-shadow={sendShadow}
+    style={{ '--preview-items': Math.min(chosen.length, 4) } as CSSProperties}
     onKeyDown={event => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -165,7 +166,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
         </svg>
       </Button>
       <div className="envelope-preview__carousel">
-        <CardWheel places={places} selected={null} readOnly radiusRatio={2.5} dealDurationMs={550} state={ready ? 'open' : 'dealing'} onSelect={() => {}}
+        <CardWheel places={places} selected={null} readOnly radiusRatio={2.5} dealDurationMs={0} state={ready ? 'open' : 'dealing'} onSelect={() => {}}
           renderCardAction={place => <GlassButton iconOnly size="small" className="envelope-preview__edit envelope-preview__action glass-button--frost"
             data-wheel-action disabled={busy} aria-label={`Edit caption: ${place.name}`}
             onClick={event => {

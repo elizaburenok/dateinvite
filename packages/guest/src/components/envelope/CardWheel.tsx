@@ -207,7 +207,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect, radiusR
    * другой на переднем плане), 1 — развёрнуты в полный цилиндр. Именно им идёт
    * раздача: контейнер при этом не прыгает, двигается сама геометрия.
    */
-  const spread = useRef(0);
+  const spread = useRef(dealDurationMs <= 0 ? 1 : 0);
   const spreadRaf = useRef(0);
   const raf = useRef(0);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -586,7 +586,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect, radiusR
     }
 
     // Без анимации барабана нет вовсе (см. wheel.css) — раскрываем разом.
-    if (reducedMotion) {
+    if (reducedMotion || dealDurationMs <= 0) {
       spread.current = 1;
       paint();
       return;
