@@ -43,9 +43,11 @@
 .envelope-preview__action.glass-button.invite-button--icon { border-radius: 50%; }
 .envelope-preview__footer > .envelope-preview__action.glass-button.glass-button--frost {
   border-radius: 22px;
-  box-shadow: 0 0 24px 7px rgb(220 218 215 / .5),
-    0 10px 28px rgb(116 112 108 / .22);
+  box-shadow: var(--send-button-shadow, 0 4px 12px rgb(0 0 0 / .07));
 }
+.envelope-preview[data-send-shadow="contact"] { --send-button-shadow: 0 2px 4px rgb(0 0 0 / .10); }
+.envelope-preview[data-send-shadow="light"] { --send-button-shadow: 0 3px 12px rgb(255 255 255 / .9); }
+.envelope-preview[data-send-shadow="none"] { --send-button-shadow: none; }
 .envelope-preview__footer > .envelope-preview__action.glass-button.glass-button--frost::after {
   padding: calc(var(--invite-space-2) / 4);
   background: linear-gradient(135deg,
@@ -63,8 +65,8 @@
 }
 .envelope-preview__carousel {
   position: absolute;
-  inset: calc(var(--invite-space-96) + var(--invite-space-48) * var(--hero, 1) + env(safe-area-inset-top)) 0 calc(var(--invite-space-120) + env(safe-area-inset-bottom));
-  animation: envelope-preview-cards 800ms cubic-bezier(.32,.08,.72,.78) both;
+  inset: calc(var(--invite-space-96) + var(--invite-space-8) * var(--hero, 1) + env(safe-area-inset-top)) 0 calc(var(--invite-space-120) + var(--invite-space-28) + env(safe-area-inset-bottom));
+  animation: envelope-preview-cards 400ms cubic-bezier(.2,.7,.2,1) both;
 }
 @keyframes envelope-preview-cards {
   from { transform: translateY(8dvh) scale(.88); opacity: .5; }

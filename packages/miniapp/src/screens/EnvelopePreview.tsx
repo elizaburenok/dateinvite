@@ -13,7 +13,7 @@ import closeCross from '../assets/places-feed/library-close-cross.svg';
 import '../styles/place-detail.css';
 import '../styles/envelope-preview.css';
 
-const readyTitle = 'Your envelope is ready to be sent';
+const sendShadow = new URLSearchParams(window.location.search).get('sendShadow') ?? 'soft';
 
 export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sendingUnavailable, captions, onCaptionChange }: {
   chosen: PlaceWithCandidates[];
@@ -64,7 +64,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 
   useEffect(() => {
     if (reducedMotion) { setReady(true); return; }
-    const timer = setTimeout(() => setReady(true), 820);
+    const timer = setTimeout(() => setReady(true), 420);
     return () => clearTimeout(timer);
   }, [reducedMotion]);
 
@@ -139,7 +139,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 
   return <div ref={panel} className="envelope-preview" role="dialog" aria-modal="true"
     aria-label="Envelope preview" tabIndex={-1} data-ready={ready || undefined}
-    data-place-count={chosen.length} data-wheel-page
+    data-place-count={chosen.length} data-wheel-page data-send-shadow={sendShadow}
     onKeyDown={event => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -165,7 +165,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
         </svg>
       </Button>
       <div className="envelope-preview__carousel">
-        <CardWheel places={places} selected={null} readOnly radiusRatio={2.5} state={ready ? 'open' : 'dealing'} onSelect={() => {}}
+        <CardWheel places={places} selected={null} readOnly radiusRatio={2.5} dealDurationMs={550} state={ready ? 'open' : 'dealing'} onSelect={() => {}}
           renderCardAction={place => <GlassButton iconOnly size="small" className="envelope-preview__edit envelope-preview__action glass-button--frost"
             data-wheel-action disabled={busy} aria-label={`Edit caption: ${place.name}`}
             onClick={event => {
@@ -180,7 +180,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
           </GlassButton>} />
       </div>
       <footer className="envelope-preview__footer">
-        <h1 className="envelope-preview__title">{readyTitle}</h1>
+        <h1 className="envelope-preview__title">Your envelope is ready<br />to be sent</h1>
         {error && <p className="envelope-preview__error" role="alert">{error}</p>}
         <GlassButton ref={sendButton} className="envelope-preview__action glass-button--frost" disabled={busy || chosen.length > ENVELOPE_MAX_PLACES}
           onClick={send} aria-busy={busy}>
