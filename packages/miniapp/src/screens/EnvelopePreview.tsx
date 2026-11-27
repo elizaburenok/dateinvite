@@ -13,6 +13,8 @@ import closeCross from '../assets/places-feed/library-close-cross.svg';
 import '../styles/place-detail.css';
 import '../styles/envelope-preview.css';
 
+const readyTitle = 'Your envelope is ready to be sent';
+
 export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sendingUnavailable, captions, onCaptionChange }: {
   chosen: PlaceWithCandidates[];
   notes: Record<string, string>;
@@ -25,7 +27,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const [ready, setReady] = useState(reducedMotion);
-  const [typedCount, setTypedCount] = useState(reducedMotion ? 21 : 0);
+  const [typedCount, setTypedCount] = useState(reducedMotion ? readyTitle.length : 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
@@ -68,13 +70,13 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
   }, [reducedMotion]);
 
   useEffect(() => {
-    if (reducedMotion) { setTypedCount(21); return; }
+    if (reducedMotion) { setTypedCount(readyTitle.length); return; }
     let interval: ReturnType<typeof setInterval>;
     const start = setTimeout(() => {
       interval = setInterval(() => setTypedCount(count => {
-        if (count >= 20) { clearInterval(interval); return 21; }
+        if (count >= readyTitle.length - 1) { clearInterval(interval); return readyTitle.length; }
         return count + 1;
-      }), 65);
+      }), 40);
     }, 220);
     return () => { clearTimeout(start); clearInterval(interval); };
   }, [reducedMotion]);
@@ -175,18 +177,6 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
           <path d="M14.5 5 7.5 12l7 7M8 12h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </Button>
-      <header className="envelope-preview__heading">
-        <h1 className="envelope-preview__title" aria-label="Your envelope is ready">
-          <span className="envelope-preview__title-expanded">
-            {['Your envelope', 'is ready'].map((line, lineIndex) => <span className="envelope-preview__title-line" aria-hidden="true" key={line}>
-              <span className="envelope-preview__title-measure">{line}</span>
-              <span className="envelope-preview__title-typed">{line.slice(0, Math.max(0, typedCount - (lineIndex ? 13 : 0)))}</span>
-            </span>)}
-          </span>
-          <span className="envelope-preview__title-compact" aria-hidden="true">Your envelope is ready</span>
-        </h1>
-        <p className="envelope-preview__subtitle">Send it to your friend</p>
-      </header>
       <div className="envelope-preview__carousel">
         <CardWheel places={places} selected={null} readOnly radiusRatio={2.5} state={ready ? 'open' : 'dealing'} onSelect={() => {}}
           renderCardAction={place => <GlassButton iconOnly size="small" className="envelope-preview__edit envelope-preview__action glass-button--frost"
@@ -203,6 +193,10 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
           </GlassButton>} />
       </div>
       <footer className="envelope-preview__footer">
+        <h1 className="envelope-preview__title" aria-label={readyTitle}>
+          <span className="envelope-preview__title-measure" aria-hidden="true">{readyTitle}</span>
+          <span className="envelope-preview__title-typed" aria-hidden="true">{readyTitle.slice(0, typedCount)}</span>
+        </h1>
         {error && <p className="envelope-preview__error" role="alert">{error}</p>}
         <GlassButton ref={sendButton} className="envelope-preview__action glass-button--frost" disabled={busy || chosen.length > ENVELOPE_MAX_PLACES}
           onClick={send} aria-busy={busy}>

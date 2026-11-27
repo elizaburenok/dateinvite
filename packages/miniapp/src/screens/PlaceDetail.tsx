@@ -4,6 +4,7 @@ import type { PlaceWithCandidates, UpdatePlaceRequest } from '@invite/shared';
 import { api, ApiError } from '../api.js';
 import { PlaceThumb } from '../components/PlaceThumb.js';
 import { useSheetClose } from '../hooks/useSheetClose.js';
+import { useSmoothWheelScroll } from '../hooks/useSmoothWheelScroll.js';
 import { usePlaceAutosave } from '../hooks/usePlaceAutosave.js';
 import { haptic } from '../telegram.js';
 import { PhotoEditor } from './PhotoEditor.js';
@@ -48,6 +49,8 @@ export function PlaceDetail({ place, availableTags, preview = false, onSaved, on
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState(false);
   const dialog = useRef<HTMLDivElement>(null);
+  const scroll = useRef<HTMLDivElement>(null);
+  useSmoothWheelScroll(scroll);
   const previewPhotoInput = useRef<HTMLInputElement>(null);
   const opener = useRef(document.activeElement);
   const { closing, requestClose, onAnimationEnd } = useSheetClose(onClose);
@@ -176,7 +179,7 @@ export function PlaceDetail({ place, availableTags, preview = false, onSaved, on
         <img className="place-detail__close-cross" src={closeCross} alt="" />
       </Button>
 
-      <div className="place-detail__scroll">
+      <div ref={scroll} className="place-detail__scroll">
         <button type="button" className="place-detail__photo" disabled={busy}
           onClick={() => preview ? previewPhotoInput.current?.click() : void finish(() => setEditingPhoto(true))}
           aria-label={place.photo_url ? 'Edit place photo' : 'Add place photo'}>
