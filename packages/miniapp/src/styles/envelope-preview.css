@@ -43,8 +43,10 @@
 .envelope-preview__action.glass-button.invite-button--icon { border-radius: 50%; }
 .envelope-preview__footer > .envelope-preview__action.glass-button.glass-button--frost {
   border-radius: 22px;
-  box-shadow: var(--send-button-shadow, 0 4px 12px rgb(0 0 0 / .07));
+  row-gap: var(--invite-space-2);
+  box-shadow: var(--send-button-shadow, none);
 }
+.envelope-preview[data-send-shadow="soft"] { --send-button-shadow: 0 4px 12px rgb(0 0 0 / .07); }
 .envelope-preview[data-send-shadow="contact"] { --send-button-shadow: 0 2px 4px rgb(0 0 0 / .10); }
 .envelope-preview[data-send-shadow="light"] { --send-button-shadow: 0 3px 12px rgb(255 255 255 / .9); }
 .envelope-preview[data-send-shadow="none"] { --send-button-shadow: none; }

@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from 'react';
 
 /** Smooth mouse-wheel input while leaving touch, keyboard and reduced motion native. */
-export function useSmoothWheelScroll(ref: RefObject<HTMLElement | null>, enabled = true, refresh?: unknown) {
+export function useSmoothWheelScroll(ref: RefObject<HTMLElement | null>, enabled = true, refresh?: unknown, responseMs = 70) {
   useEffect(() => {
     const list = ref.current;
     if (!list || !enabled) return;
@@ -26,7 +26,7 @@ export function useSmoothWheelScroll(ref: RefObject<HTMLElement | null>, enabled
         frame = 0;
         return;
       }
-      position += remaining * (1 - Math.exp(-elapsed / 70));
+      position += remaining * (1 - Math.exp(-elapsed / Math.max(1, responseMs)));
       list.scrollTop = position;
       frame = requestAnimationFrame(tick);
     };
@@ -64,5 +64,5 @@ export function useSmoothWheelScroll(ref: RefObject<HTMLElement | null>, enabled
       preference.removeEventListener('change', stop);
       stop();
     };
-  }, [ref, enabled, refresh]);
+  }, [ref, enabled, refresh, responseMs]);
 }

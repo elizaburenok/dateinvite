@@ -13,7 +13,7 @@ import closeCross from '../assets/places-feed/library-close-cross.svg';
 import '../styles/place-detail.css';
 import '../styles/envelope-preview.css';
 
-const sendShadow = new URLSearchParams(window.location.search).get('sendShadow') ?? 'soft';
+const sendShadow = new URLSearchParams(window.location.search).get('sendShadow') ?? 'none';
 
 export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sendingUnavailable, captions, onCaptionChange }: {
   chosen: PlaceWithCandidates[];

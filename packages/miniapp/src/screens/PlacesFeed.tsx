@@ -68,7 +68,7 @@ export function PlacesFeed({
   const closeSheet = usePlacesSheetMotion(dialogRef, onClose);
   const selecting = entry === 'create';
   const placeCount = `${selection.length} ${selection.length === 1 ? 'place' : 'places'}`;
-  useSmoothWheelScroll(listRef, !suspended, visiblePlaces);
+  useSmoothWheelScroll(listRef, !suspended, visiblePlaces, 55);
 
   const handleClose = () => closeSheet();
 
