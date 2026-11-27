@@ -21,14 +21,14 @@ uniform float u_motion;
 varying vec2 v_uv;
 void main() {
   vec2 uv = vec2(v_uv.x, 1.0 - v_uv.y);
-  float phase = u_time * 0.20943951; // 30-second seamless cycle
+  float phase = u_time * 0.26179939; // 24-second seamless cycle
   vec2 drift = vec2(
     sin(uv.y * 6.283185 + phase) - sin(uv.y * 6.283185),
     cos(uv.x * 6.283185 + phase) - cos(uv.x * 6.283185)
   );
   // Fade distortion at the edges so the frame stays still.
   vec2 edge = sin(uv * 3.141593);
-  uv += drift * edge * vec2(0.028, 0.022) * u_motion;
+  uv += drift * edge * vec2(0.055, 0.045) * u_motion;
   uv = (uv - 0.5) * u_cover + 0.5;
   gl_FragColor = texture2D(u_image, uv);
 }`;
@@ -37,7 +37,10 @@ export function PastelBackground({ paused = false, original = false }: { paused?
   const canvas = useRef<HTMLCanvasElement>(null);
   const options = useRef({ paused, original });
   options.current = { paused, original };
+  const redraw = useRef<() => void>(() => {});
   const [available, setAvailable] = useState(false);
+
+  useEffect(() => { redraw.current(); }, [paused, original]);
 
   useEffect(() => {
     const element = canvas.current;
@@ -92,6 +95,7 @@ export function PastelBackground({ paused = false, original = false }: { paused?
     let previous = 0;
     let lastDraw = 0;
     let dirty = true;
+    let revealed = false;
     let lastOriginal = original;
     const resize = () => {
       const rect = element.getBoundingClientRect();
@@ -105,6 +109,7 @@ export function PastelBackground({ paused = false, original = false }: { paused?
       dirty = true;
     };
     const tick = (now: number) => {
+      frame = 0;
       if (disposed || document.hidden) return;
       const elapsed = previous ? Math.min(now - previous, 100) : 0;
       previous = now;
@@ -116,16 +121,20 @@ export function PastelBackground({ paused = false, original = false }: { paused?
         gl.uniform1f(time, clock);
         gl.uniform1f(motion, options.current.original ? 0 : 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+        if (!revealed) { revealed = true; setAvailable(true); }
         dirty = false;
         lastDraw = now;
       }
-      frame = requestAnimationFrame(tick);
+      if (ready && moving) frame = requestAnimationFrame(tick);
     };
-    const visibility = () => {
+    const wake = () => {
       cancelAnimationFrame(frame);
+      frame = 0;
       previous = 0;
-      if (!document.hidden) frame = requestAnimationFrame(tick);
+      dirty = true;
+      if (ready && !document.hidden) frame = requestAnimationFrame(tick);
     };
+    redraw.current = wake;
     const contextLost = (event: Event) => {
       event.preventDefault();
       ready = false;
@@ -138,19 +147,23 @@ export function PastelBackground({ paused = false, original = false }: { paused?
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
       resize();
       ready = true;
-      setAvailable(true);
+      wake();
     };
     image.src = textureUrl;
-    const observer = new ResizeObserver(resize);
+    const observer = new ResizeObserver(() => { resize(); wake(); });
     observer.observe(element);
-    document.addEventListener('visibilitychange', visibility);
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('pageshow', wake);
+    reducedMotion.addEventListener('change', wake);
     element.addEventListener('webglcontextlost', contextLost);
-    frame = requestAnimationFrame(tick);
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
       observer.disconnect();
-      document.removeEventListener('visibilitychange', visibility);
+      redraw.current = () => {};
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('pageshow', wake);
+      reducedMotion.removeEventListener('change', wake);
       element.removeEventListener('webglcontextlost', contextLost);
       image.onload = null;
       gl.deleteTexture(texture);
