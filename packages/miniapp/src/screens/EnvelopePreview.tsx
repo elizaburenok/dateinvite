@@ -15,6 +15,8 @@ import '../styles/place-detail.css';
 import '../styles/envelope-preview.css';
 
 const sendShadow = new URLSearchParams(window.location.search).get('sendShadow') ?? 'none';
+const REVEAL_DURATION_MS = 480;
+const REVEAL_STAGGER_MS = 100;
 
 export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sendingUnavailable, captions, onCaptionChange }: {
   chosen: PlaceWithCandidates[];
@@ -65,7 +67,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 
   useEffect(() => {
     if (reducedMotion) { setReady(true); return; }
-    const timer = setTimeout(() => setReady(true), 360 + (Math.min(chosen.length, 4) + 1) * 75);
+    const timer = setTimeout(() => setReady(true), REVEAL_DURATION_MS + (Math.min(chosen.length, 4) + 1) * REVEAL_STAGGER_MS);
     return () => clearTimeout(timer);
   }, [reducedMotion, chosen.length]);
 
@@ -141,7 +143,11 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
   return <div ref={panel} className="envelope-preview" role="dialog" aria-modal="true"
     aria-label="Envelope preview" tabIndex={-1} data-ready={ready || undefined}
     data-place-count={chosen.length} data-wheel-page data-send-shadow={sendShadow}
-    style={{ '--preview-items': Math.min(chosen.length, 4) } as CSSProperties}
+    style={{
+      '--preview-items': Math.min(chosen.length, 4),
+      '--preview-reveal-duration': `${REVEAL_DURATION_MS}ms`,
+      '--preview-reveal-stagger': `${REVEAL_STAGGER_MS}ms`,
+    } as CSSProperties}
     onKeyDown={event => {
       if (event.key === 'Escape') {
         event.preventDefault();
