@@ -15,8 +15,8 @@ import '../styles/place-detail.css';
 import '../styles/envelope-preview.css';
 
 const sendShadow = new URLSearchParams(window.location.search).get('sendShadow') ?? 'none';
-const REVEAL_DURATION_MS = 480;
-const REVEAL_STAGGER_MS = 100;
+const REVEAL_DURATION_MS = 700;
+const REVEAL_STAGGER_MS = 800;
 
 export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sendingUnavailable, captions, onCaptionChange }: {
   chosen: PlaceWithCandidates[];
@@ -67,7 +67,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 
   useEffect(() => {
     if (reducedMotion) { setReady(true); return; }
-    const timer = setTimeout(() => setReady(true), REVEAL_DURATION_MS + (Math.min(chosen.length, 4) + 1) * REVEAL_STAGGER_MS);
+    const timer = setTimeout(() => setReady(true), REVEAL_DURATION_MS + Math.min(chosen.length, 4) * REVEAL_STAGGER_MS);
     return () => clearTimeout(timer);
   }, [reducedMotion, chosen.length]);
 

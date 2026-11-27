@@ -69,21 +69,19 @@
   position: absolute;
   inset: calc(var(--invite-space-64) + var(--invite-space-8) * var(--hero, 1) + env(safe-area-inset-top)) 0 calc(var(--invite-space-120) + var(--invite-space-60) + env(safe-area-inset-bottom));
 }
-/* Reveal each item in its final wheel position, then the footer. */
+/* Finish each card's reveal before the next; title and button appear together. */
 @media (prefers-reduced-motion: no-preference) {
   .envelope-preview .wheel__content,
   .envelope-preview__footer > .envelope-preview__title,
   .envelope-preview__footer > .envelope-preview__action {
-    animation: envelope-preview-item-in var(--preview-reveal-duration, 480ms) cubic-bezier(.2, .75, .25, 1) both;
+    animation: envelope-preview-item-in var(--preview-reveal-duration, 700ms) cubic-bezier(.2, .75, .25, 1) both;
   }
   .envelope-preview .wheel__content {
-    animation-delay: calc(min(var(--i), 3) * var(--preview-reveal-stagger, 100ms));
+    animation-delay: calc(min(var(--i), 3) * var(--preview-reveal-stagger, 800ms));
   }
-  .envelope-preview__footer > .envelope-preview__title {
-    animation-delay: calc(var(--preview-items, 2) * var(--preview-reveal-stagger, 100ms));
-  }
+  .envelope-preview__footer > .envelope-preview__title,
   .envelope-preview__footer > .envelope-preview__action {
-    animation-delay: calc((var(--preview-items, 2) + 1) * var(--preview-reveal-stagger, 100ms));
+    animation-delay: calc(var(--preview-items, 2) * var(--preview-reveal-stagger, 800ms));
   }
 }
 @keyframes envelope-preview-item-in {
