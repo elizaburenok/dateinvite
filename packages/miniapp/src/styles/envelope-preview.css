@@ -69,24 +69,24 @@
   position: absolute;
   inset: calc(var(--invite-space-64) + var(--invite-space-8) * var(--hero, 1) + env(safe-area-inset-top)) 0 calc(var(--invite-space-120) + var(--invite-space-60) + env(safe-area-inset-bottom));
 }
-/* Finish each card's reveal before the next; title and button appear together. */
+/* Overlap the soft card reveals; title and button share the final entrance. */
 @media (prefers-reduced-motion: no-preference) {
   .envelope-preview .wheel__content,
   .envelope-preview__footer > .envelope-preview__title,
   .envelope-preview__footer > .envelope-preview__action {
-    animation: envelope-preview-item-in var(--preview-reveal-duration, 550ms) cubic-bezier(.2, .75, .25, 1) both;
+    animation: envelope-preview-item-in var(--preview-reveal-duration, 550ms) cubic-bezier(.25, .1, .25, 1) both;
   }
   .envelope-preview .wheel__content {
-    animation-delay: calc(min(var(--i), 3) * var(--preview-reveal-stagger, 600ms));
+    animation-delay: calc(min(var(--i), 3) * var(--preview-reveal-stagger, 350ms));
   }
   .envelope-preview__footer > .envelope-preview__title,
   .envelope-preview__footer > .envelope-preview__action {
     animation-duration: var(--preview-footer-reveal-duration, 400ms);
-    animation-delay: calc(var(--preview-items, 2) * var(--preview-reveal-stagger, 600ms));
+    animation-delay: calc(var(--preview-items, 2) * var(--preview-reveal-stagger, 350ms));
   }
 }
 @keyframes envelope-preview-item-in {
-  from { opacity: 0; translate: 0 var(--invite-space-12); }
+  from { opacity: 0; translate: 0 var(--invite-space-8); }
   to { opacity: 1; translate: 0 0; }
 }
 .envelope-preview .wheel {

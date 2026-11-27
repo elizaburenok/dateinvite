@@ -16,7 +16,7 @@ import '../styles/envelope-preview.css';
 
 const sendShadow = new URLSearchParams(window.location.search).get('sendShadow') ?? 'none';
 const REVEAL_DURATION_MS = 550;
-const REVEAL_STAGGER_MS = 600;
+const REVEAL_STAGGER_MS = 350;
 const FOOTER_REVEAL_DURATION_MS = 400;
 
 export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sendingUnavailable, captions, onCaptionChange }: {
