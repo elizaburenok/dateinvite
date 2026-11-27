@@ -1513,12 +1513,17 @@ body:has(.home) {
 .places-feed--library .places-feed__row {
   min-height: 54px;
   padding-block: var(--invite-space-2);
+  transition: opacity 180ms ease;
 }
 
 @media (hover: hover) {
   .places-feed--library .places-feed__row:hover {
-    background: color-mix(in srgb, var(--invite-container-neutral) 50%, transparent);
+    opacity: .5;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .places-feed--library .places-feed__row { transition: none; }
 }
 
 .places-feed__thumbnail {
