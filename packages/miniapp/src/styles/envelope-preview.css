@@ -5,8 +5,7 @@
   inset: 0;
   overflow: hidden;
   color-scheme: light;
-  /* Crop the wallpaper's colored export edge while keeping its soft center. */
-  background: var(--invite-bg-primary) url('../../../guest/src/assets/wheel-wallpaper.png') center / 108% 108% no-repeat;
+  background: var(--invite-bg-library);
   color: var(--invite-primitive-primary);
   outline: none;
   --env-w: min(384px, 82vw, 60dvh);
@@ -14,8 +13,13 @@
   --card-h: calc((var(--env-w) - 20px) * 1022 / 1500);
   --wheel-headroom: var(--invite-space-24);
   --deck-gap: var(--invite-space-64);
+  --r-card: 60px;
+  --r-card-inner: 60px;
 }
-.envelope-preview__content { height: 100%; }
+@supports not (corner-shape: squircle) {
+  .envelope-preview { --r-card: 38px; --r-card-inner: 38px; }
+}
+.envelope-preview__content { position: relative; z-index: 1; height: 100%; }
 .envelope-preview__back {
   position: absolute;
   z-index: 4;
@@ -37,62 +41,62 @@
   padding-right: var(--invite-space-28);
 }
 .envelope-preview__action.glass-button.invite-button--icon { border-radius: 50%; }
-.envelope-preview__footer > .envelope-preview__action.glass-button.glass-button--frost { border-radius: 22px; }
-.envelope-preview__heading {
-  position: absolute;
-  z-index: 3;
-  top: calc(var(--invite-space-24) + var(--invite-space-76) * var(--hero, 1) + env(safe-area-inset-top));
-  left: 0;
-  width: 100%;
-  padding: 0 var(--invite-space-24);
-  font-family: var(--font-card);
-  text-align: center;
-  pointer-events: none;
+.envelope-preview__footer > .envelope-preview__action.glass-button.glass-button--frost {
+  border-radius: 22px;
+  row-gap: var(--invite-space-2);
+  box-shadow: var(--send-button-shadow, none);
+}
+.envelope-preview[data-send-shadow="soft"] { --send-button-shadow: 0 4px 12px rgb(0 0 0 / .07); }
+.envelope-preview[data-send-shadow="contact"] { --send-button-shadow: 0 2px 4px rgb(0 0 0 / .10); }
+.envelope-preview[data-send-shadow="light"] { --send-button-shadow: 0 3px 12px rgb(255 255 255 / .9); }
+.envelope-preview[data-send-shadow="none"] { --send-button-shadow: none; }
+.envelope-preview__footer > .envelope-preview__action.glass-button.glass-button--frost::after {
+  padding: calc(var(--invite-space-2) / 4);
+  background: linear-gradient(135deg,
+    rgb(255 255 255 / .85) 0%,
+    rgb(255 255 255 / .18) 48%,
+    rgb(255 255 255 / .86) 100%);
 }
 .envelope-preview__title {
   position: relative;
+  max-width: min(100%, 420px);
   margin: 0;
-  font-size: calc(18px + 14px * var(--hero, 1));
-  font-weight: 500;
-  line-height: 1.05;
+  font: 500 16px/1.3 var(--font-card);
   letter-spacing: -.04em;
-}
-.envelope-preview__title-expanded {
-  display: block;
-  opacity: var(--hero, 1);
-}
-.envelope-preview__title-compact {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  font-size: 18px;
-  line-height: 24px;
-  white-space: nowrap;
-  opacity: calc(1 - var(--hero, 1));
-}
-.envelope-preview__title-line { position: relative; display: table; margin: 0 auto; white-space: pre; }
-.envelope-preview__title-measure { visibility: hidden; }
-.envelope-preview__title-typed { position: absolute; top: 0; left: 0; }
-.envelope-preview__subtitle {
-  margin: var(--invite-space-12) 0 0;
-  font-size: 13px;
-  line-height: 18px;
-  opacity: var(--hero, 1);
-  animation: envelope-subtitle 400ms ease 1600ms backwards;
-}
-@keyframes envelope-subtitle { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  .envelope-preview__subtitle { animation: none; }
+  text-align: center;
 }
 .envelope-preview__carousel {
   position: absolute;
-  inset: calc(var(--invite-space-96) + (var(--invite-space-72) + var(--invite-space-72)) * var(--hero, 1) + env(safe-area-inset-top)) 0 calc(var(--invite-space-100) + env(safe-area-inset-bottom));
-  animation: envelope-preview-cards 800ms cubic-bezier(.32,.08,.72,.78) both;
+  inset: calc(var(--invite-space-64) + var(--invite-space-8) * var(--hero, 1) + env(safe-area-inset-top)) 0 calc(var(--invite-space-120) + var(--invite-space-60) + env(safe-area-inset-bottom));
 }
-@keyframes envelope-preview-cards {
-  from { transform: translateY(8dvh) scale(.88); opacity: .5; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
+/* Overlap the soft card reveals; title and button share the final entrance. */
+@media (prefers-reduced-motion: no-preference) {
+  .envelope-preview .wheel__content,
+  .envelope-preview__footer > .envelope-preview__title,
+  .envelope-preview__footer > .envelope-preview__action {
+    animation: envelope-preview-item-in var(--preview-reveal-duration, 550ms) cubic-bezier(.25, .1, .25, 1) both;
+  }
+  .envelope-preview .wheel__content {
+    animation-delay: calc(min(var(--i), 3) * var(--preview-reveal-stagger, 350ms));
+  }
+  .envelope-preview .wheel__item:nth-child(-n + 2) > .wheel__content {
+    animation-name: envelope-preview-card-in;
+    animation-duration: 650ms;
+    animation-timing-function: cubic-bezier(.33, 0, .3, 1);
+  }
+  .envelope-preview__footer > .envelope-preview__title,
+  .envelope-preview__footer > .envelope-preview__action {
+    animation-duration: var(--preview-footer-reveal-duration, 400ms);
+    animation-delay: calc(var(--preview-items, 2) * var(--preview-reveal-stagger, 350ms));
+  }
+}
+@keyframes envelope-preview-item-in {
+  from { opacity: 0; translate: 0 var(--invite-space-8); }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes envelope-preview-card-in {
+  from { opacity: 0; translate: 0 var(--invite-space-4); }
+  to { opacity: 1; translate: 0 0; }
 }
 .envelope-preview .wheel {
   height: 100%;
@@ -194,6 +198,26 @@
     0 -9px 20px rgb(172 172 172 / .09);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .envelope-preview__scrim--editor {
+    animation: caption-editor-backdrop-in 220ms ease-out both;
+  }
+
+  .envelope-preview__share--editor {
+    animation: caption-editor-panel-in 300ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+}
+
+@keyframes caption-editor-backdrop-in {
+  from { opacity: 0; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+}
+
+@keyframes caption-editor-panel-in {
+  from { opacity: 0; transform: translateY(var(--invite-space-16)) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .envelope-preview__share--editor .envelope-preview__share-actions { justify-content: flex-end; }
 .envelope-preview__share--editor .envelope-preview__share-actions > button { flex: 0 0 auto; }

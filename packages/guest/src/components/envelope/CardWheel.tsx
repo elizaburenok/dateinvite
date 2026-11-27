@@ -14,6 +14,8 @@ interface CardWheelProps {
   onSelect(id: string): void;
   /** Cylinder radius in card heights; input and snap physics stay shared. */
   radiusRatio?: number;
+  /** Optional host-preview timing; guest invitations retain their default. */
+  dealDurationMs?: number;
   renderCardAction?(place: GuestPlace): ReactNode;
 }
 
@@ -178,7 +180,7 @@ function easeDeal(k: number): number {
  * Всё положение — одно число `pos` (дробный индекс карточки в центре). Из него
  * paint() каждый кадр пишет карточкам трансформы, минуя состояние React.
  */
-export function CardWheel({ places, selected, readOnly, state, onSelect, radiusRatio = RADIUS, renderCardAction }: CardWheelProps) {
+export function CardWheel({ places, selected, readOnly, state, onSelect, radiusRatio = RADIUS, dealDurationMs = DEAL_MS, renderCardAction }: CardWheelProps) {
   const count = places.length;
   const dealt = state === 'dealing' || state === 'open';
   const reducedMotion = usePrefersReducedMotion();
@@ -205,7 +207,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect, radiusR
    * другой на переднем плане), 1 — развёрнуты в полный цилиндр. Именно им идёт
    * раздача: контейнер при этом не прыгает, двигается сама геометрия.
    */
-  const spread = useRef(0);
+  const spread = useRef(dealDurationMs <= 0 ? 1 : 0);
   const spreadRaf = useRef(0);
   const raf = useRef(0);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -584,7 +586,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect, radiusR
     }
 
     // Без анимации барабана нет вовсе (см. wheel.css) — раскрываем разом.
-    if (reducedMotion) {
+    if (reducedMotion || dealDurationMs <= 0) {
       spread.current = 1;
       paint();
       return;
@@ -593,7 +595,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect, radiusR
     const start = performance.now();
     const from = spread.current;
     const frame = (now: number) => {
-      const k = clamp((now - start) / DEAL_MS, 0, 1);
+      const k = clamp((now - start) / Math.max(1, dealDurationMs), 0, 1);
       spread.current = from + (1 - from) * easeDeal(k);
       paint();
       if (k < 1) spreadRaf.current = requestAnimationFrame(frame);
@@ -601,7 +603,7 @@ export function CardWheel({ places, selected, readOnly, state, onSelect, radiusR
     spreadRaf.current = requestAnimationFrame(frame);
 
     return () => cancelAnimationFrame(spreadRaf.current);
-  }, [dealt, reducedMotion, paint]);
+  }, [dealt, reducedMotion, paint, dealDurationMs]);
 
   // Выбор извне (или снятие): доводим барабан к выбранной карточке и красим.
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { GuestPlace, PlaceWithCandidates } from '@invite/shared';
 import { ENVELOPE_MAX_PLACES, ENVELOPE_MIN_PLACES } from '@invite/shared/constants';
 import { CardWheel } from '../../../guest/src/components/envelope/CardWheel.js';
@@ -6,12 +6,18 @@ import { usePrefersReducedMotion } from '../../../guest/src/components/envelope/
 import '../../../guest/src/styles/wheel.css';
 import { Button } from '../components/Button.js';
 import { GlassButton } from '../components/GlassButton.js';
+import { PastelBackground } from '../components/PastelBackground.js';
 import { api, ApiError } from '../api.js';
 import { envelopeNotes } from '../lib/places.js';
 import { haptic } from '../telegram.js';
 import closeCross from '../assets/places-feed/library-close-cross.svg';
 import '../styles/place-detail.css';
 import '../styles/envelope-preview.css';
+
+const sendShadow = new URLSearchParams(window.location.search).get('sendShadow') ?? 'none';
+const REVEAL_DURATION_MS = 550;
+const REVEAL_STAGGER_MS = 350;
+const FOOTER_REVEAL_DURATION_MS = 400;
 
 export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sendingUnavailable, captions, onCaptionChange }: {
   chosen: PlaceWithCandidates[];
@@ -25,7 +31,6 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const [ready, setReady] = useState(reducedMotion);
-  const [typedCount, setTypedCount] = useState(reducedMotion ? 21 : 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
@@ -63,21 +68,9 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 
   useEffect(() => {
     if (reducedMotion) { setReady(true); return; }
-    const timer = setTimeout(() => setReady(true), 820);
+    const timer = setTimeout(() => setReady(true), FOOTER_REVEAL_DURATION_MS + Math.min(chosen.length, 4) * REVEAL_STAGGER_MS);
     return () => clearTimeout(timer);
-  }, [reducedMotion]);
-
-  useEffect(() => {
-    if (reducedMotion) { setTypedCount(21); return; }
-    let interval: ReturnType<typeof setInterval>;
-    const start = setTimeout(() => {
-      interval = setInterval(() => setTypedCount(count => {
-        if (count >= 20) { clearInterval(interval); return 21; }
-        return count + 1;
-      }), 65);
-    }, 220);
-    return () => { clearTimeout(start); clearInterval(interval); };
-  }, [reducedMotion]);
+  }, [reducedMotion, chosen.length]);
 
   useEffect(() => {
     if (sharing) sharePanel.current?.focus({ preventScroll: true });
@@ -150,7 +143,13 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 
   return <div ref={panel} className="envelope-preview" role="dialog" aria-modal="true"
     aria-label="Envelope preview" tabIndex={-1} data-ready={ready || undefined}
-    data-place-count={chosen.length} data-wheel-page
+    data-place-count={chosen.length} data-wheel-page data-send-shadow={sendShadow}
+    style={{
+      '--preview-items': Math.min(chosen.length, 4),
+      '--preview-reveal-duration': `${REVEAL_DURATION_MS}ms`,
+      '--preview-reveal-stagger': `${REVEAL_STAGGER_MS}ms`,
+      '--preview-footer-reveal-duration': `${FOOTER_REVEAL_DURATION_MS}ms`,
+    } as CSSProperties}
     onKeyDown={event => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -168,6 +167,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
         event.preventDefault(); first?.focus();
       }
     }}>
+    <PastelBackground paused={sharing || Boolean(editing)} />
     <div className="envelope-preview__content" inert={sharing || Boolean(editing)}>
       <Button iconOnly size="small" className="envelope-preview__back" aria-label="Back to places"
         disabled={busy} onClick={onCancel}>
@@ -175,20 +175,8 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
           <path d="M14.5 5 7.5 12l7 7M8 12h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </Button>
-      <header className="envelope-preview__heading">
-        <h1 className="envelope-preview__title" aria-label="Your envelope is ready">
-          <span className="envelope-preview__title-expanded">
-            {['Your envelope', 'is ready'].map((line, lineIndex) => <span className="envelope-preview__title-line" aria-hidden="true" key={line}>
-              <span className="envelope-preview__title-measure">{line}</span>
-              <span className="envelope-preview__title-typed">{line.slice(0, Math.max(0, typedCount - (lineIndex ? 13 : 0)))}</span>
-            </span>)}
-          </span>
-          <span className="envelope-preview__title-compact" aria-hidden="true">Your envelope is ready</span>
-        </h1>
-        <p className="envelope-preview__subtitle">Send it to your friend</p>
-      </header>
       <div className="envelope-preview__carousel">
-        <CardWheel places={places} selected={null} readOnly radiusRatio={2.5} state={ready ? 'open' : 'dealing'} onSelect={() => {}}
+        <CardWheel places={places} selected={null} readOnly radiusRatio={2.5} dealDurationMs={0} state={ready ? 'open' : 'dealing'} onSelect={() => {}}
           renderCardAction={place => <GlassButton iconOnly size="small" className="envelope-preview__edit envelope-preview__action glass-button--frost"
             data-wheel-action disabled={busy} aria-label={`Edit caption: ${place.name}`}
             onClick={event => {
@@ -203,6 +191,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
           </GlassButton>} />
       </div>
       <footer className="envelope-preview__footer">
+        <h1 className="envelope-preview__title">Your envelope is ready<br />to be sent</h1>
         {error && <p className="envelope-preview__error" role="alert">{error}</p>}
         <GlassButton ref={sendButton} className="envelope-preview__action glass-button--frost" disabled={busy || chosen.length > ENVELOPE_MAX_PLACES}
           onClick={send} aria-busy={busy}>

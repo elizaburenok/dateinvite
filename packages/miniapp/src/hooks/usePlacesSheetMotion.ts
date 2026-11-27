@@ -29,9 +29,11 @@ function showPlacesSheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: ()
     surface,
     animate(dialog, [{ opacity: 0 }, { opacity: 1 }], 420),
     ...content.map(element => animate(element,
-      [{ opacity: 0, transform: 'translateY(18px)' }, { opacity: 1, transform: 'translateY(0)' }], 620, 180)),
+      [{ opacity: 0, transform: 'translateY(18px)' }, { opacity: 1, transform: 'translateY(0)' }],
+      element.classList.contains('places-feed__list') ? 360 : 620,
+      element.classList.contains('places-feed__list') ? 160 : 180)),
     ...rows.map((row, index) => animate(row,
-      [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'translateY(0)' }], 580, 320 + Math.min(index, 4) * 84)),
+      [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'translateY(0)' }], 340, 220 + Math.min(index, 4) * 48)),
     ...(closeButton ? [animate(closeButton,
       [{ opacity: 0, transform: 'scale(.8)' }, { opacity: 1, transform: 'scale(1)' }], 320, 180)] : []),
   ];
@@ -49,50 +51,7 @@ function showPlacesSheet(dialog: HTMLDivElement, panel: HTMLElement, onClose: ()
   const close = () => {
     if (closing || disposed) return;
     closing = true;
-    const closingContent = Array.from(panel.children) as HTMLElement[];
-    const closingRows = Array.from(panel.querySelectorAll<HTMLElement>('.places-feed__list li'));
-    const panelStyle = getComputedStyle(panel);
-    const currentPanelOpacity = panelStyle.opacity;
-    const currentPanelTransform = panelStyle.transform;
-    const currentDialogOpacity = getComputedStyle(dialog).opacity;
-    const currentContent = closingContent.map(element => ({
-      opacity: getComputedStyle(element).opacity,
-      transform: getComputedStyle(element).transform,
-    }));
-    const currentCloseOpacity = closeButton ? getComputedStyle(closeButton).opacity : '0';
-    const list = panel.querySelector<HTMLElement>('.places-feed__list');
-    const listRect = list?.getBoundingClientRect();
-    const visibleRows = listRect ? closingRows.filter(row => {
-      const rect = row.getBoundingClientRect();
-      return rect.bottom > listRect.top && rect.top < listRect.bottom;
-    }) : [];
-    const currentRows = visibleRows.map(row => ({
-      opacity: getComputedStyle(row).opacity,
-      transform: getComputedStyle(row).transform,
-    }));
-    const panelDelay = Math.max(260, Math.min(visibleRows.length - 1, 8) * 42 + 80);
-    panel.style.opacity = currentPanelOpacity;
-    panel.style.transform = currentPanelTransform;
-    animations.forEach(animation => animation.cancel());
-    animations.length = 0;
-    panel.inert = true;
-    if (closeButton) closeButton.disabled = true;
-    const fades = [
-      ...visibleRows.map((row, index) => animate(row,
-        [{ opacity: currentRows[index]!.opacity, transform: currentRows[index]!.transform },
-          { opacity: 0, transform: 'translateY(14px)' }], 220, Math.min(visibleRows.length - 1 - index, 8) * 42)),
-      ...closingContent.map((element, index) => animate(element,
-        [{ opacity: currentContent[index]!.opacity, transform: currentContent[index]!.transform },
-          { opacity: 0, transform: 'translateY(18px)' }], 260,
-        element.classList.contains('places-feed__list') ? panelDelay - 100 : 120)),
-      ...(closeButton ? [animate(closeButton,
-        [{ opacity: currentCloseOpacity }, { opacity: 0 }], 160)] : []),
-      animate(panel,
-        [{ opacity: currentPanelOpacity, transform: currentPanelTransform },
-          { opacity: 0, transform: 'translate(-50%, 12px) scale(.985)' }], 240, panelDelay),
-      animate(dialog, [{ opacity: currentDialogOpacity }, { opacity: 0 }], 240, panelDelay),
-    ];
-    void finishAll(fades).then(() => { if (!disposed) onClose(); });
+    onClose();
   };
   const cleanup = () => {
     disposed = true;

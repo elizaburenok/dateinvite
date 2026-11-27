@@ -16,11 +16,6 @@ interface HomeProps {
 export function Home({ latestPlace, previousPlace = null, onCreateEnvelope, onOpenLibrary }: HomeProps) {
   return (
     <main className="home">
-      <h1 className="home__masthead">
-        <svg className="home__brand" viewBox="0 0 116 36" width="116" height="36" aria-label="fromout" role="img">
-          <text x="2" y="28">fromout</text>
-        </svg>
-      </h1>
       <section className="home__photo-card" aria-label="Places and invitations">
         <div className="home__photo" aria-hidden="true">
           <PlaceThumb src={latestPlace?.photo_url ?? previousPlace?.photo_url ?? fallbackPhoto}

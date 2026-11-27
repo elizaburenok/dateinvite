@@ -1,10 +1,10 @@
 .home__photo-card {
   position: absolute;
   isolation: isolate;
-  top: calc(var(--invite-space-60) + var(--invite-space-2));
-  right: var(--invite-space-4);
-  bottom: calc(var(--invite-space-22) + env(safe-area-inset-bottom));
-  left: var(--invite-space-4);
+  top: calc(var(--invite-space-10) + env(safe-area-inset-top));
+  right: var(--invite-space-10);
+  bottom: calc(var(--invite-space-10) + env(safe-area-inset-bottom));
+  left: var(--invite-space-10);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -98,7 +98,7 @@
   padding: var(--invite-space-10) var(--invite-space-18);
   border: 0;
   border-radius: 24px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: .01em;
 }
