@@ -74,14 +74,14 @@
   .envelope-preview .wheel__content,
   .envelope-preview__footer > .envelope-preview__title,
   .envelope-preview__footer > .envelope-preview__action {
-    animation: envelope-preview-item-in var(--preview-reveal-duration, 700ms) cubic-bezier(.2, .75, .25, 1) both;
+    animation: envelope-preview-item-in var(--preview-reveal-duration, 550ms) cubic-bezier(.2, .75, .25, 1) both;
   }
   .envelope-preview .wheel__content {
-    animation-delay: calc(min(var(--i), 3) * var(--preview-reveal-stagger, 800ms));
+    animation-delay: calc(min(var(--i), 3) * var(--preview-reveal-stagger, 600ms));
   }
   .envelope-preview__footer > .envelope-preview__title,
   .envelope-preview__footer > .envelope-preview__action {
-    animation-delay: calc(var(--preview-items, 2) * var(--preview-reveal-stagger, 800ms));
+    animation-delay: calc(var(--preview-items, 2) * var(--preview-reveal-stagger, 600ms));
   }
 }
 @keyframes envelope-preview-item-in {
