@@ -1337,7 +1337,7 @@ body:has(.home) {
 
 .places-feed__window {
   position: absolute;
-  top: calc(var(--invite-space-10) + var(--invite-space-32) + var(--invite-space-16) + env(safe-area-inset-top));
+  top: calc(var(--invite-space-10) + var(--invite-space-32) + var(--invite-space-8) + env(safe-area-inset-top));
   bottom: calc(70px + env(safe-area-inset-bottom));
   left: 50%;
   width: min(calc(100% - 16px), 560px);
@@ -1455,7 +1455,7 @@ body:has(.home) {
 
 .places-feed--library .places-feed__window {
   isolation: isolate;
-  top: calc(var(--invite-space-10) + var(--invite-space-32) + var(--invite-space-16) + env(safe-area-inset-top));
+  top: calc(var(--invite-space-10) + var(--invite-space-32) + var(--invite-space-8) + env(safe-area-inset-top));
   bottom: calc(var(--invite-space-12) + env(safe-area-inset-bottom));
   width: min(calc(100% - var(--invite-space-16)), 560px);
   border-color: color-mix(in srgb, var(--invite-border-02) 60%, transparent);
@@ -1636,7 +1636,7 @@ body:has(.home) {
 }
 
 .places-feed--create .places-feed__window {
-  top: calc(var(--invite-space-10) + var(--invite-space-32) + var(--invite-space-16) + env(safe-area-inset-top));
+  top: calc(var(--invite-space-10) + var(--invite-space-32) + var(--invite-space-8) + env(safe-area-inset-top));
   bottom: calc(var(--invite-space-12) + env(safe-area-inset-bottom));
   border-color: color-mix(in srgb, var(--invite-border-02) 60%, transparent);
   background: color-mix(in srgb, var(--invite-bg-library) 78%, transparent);

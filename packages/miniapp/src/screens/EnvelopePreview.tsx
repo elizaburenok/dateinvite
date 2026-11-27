@@ -27,7 +27,6 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const [ready, setReady] = useState(reducedMotion);
-  const [typedCount, setTypedCount] = useState(reducedMotion ? readyTitle.length : 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
@@ -67,18 +66,6 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
     if (reducedMotion) { setReady(true); return; }
     const timer = setTimeout(() => setReady(true), 820);
     return () => clearTimeout(timer);
-  }, [reducedMotion]);
-
-  useEffect(() => {
-    if (reducedMotion) { setTypedCount(readyTitle.length); return; }
-    let interval: ReturnType<typeof setInterval>;
-    const start = setTimeout(() => {
-      interval = setInterval(() => setTypedCount(count => {
-        if (count >= readyTitle.length - 1) { clearInterval(interval); return readyTitle.length; }
-        return count + 1;
-      }), 40);
-    }, 220);
-    return () => { clearTimeout(start); clearInterval(interval); };
   }, [reducedMotion]);
 
   useEffect(() => {
@@ -193,10 +180,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
           </GlassButton>} />
       </div>
       <footer className="envelope-preview__footer">
-        <h1 className="envelope-preview__title" aria-label={readyTitle}>
-          <span className="envelope-preview__title-measure" aria-hidden="true">{readyTitle}</span>
-          <span className="envelope-preview__title-typed" aria-hidden="true">{readyTitle.slice(0, typedCount)}</span>
-        </h1>
+        <h1 className="envelope-preview__title">{readyTitle}</h1>
         {error && <p className="envelope-preview__error" role="alert">{error}</p>}
         <GlassButton ref={sendButton} className="envelope-preview__action glass-button--frost" disabled={busy || chosen.length > ENVELOPE_MAX_PLACES}
           onClick={send} aria-busy={busy}>
