@@ -6,6 +6,7 @@ import { usePrefersReducedMotion } from '../../../guest/src/components/envelope/
 import '../../../guest/src/styles/wheel.css';
 import { Button } from '../components/Button.js';
 import { GlassButton } from '../components/GlassButton.js';
+import { PastelBackground } from '../components/PastelBackground.js';
 import { api, ApiError } from '../api.js';
 import { envelopeNotes } from '../lib/places.js';
 import { haptic } from '../telegram.js';
@@ -158,6 +159,7 @@ export function EnvelopePreview({ chosen, notes, hostNote, onCancel, onDone, sen
         event.preventDefault(); first?.focus();
       }
     }}>
+    <PastelBackground paused={sharing || Boolean(editing)} />
     <div className="envelope-preview__content" inert={sharing || Boolean(editing)}>
       <Button iconOnly size="small" className="envelope-preview__back" aria-label="Back to places"
         disabled={busy} onClick={onCancel}>

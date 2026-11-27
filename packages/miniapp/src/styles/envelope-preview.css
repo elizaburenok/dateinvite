@@ -19,7 +19,7 @@
 @supports not (corner-shape: squircle) {
   .envelope-preview { --r-card: 38px; --r-card-inner: 38px; }
 }
-.envelope-preview__content { height: 100%; }
+.envelope-preview__content { position: relative; z-index: 1; height: 100%; }
 .envelope-preview__back {
   position: absolute;
   z-index: 4;
