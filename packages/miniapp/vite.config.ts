@@ -9,6 +9,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
+        pastelShaderDemo: fileURLToPath(new URL('./pastel-shader-demo.html', import.meta.url)),
         sendShadowDemos: fileURLToPath(new URL('./send-shadow-demos.html', import.meta.url)),
         envelopeTitleDemos: fileURLToPath(new URL('./envelope-title-demos.html', import.meta.url)),
         pickedMotion: fileURLToPath(new URL('./picked-motion.html', import.meta.url)),
