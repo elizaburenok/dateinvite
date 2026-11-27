@@ -1,7 +1,7 @@
 .home__photo-card {
   position: absolute;
   isolation: isolate;
-  top: calc(var(--invite-space-60) + var(--invite-space-2));
+  top: calc(var(--invite-space-10) + env(safe-area-inset-top));
   right: var(--invite-space-10);
   bottom: calc(var(--invite-space-10) + env(safe-area-inset-bottom));
   left: var(--invite-space-10);
