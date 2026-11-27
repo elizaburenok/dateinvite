@@ -10,8 +10,8 @@ void main() {
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 
-// The original Figma image supplies the palette and grain. Only the texture
-// coordinates move: no hue cycling, flashing noise or hard loop boundary.
+// Keep the Figma texture and grain, but move a distinct yellow ribbon with
+// a broad green halo across the screen instead of barely warping the image.
 const fragmentSource = `
 precision highp float;
 uniform sampler2D u_image;
@@ -21,16 +21,38 @@ uniform float u_motion;
 varying vec2 v_uv;
 void main() {
   vec2 uv = vec2(v_uv.x, 1.0 - v_uv.y);
-  float phase = u_time * 0.26179939; // 24-second seamless cycle
-  vec2 drift = vec2(
-    sin(uv.y * 6.283185 + phase) - sin(uv.y * 6.283185),
-    cos(uv.x * 6.283185 + phase) - cos(uv.x * 6.283185)
-  );
-  // Fade distortion at the edges so the frame stays still.
-  vec2 edge = sin(uv * 3.141593);
-  uv += drift * edge * vec2(0.055, 0.045) * u_motion;
-  uv = (uv - 0.5) * u_cover + 0.5;
-  gl_FragColor = texture2D(u_image, uv);
+  vec2 sourceUV = (uv - 0.5) * u_cover + 0.5;
+  vec3 source = texture2D(u_image, sourceUV).rgb;
+  if (u_motion < 0.5) {
+    gl_FragColor = vec4(source, 1.0);
+    return;
+  }
+
+  float phase = u_time * 0.39269908; // 16-second seamless round trip
+  // The ribbon travels over 70% of the screen width; its curved outline
+  // also flows along its length, rather than translating a rigid stripe.
+  float center = 0.5 + 0.36 * sin(phase)
+    + 0.12 * sin(uv.y * 6.283185 - phase);
+  float distanceToWave = uv.x - center;
+  float greenGlow = exp(-pow(distanceToWave / 0.24, 2.0));
+  float yellowCore = exp(-pow(distanceToWave / 0.10, 2.0));
+
+  // Soften the original stationary warm area while retaining the blue zones.
+  float warm = smoothstep(0.02, 0.14, source.r - source.b);
+  vec3 color = mix(source, vec3(0.84, 0.91, 0.82), warm * 0.50);
+  color = mix(color, vec3(0.66, 0.86, 0.54), greenGlow * 0.58);
+  color = mix(color, vec3(1.0, 0.97, 0.64), yellowCore * 0.76);
+
+  // Restore the image's fine grain over the ribbon, fixed in screen space.
+  vec2 stepUV = vec2(0.0025) * u_cover;
+  vec3 localMean = (
+    texture2D(u_image, sourceUV + vec2(stepUV.x, 0.0)).rgb +
+    texture2D(u_image, sourceUV - vec2(stepUV.x, 0.0)).rgb +
+    texture2D(u_image, sourceUV + vec2(0.0, stepUV.y)).rgb +
+    texture2D(u_image, sourceUV - vec2(0.0, stepUV.y)).rgb
+  ) * 0.25;
+  color += (source - localMean) * max(greenGlow * 0.58, yellowCore * 0.76);
+  gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }`;
 
 export function PastelBackground({ paused = false, original = false }: { paused?: boolean; original?: boolean }) {
