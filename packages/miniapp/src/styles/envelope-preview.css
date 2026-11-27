@@ -81,6 +81,7 @@
   }
   .envelope-preview__footer > .envelope-preview__title,
   .envelope-preview__footer > .envelope-preview__action {
+    animation-duration: var(--preview-footer-reveal-duration, 400ms);
     animation-delay: calc(var(--preview-items, 2) * var(--preview-reveal-stagger, 600ms));
   }
 }
