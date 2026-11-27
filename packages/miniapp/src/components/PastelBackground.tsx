@@ -10,8 +10,8 @@ void main() {
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 
-// Keep the Figma texture and grain, but move a distinct yellow ribbon with
-// a broad green halo across the screen instead of barely warping the image.
+// A shared flow field carries the entire Figma color composition and ribbon.
+// Fine grain stays in screen space while the large color shapes move.
 const fragmentSource = `
 precision highp float;
 uniform sampler2D u_image;
@@ -28,30 +28,52 @@ void main() {
     return;
   }
 
-  float phase = u_time * 0.39269908; // 16-second seamless round trip
-  // The ribbon travels over 70% of the screen width; its curved outline
-  // also flows along its length, rather than translating a rigid stripe.
-  float center = 0.5 + 0.36 * sin(phase)
-    + 0.12 * sin(uv.y * 6.283185 - phase);
-  float distanceToWave = uv.x - center;
+  float phase = u_time * 0.39269908; // 16-second seamless cycle
+
+  // Advect the whole composition: broad translation, a gentle rotation and
+  // two curved waves. Blue, green and yellow all follow this same flow field.
+  vec2 flow = uv - 0.5;
+  float angle = 0.24 * sin(phase);
+  flow = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)) * flow;
+  flow += vec2(0.18 * sin(phase), 0.15 * sin(phase + 1.2));
+  flow += vec2(
+    0.12 * sin(uv.y * 6.283185 - phase),
+    0.10 * sin(uv.x * 6.283185 + phase)
+  );
+  flow += 0.5;
+  vec2 flowingUV = (flow - 0.5) * u_cover + 0.5;
+  // Mirrored sampling avoids stretched color at the moving image edges.
+  flowingUV = 1.0 - abs(mod(flowingUV, 2.0) - 1.0);
+  // The image includes a thin frame highlight. Keep it out of the flowing
+  // colors; the fixed outer highlight is already rendered by the CSS veil.
+  flowingUV = mix(vec2(0.035), vec2(0.965), flowingUV);
+
+  vec2 stepUV = vec2(0.0025) * u_cover;
+  vec3 flowingColor = (
+    texture2D(u_image, flowingUV + vec2(stepUV.x, 0.0)).rgb +
+    texture2D(u_image, flowingUV - vec2(stepUV.x, 0.0)).rgb +
+    texture2D(u_image, flowingUV + vec2(0.0, stepUV.y)).rgb +
+    texture2D(u_image, flowingUV - vec2(0.0, stepUV.y)).rgb
+  ) * 0.25;
+
+  // The warm ribbon bends and travels with the surrounding color mass.
+  float center = 0.5 + 0.28 * sin(phase)
+    + 0.12 * sin(flow.y * 6.283185 - phase);
+  float distanceToWave = flow.x - center;
   float greenGlow = exp(-pow(distanceToWave / 0.24, 2.0));
   float yellowCore = exp(-pow(distanceToWave / 0.10, 2.0));
-
-  // Soften the original stationary warm area while retaining the blue zones.
-  float warm = smoothstep(0.02, 0.14, source.r - source.b);
-  vec3 color = mix(source, vec3(0.84, 0.91, 0.82), warm * 0.50);
+  float warm = smoothstep(0.02, 0.14, flowingColor.r - flowingColor.b);
+  vec3 color = mix(flowingColor, vec3(0.84, 0.91, 0.82), warm * 0.35);
   color = mix(color, vec3(0.66, 0.86, 0.54), greenGlow * 0.58);
   color = mix(color, vec3(1.0, 0.97, 0.64), yellowCore * 0.76);
 
-  // Restore the image's fine grain over the ribbon, fixed in screen space.
-  vec2 stepUV = vec2(0.0025) * u_cover;
   vec3 localMean = (
     texture2D(u_image, sourceUV + vec2(stepUV.x, 0.0)).rgb +
     texture2D(u_image, sourceUV - vec2(stepUV.x, 0.0)).rgb +
     texture2D(u_image, sourceUV + vec2(0.0, stepUV.y)).rgb +
     texture2D(u_image, sourceUV - vec2(0.0, stepUV.y)).rgb
   ) * 0.25;
-  color += (source - localMean) * max(greenGlow * 0.58, yellowCore * 0.76);
+  color += (source - localMean) * 0.85;
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }`;
 
