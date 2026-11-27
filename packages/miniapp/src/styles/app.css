@@ -1956,7 +1956,7 @@ body:has(.home) {
   background: color-mix(in srgb, var(--invite-bg-library) 78%, transparent);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
-  box-shadow: 0 -16px 44px -20px rgb(83 81 71 / .07),
+  box-shadow: 0 -16px 44px -20px rgb(83 81 71 / .045),
     6px 0 18px -14px rgb(83 81 71 / .06),
     -6px 0 18px -14px rgb(83 81 71 / .06);
 }
@@ -2136,7 +2136,7 @@ body:has(.home) {
   overflow: hidden;
   border-radius: 24px 24px 0 0;
   background: color-mix(in srgb, var(--invite-bg-library) 78%, transparent);
-  box-shadow: 0 -10px 40px -10px rgb(83 81 71 / .12);
+  box-shadow: 0 -10px 40px -10px rgb(83 81 71 / .08);
 }
 .places-feed--library-motion .places-feed__list {
   padding-top: 0;
